@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+html.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+/* Forzar tema oscuro cuando html o body tienen la clase .dark */
+html.dark body,
+body.dark {
+  background-color: #0f172a !important;
+  color: #f1f5f9 !important;
+}
