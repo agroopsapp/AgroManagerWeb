@@ -8,7 +8,7 @@ Dashboard frontend para AgroManager. Proyecto independiente del backend.
 
 - Next.js, React, Tailwind CSS, TypeScript
 
-## Cómo ejecutar
+## Cómo ejecutar ejemplo
 
 ```bash
 cd C:\Users\Usuario\source\repos\AgroManagerWeb
