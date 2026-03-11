@@ -113,6 +113,7 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("all");
   const [activeSection, setActiveSection] = useState<"tasks" | "incidents">("tasks");
+  const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus | "all">("all");
 
   const tasksForSelectedDateBase = useMemo(() => {
     const today = todayISO();
@@ -228,8 +229,8 @@ export default function DashboardPage() {
 
       {/* Bloques resumen: cambian según pestaña activa */}
       {activeSection === "tasks" ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+          <div className="col-span-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800 md:col-span-1">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Fecha
             </p>
@@ -237,24 +238,32 @@ export default function DashboardPage() {
               {formatDateES(selectedDate)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-800">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Total tareas
             </p>
-            <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">{totalTasks}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900 text-center dark:text-slate-100">{totalTasks}</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-800">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Listas para empezar
             </p>
-            <p className="mt-1 text-xl font-bold text-amber-500">{ready}</p>
+            <p className="mt-1 text-2xl font-bold text-amber-500 text-center">{ready}</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-800">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              En curso / Finalizadas
+              En curso
             </p>
-            <p className="mt-1 text-sm font-semibold text-slate-900 whitespace-normal md:whitespace-nowrap dark:text-slate-100">
-              {inProgress} en desarrollo · {completed} finalizadas
+            <p className="mt-1 text-2xl font-bold text-blue-500 text-center">
+              {inProgress}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
+              Finalizadas
+            </p>
+            <p className="mt-1 text-2xl font-bold text-green-500 text-center">
+              {completed}
             </p>
           </div>
         </div>
@@ -340,6 +349,54 @@ export default function DashboardPage() {
             </p>
           </div>
 
+          {/* Filtro de columnas solo en móvil */}
+          <div className="mt-4 flex gap-2 md:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileStatusFilter("all")}
+              className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
+                mobileStatusFilter === "all"
+                  ? "bg-agro-600 text-white"
+                  : "bg-white text-slate-700 border border-slate-200"
+              }`}
+            >
+              Todas
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileStatusFilter("ready")}
+              className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
+                mobileStatusFilter === "ready"
+                  ? "bg-agro-600 text-white"
+                  : "bg-white text-slate-700 border border-slate-200"
+              }`}
+            >
+              Lista
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileStatusFilter("in_progress")}
+              className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
+                mobileStatusFilter === "in_progress"
+                  ? "bg-agro-600 text-white"
+                  : "bg-white text-slate-700 border border-slate-200"
+              }`}
+            >
+              En curso
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileStatusFilter("completed")}
+              className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
+                mobileStatusFilter === "completed"
+                  ? "bg-agro-600 text-white"
+                  : "bg-white text-slate-700 border border-slate-200"
+              }`}
+            >
+              Finalizadas
+            </button>
+          </div>
+
           {/* Tarjetas por estado, debajo del calendario */}
           <div className="grid gap-4 md:grid-cols-3">
             {STATUS_COLUMNS.map(({ status, label }) => {
@@ -347,7 +404,9 @@ export default function DashboardPage() {
               return (
                 <div
                   key={status}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800"
+                  className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800 ${
+                    mobileStatusFilter !== "all" && mobileStatusFilter !== status ? "hidden md:block" : ""
+                  }`}
                 >
                   <div className="mb-2 flex items-center justify-between">
                     <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{label}</h2>

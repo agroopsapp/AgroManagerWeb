@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const { login, user, isReady } = useAuth();
   const router = useRouter();
 
@@ -16,7 +17,7 @@ export default function LoginPage() {
     if (isReady && user) router.replace("/dashboard");
   }, [user, isReady, router]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!email.trim()) {
@@ -27,8 +28,16 @@ export default function LoginPage() {
       setError("Introduce tu contraseña");
       return;
     }
-    login(email.trim(), password);
-    router.push("/dashboard");
+    try {
+      setLoading(true);
+      await login(email.trim(), password);
+      router.push("/dashboard");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "No se ha podido iniciar sesión.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -88,9 +97,10 @@ export default function LoginPage() {
             </div>
             <button
               type="submit"
-              className="w-full rounded-xl bg-agro-600 py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-agro-700 active:scale-[0.99]"
+              disabled={loading}
+              className="w-full rounded-xl bg-agro-600 py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-agro-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Iniciar sesión
+              {loading ? "Entrando..." : "Iniciar sesión"}
             </button>
           </form>
         </div>

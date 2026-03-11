@@ -79,6 +79,16 @@ export const MOCK_TASKS: Task[] = [
   { id: "t7", title: "Revisar bebederos", priority: "low", farmName: "Granja Norte", workerId: "w1", status: "in_progress", managerDetails: "Comprobar caudal y limpieza en todos los corrales.", comments: [], date: addDays(today, 1) },
   { id: "t8", title: "Pesar terneros", priority: "medium", farmName: "Granja Sur", workerId: "w2", status: "completed", managerDetails: "Anotar pesos en la hoja de control. Señalar los que bajen de peso.", comments: [], date: addDays(today, -1) },
   { id: "t9", title: "Reponer paja", priority: "low", farmName: "Granja Este", workerId: "w4", status: "ready", managerDetails: "Llevar fardos al almacén y repartir en boxes vacíos.", comments: [], date: addDays(today, 2) },
+  // Tareas adicionales para poblar el dashboard (especialmente el día de hoy)
+  { id: "t10", title: "Revisar almacén de pienso", priority: "low", farmName: "Granja Norte", workerId: "w1", status: "ready", managerDetails: "Comprobar existencias de pienso y anotar necesidades de pedido.", comments: [], date: today },
+  { id: "t11", title: "Control de nacimientos", priority: "high", farmName: "Granja Sur", workerId: "w2", status: "in_progress", managerDetails: "Revisar parideras y anotar nuevos nacimientos en el sistema.", comments: [], date: today },
+  { id: "t12", title: "Limpieza zona de carga", priority: "medium", farmName: "Granja Este", workerId: "w3", status: "ready", managerDetails: "Dejar libre de obstáculos la zona de carga de camiones.", comments: [], date: today },
+  { id: "t13", title: "Revisión eléctrica", priority: "high", farmName: "Granja Norte", workerId: "w4", status: "in_progress", managerDetails: "Comprobar cuadro eléctrico y enchufes de la nave principal.", comments: [], date: today },
+  { id: "t14", title: "Ordenar herramientas", priority: "low", farmName: "Granja Sur", workerId: "w1", status: "completed", managerDetails: "Colocar herramientas en el panel y etiquetar las más usadas.", comments: [], date: today },
+  { id: "t15", title: "Control de ventilación", priority: "medium", farmName: "Granja Este", workerId: "w2", status: "ready", managerDetails: "Revisar ventiladores y abrir/cerrar ventanas según temperatura.", comments: [], date: today },
+  { id: "t16", title: "Revisión bebederos nave 2", priority: "low", farmName: "Granja Norte", workerId: "w3", status: "in_progress", managerDetails: "Verificar presión de agua y posibles fugas en nave 2.", comments: [], date: today },
+  { id: "t17", title: "Formación en bioseguridad", priority: "medium", farmName: "Granja Sur", workerId: "w4", status: "completed", managerDetails: "Pequeña charla con el equipo sobre protocolos de entrada y salida.", comments: [], date: today },
+  { id: "t18", title: "Comprobar cerraduras", priority: "low", farmName: "Granja Este", workerId: "w1", status: "ready", managerDetails: "Revisar que todas las puertas exteriores cierren correctamente.", comments: [], date: today },
 ];
 
 /** Programación de tareas periódicas (se generan en los días indicados). */

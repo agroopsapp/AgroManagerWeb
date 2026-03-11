@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { MOCK_TASKS, MOCK_WORKERS, MOCK_FARMS, TASK_TEMPLATES, MOCK_RECURRING_SCHEDULES } from "@/data/mock";
 import type { Task, TaskStatus, TaskPriority, RecurringTaskSchedule, DayOfWeek } from "@/types";
 import TaskCard from "@/components/TaskCard";
@@ -24,11 +24,23 @@ const STATUS_COLUMNS: { status: TaskStatus; label: string }[] = [
   { status: "completed", label: "Finalizada" },
 ];
 
+const STATUS_LABEL_BY_VALUE: Record<TaskStatus, string> = {
+  ready: "Lista para empezar",
+  in_progress: "En desarrollo",
+  completed: "Finalizada",
+};
+
 const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
   { value: "high", label: "Alta" },
   { value: "medium", label: "Media" },
   { value: "low", label: "Baja" },
 ];
+
+const PRIORITY_ORDER: Record<TaskPriority, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
 
 type CreateMode = "template" | "custom";
 
@@ -47,9 +59,17 @@ function formatDateES(iso: string): string {
   return d.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 }
 
+function getWorkerName(workerId: string): string {
+  const worker = MOCK_WORKERS.find((w) => w.id === workerId);
+  return worker?.name ?? "Sin asignar";
+}
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
+  const [lastMovedTaskId, setLastMovedTaskId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus | "all">("all");
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createMode, setCreateMode] = useState<CreateMode>("template");
   const [formTemplateId, setFormTemplateId] = useState(TASK_TEMPLATES[0]?.id ?? "");
@@ -79,7 +99,11 @@ export default function TasksPage() {
   const tasksByStatus = useMemo(() => {
     const map = new Map<TaskStatus, Task[]>();
     for (const { status } of STATUS_COLUMNS) {
-      map.set(status, tasksForSelectedDate.filter((t) => t.status === status));
+      const list = tasksForSelectedDate
+        .filter((t) => t.status === status)
+        .slice()
+        .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
+      map.set(status, list);
     }
     return map;
   }, [tasksForSelectedDate]);
@@ -102,14 +126,13 @@ export default function TasksPage() {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
-  };
+    setLastMovedTaskId(taskId);
 
-  const handleAddComment = (taskId: string, comment: string) => {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, comments: [...t.comments, comment] } : t
-      )
-    );
+    const movedTask = tasks.find((t) => t.id === taskId);
+    const statusLabel = STATUS_LABEL_BY_VALUE[newStatus];
+    if (movedTask) {
+      setToastMessage(`"${movedTask.title}" → ${statusLabel}`);
+    }
   };
 
   const handleUpdateComments = (taskId: string, comments: string[]) => {
@@ -117,6 +140,20 @@ export default function TasksPage() {
       prev.map((t) => (t.id === taskId ? { ...t, comments } : t))
     );
   };
+
+  // Resalta brevemente la última tarea movida para que sea fácil localizarla
+  useEffect(() => {
+    if (!lastMovedTaskId) return;
+    const timeout = setTimeout(() => setLastMovedTaskId(null), 2500);
+    return () => clearTimeout(timeout);
+  }, [lastMovedTaskId]);
+
+  // Oculta el mensaje flotante tras un corto periodo
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timeout = setTimeout(() => setToastMessage(null), 2200);
+    return () => clearTimeout(timeout);
+  }, [toastMessage]);
 
   const handleDeleteTask = (taskId: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
@@ -363,11 +400,61 @@ export default function TasksPage() {
         </div>
       )}
 
+      {/* Filtro de columnas solo en móvil */}
+      <div className="flex gap-2 md:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileStatusFilter("all")}
+          className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
+            mobileStatusFilter === "all"
+              ? "bg-agro-600 text-white"
+              : "bg-white text-slate-700 border border-slate-200"
+          }`}
+        >
+          Todas
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileStatusFilter("ready")}
+          className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
+            mobileStatusFilter === "ready"
+              ? "bg-agro-600 text-white"
+              : "bg-white text-slate-700 border border-slate-200"
+          }`}
+        >
+          Lista
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileStatusFilter("in_progress")}
+          className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
+            mobileStatusFilter === "in_progress"
+              ? "bg-agro-600 text-white"
+              : "bg-white text-slate-700 border border-slate-200"
+          }`}
+        >
+          En curso
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileStatusFilter("completed")}
+          className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
+            mobileStatusFilter === "completed"
+              ? "bg-agro-600 text-white"
+              : "bg-white text-slate-700 border border-slate-200"
+          }`}
+        >
+          Finalizadas
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {STATUS_COLUMNS.map(({ status, label }) => (
           <div
             key={status}
-            className="flex flex-col rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50"
+            className={`flex flex-col rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50 ${
+              mobileStatusFilter !== "all" && mobileStatusFilter !== status ? "hidden md:flex" : ""
+            }`}
           >
             <div className="rounded-t-xl border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
               <h2 className="font-semibold text-slate-800 dark:text-slate-200">{label}</h2>
@@ -376,8 +463,11 @@ export default function TasksPage() {
               </p>
             </div>
             <div
-              className="min-h-[120px] max-h-[70vh] flex-1 space-y-3 overflow-y-auto p-3"
-              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+              className="min-h-[120px] flex-1 space-y-3 p-3"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }}
               onDrop={(e) => {
                 e.preventDefault();
                 const taskId = e.dataTransfer.getData("taskId");
@@ -392,10 +482,11 @@ export default function TasksPage() {
                     key={task.id}
                     task={task}
                     onStatusChange={handleStatusChange}
-                    onAddComment={handleAddComment}
                     onUpdateComments={handleUpdateComments}
                     onDelete={handleDeleteTask}
                     onDateChange={handleDateChange}
+                    workerName={getWorkerName(task.workerId)}
+                    isHighlighted={task.id === lastMovedTaskId}
                   />
                 ))
               )}
@@ -801,6 +892,14 @@ export default function TasksPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Toast / mensaje flotante poco invasivo para cambios de estado */}
+      {toastMessage && (
+        <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+          <div className="max-w-sm rounded-full bg-slate-900/90 px-4 py-2 text-xs font-medium text-slate-50 shadow-lg backdrop-blur-sm">
+            {toastMessage}
           </div>
         </div>
       )}

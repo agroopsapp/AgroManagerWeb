@@ -38,19 +38,27 @@ const statusLabels: Record<TaskStatus, string> = {
 interface TaskCardProps {
   task: TaskType;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
-  onAddComment: (taskId: string, comment: string) => void;
   onUpdateComments: (taskId: string, comments: string[]) => void;
   onDelete?: (taskId: string) => void;
   onDateChange?: (taskId: string, newDate: string) => void;
+  workerName?: string;
+  isHighlighted?: boolean;
 }
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function TaskCard({ task, onStatusChange, onAddComment, onUpdateComments, onDelete, onDateChange }: TaskCardProps) {
+export default function TaskCard({
+  task,
+  onStatusChange,
+  onUpdateComments,
+  onDelete,
+  onDateChange,
+  workerName,
+  isHighlighted,
+}: TaskCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [newComment, setNewComment] = useState("");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [dateChangeOpen, setDateChangeOpen] = useState(false);
   const [tempDate, setTempDate] = useState(() => task.date ?? todayISO());
@@ -62,23 +70,11 @@ export default function TaskCard({ task, onStatusChange, onAddComment, onUpdateC
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData("taskId", task.id);
     e.dataTransfer.effectAllowed = "move";
-    if (cardRef.current) {
-      e.dataTransfer.setDragImage(cardRef.current, 0, 0);
-    }
   };
 
   useEffect(() => {
     setEditingComments(task.comments);
   }, [task.comments, detailsOpen]);
-
-  const handleSubmitComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = newComment.trim();
-    if (text) {
-      onAddComment(task.id, text);
-      setNewComment("");
-    }
-  };
 
   const openDetails = () => {
     setEditingComments(task.comments);
@@ -134,40 +130,52 @@ export default function TaskCard({ task, onStatusChange, onAddComment, onUpdateC
     <>
       <div
         ref={cardRef}
-        className={`relative rounded-xl border border-slate-200 border-l-4 bg-white p-4 shadow-md transition hover:shadow-lg dark:border-slate-600 dark:bg-slate-800 ${priorityBorderColors[task.priority]}`}
+        className={`rounded-xl border border-slate-200 border-l-4 bg-white p-4 shadow-md transition hover:shadow-lg dark:border-slate-600 dark:bg-slate-800 ${priorityBorderColors[task.priority]} ${
+          isHighlighted
+            ? "ring-2 ring-agro-500 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-900"
+            : ""
+        }`}
       >
-        <div
-          draggable
-          onDragStart={handleDragStart}
-          className="absolute left-2 top-2 cursor-grab touch-none rounded p-1 hover:bg-slate-100 active:cursor-grabbing dark:hover:bg-slate-700"
-          title="Arrastrar para mover de columna"
-          aria-label="Arrastrar tarea"
-        >
-          <GripIcon />
-        </div>
-        {onDelete && (
-          <div className="absolute top-2 right-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setDeleteConfirm(true)}
-              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
-              title="Eliminar tarea"
-              aria-label="Eliminar tarea"
+              draggable
+              onDragStart={handleDragStart}
+              className="cursor-grab touch-none rounded p-1 hover:bg-slate-100 active:cursor-grabbing dark:hover:bg-slate-700"
+              title="Arrastrar para mover de columna"
+              aria-label="Arrastrar tarea"
             >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <GripIcon />
             </button>
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+              {task.title}
+            </h3>
           </div>
-        )}
-        <div className={`flex items-center justify-between gap-2 pl-6 ${onDelete ? "pr-8" : ""}`}>
-          <h3 className="font-semibold text-slate-900 dark:text-slate-100">{task.title}</h3>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${priorityBadgeColors[task.priority]}`}>
-            {task.priority}
-          </span>
+          <div className="flex items-center gap-1">
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${priorityBadgeColors[task.priority]}`}>
+              {task.priority}
+            </span>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(true)}
+                className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                title="Eliminar tarea"
+                aria-label="Eliminar tarea"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           <span className="font-medium">Granja:</span> {task.farmName}
+        </p>
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+          <span className="font-semibold">Responsable:</span> {workerName || "Sin asignar"}
         </p>
         <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{statusLabels[task.status]}</p>
 
@@ -233,44 +241,7 @@ export default function TaskCard({ task, onStatusChange, onAddComment, onUpdateC
           )}
         </div>
 
-        {/* Sección de comentarios del trabajador (resumen en la ficha) */}
-        <div className="mt-4 border-t border-slate-200 pt-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Comentarios del trabajador
-          </p>
-          {task.comments.length > 0 ? (
-            <ul className="mb-2 max-h-24 space-y-1 overflow-y-auto text-sm text-slate-700">
-              {task.comments.slice(0, 2).map((c, i) => (
-                <li key={i} className="rounded bg-slate-50 px-2 py-1">
-                  {c}
-                </li>
-              ))}
-              {task.comments.length > 2 && (
-                <li className="text-xs text-slate-500">
-                  +{task.comments.length - 2} más (ver Detalles)
-                </li>
-              )}
-            </ul>
-          ) : (
-            <p className="mb-2 text-sm text-slate-400">Ninguno aún</p>
-          )}
-          <form onSubmit={handleSubmitComment} className="flex gap-2">
-            <input
-              type="text"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Añadir comentario..."
-              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500"
-            />
-            <button
-              type="submit"
-              disabled={!newComment.trim()}
-              className="rounded-lg bg-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Añadir
-            </button>
-          </form>
-        </div>
+        {/* Comentarios solo gestionables desde el modal de Detalles, para hacer la tarjeta más compacta */}
       </div>
 
       {/* Modal Detalles */}
