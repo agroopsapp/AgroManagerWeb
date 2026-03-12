@@ -37,6 +37,16 @@ export interface Role {
   name: string;
 }
 
+// Roles de usuario (deben coincidir con el enum del backend)
+export const USER_ROLE = {
+  SuperAdmin: "SuperAdmin",
+  Worker: "Worker",
+  Manager: "Manager",
+  Admin: "Admin",
+} as const;
+
+export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
+
 export interface User {
   id: string;
   name: string;

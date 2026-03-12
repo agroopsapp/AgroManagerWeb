@@ -1,8 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-
-type UserRole = "Superadmin" | "Worker" | "Manager" | "Admin";
+import type { UserRole } from "@/types";
 
 interface AuthUser {
   id: string;
@@ -26,7 +25,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const STORAGE_KEY = "agroops_auth";
-const LOGIN_URL = "https://localhost:7099/api/Auth/login";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -56,41 +54,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const body = JSON.stringify({ email, password });
-    let response: Response;
+    let data: { token: string; expiresIn?: number; user: { id: string; email: string; role: string } };
     try {
-      response = await fetch(LOGIN_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body,
-      });
+      const { authApi } = await import("@/services/auth.service");
+      data = await authApi.login(email, password);
     } catch (err) {
+      if (err instanceof Error) throw err;
       throw new Error("No se ha podido conectar con el servidor de autenticación.");
     }
-
-    if (!response.ok) {
-      // Intentar leer mensaje del backend
-      try {
-        const data = await response.json();
-        if (data?.message) {
-          throw new Error(data.message as string);
-        }
-      } catch {
-        // ignorar errores de parseo
-      }
-      if (response.status === 401) {
-        throw new Error("Email o contraseña incorrectos.");
-      }
-      throw new Error("Error al iniciar sesión. Inténtalo de nuevo.");
-    }
-
-    const data = await response.json();
     const authUser: AuthUser = {
       id: data.user.id,
       email: data.user.email,
-      role: data.user.role,
+      role: data.user.role as AuthUser["role"],
     };
     const expiresAt = Date.now() + (data.expiresIn ?? 0) * 1000;
     const stored: StoredAuthState = {

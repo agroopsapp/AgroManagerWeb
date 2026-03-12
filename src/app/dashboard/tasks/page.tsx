@@ -1,6 +1,18 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
 import { MOCK_TASKS, MOCK_WORKERS, MOCK_FARMS, TASK_TEMPLATES, MOCK_RECURRING_SCHEDULES } from "@/data/mock";
 import type { Task, TaskStatus, TaskPriority, RecurringTaskSchedule, DayOfWeek } from "@/types";
 import TaskCard from "@/components/TaskCard";
@@ -64,12 +76,104 @@ function getWorkerName(workerId: string): string {
   return worker?.name ?? "Sin asignar";
 }
 
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(true);
+  useEffect(() => {
+    const m = window.matchMedia("(min-width: 768px)");
+    setIsDesktop(m.matches);
+    const fn = () => setIsDesktop(m.matches);
+    m.addEventListener("change", fn);
+    return () => m.removeEventListener("change", fn);
+  }, []);
+  return isDesktop;
+}
+
+/** Vista compacta de la tarjeta para el overlay de arrastre (sigue al cursor) */
+function TaskCardOverlayContent({ task, workerName }: { task: Task; workerName: string }) {
+  const priorityBorder =
+    task.priority === "high"
+      ? "border-l-red-500"
+      : task.priority === "medium"
+        ? "border-l-amber-500"
+        : "border-l-slate-400";
+  const priorityBadge =
+    task.priority === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+      : task.priority === "medium"
+        ? "bg-amber-50 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+        : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300";
+  return (
+    <div
+      className={`rounded-xl border border-slate-200 border-l-4 bg-white p-4 shadow-lg dark:border-slate-600 dark:bg-slate-800 ${priorityBorder} cursor-grabbing rotate-2 scale-105`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{task.title}</h3>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${priorityBadge}`}>
+          {task.priority}
+        </span>
+      </div>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        {task.farmName} · {workerName}
+      </p>
+    </div>
+  );
+}
+
+/** Columna que acepta soltar tarjetas (solo PC con dnd-kit) */
+function DroppableColumn({ status, children }: { status: TaskStatus; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: status });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`min-h-[120px] flex-1 space-y-3 p-3 transition-colors duration-150 ${
+        isOver ? "rounded-lg bg-agro-100/50 dark:bg-agro-900/20" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Envuelve TaskCard para hacerla draggable con dnd-kit (solo PC) */
+function DraggableTaskCard({
+  task,
+  ...taskCardProps
+}: { task: Task } & React.ComponentProps<typeof TaskCard>) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id });
+  return (
+    <TaskCard
+      task={task}
+      {...taskCardProps}
+      dragRef={setNodeRef}
+      dragListeners={listeners}
+      dragAttributes={attributes}
+      isDragging={isDragging}
+    />
+  );
+}
+
 export default function TasksPage() {
+  const isDesktop = useIsDesktop();
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
-  const [lastMovedTaskId, setLastMovedTaskId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus | "all">("all");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
+
+  const handleDndDragStart = (e: DragStartEvent) => setActiveDragId(String(e.active.id));
+  const handleDndDragEnd = (e: DragEndEvent) => {
+    setActiveDragId(null);
+    const { active, over } = e;
+    if (!over?.id || active.id === over.id) return;
+    const newStatus = String(over.id) as TaskStatus;
+    if (newStatus !== "ready" && newStatus !== "in_progress" && newStatus !== "completed") return;
+    handleStatusChange(String(active.id), newStatus);
+  };
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createMode, setCreateMode] = useState<CreateMode>("template");
   const [formTemplateId, setFormTemplateId] = useState(TASK_TEMPLATES[0]?.id ?? "");
@@ -126,7 +230,6 @@ export default function TasksPage() {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
-    setLastMovedTaskId(taskId);
 
     const movedTask = tasks.find((t) => t.id === taskId);
     const statusLabel = STATUS_LABEL_BY_VALUE[newStatus];
@@ -140,13 +243,6 @@ export default function TasksPage() {
       prev.map((t) => (t.id === taskId ? { ...t, comments } : t))
     );
   };
-
-  // Resalta brevemente la última tarea movida para que sea fácil localizarla
-  useEffect(() => {
-    if (!lastMovedTaskId) return;
-    const timeout = setTimeout(() => setLastMovedTaskId(null), 2500);
-    return () => clearTimeout(timeout);
-  }, [lastMovedTaskId]);
 
   // Oculta el mensaje flotante tras un corto periodo
   useEffect(() => {
@@ -448,52 +544,105 @@ export default function TasksPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {STATUS_COLUMNS.map(({ status, label }) => (
-          <div
-            key={status}
-            className={`flex flex-col rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50 ${
-              mobileStatusFilter !== "all" && mobileStatusFilter !== status ? "hidden md:flex" : ""
-            }`}
-          >
-            <div className="rounded-t-xl border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
-              <h2 className="font-semibold text-slate-800 dark:text-slate-200">{label}</h2>
-              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                {(tasksByStatus.get(status) ?? []).length} tarea(s)
-              </p>
-            </div>
-            <div
-              className="min-h-[120px] flex-1 space-y-3 p-3"
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                const taskId = e.dataTransfer.getData("taskId");
-                if (taskId) handleStatusChange(taskId, status);
-              }}
-            >
-              {(tasksByStatus.get(status) ?? []).length === 0 ? (
-                <p className="py-4 text-center text-sm text-slate-500">Ninguna</p>
-              ) : (
-                (tasksByStatus.get(status) ?? []).map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onStatusChange={handleStatusChange}
-                    onUpdateComments={handleUpdateComments}
-                    onDelete={handleDeleteTask}
-                    onDateChange={handleDateChange}
-                    workerName={getWorkerName(task.workerId)}
-                    isHighlighted={task.id === lastMovedTaskId}
-                  />
-                ))
-              )}
-            </div>
+      {isDesktop ? (
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDndDragStart}
+          onDragEnd={handleDndDragEnd}
+        >
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {STATUS_COLUMNS.map(({ status, label }) => (
+              <div
+                key={status}
+                className={`flex flex-col rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50 ${
+                  mobileStatusFilter !== "all" && mobileStatusFilter !== status ? "hidden md:flex" : ""
+                }`}
+              >
+                <div className="rounded-t-xl border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                  <h2 className="font-semibold text-slate-800 dark:text-slate-200">{label}</h2>
+                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                    {(tasksByStatus.get(status) ?? []).length} tarea(s)
+                  </p>
+                </div>
+                <DroppableColumn status={status}>
+                  {(tasksByStatus.get(status) ?? []).length === 0 ? (
+                    <p className="py-4 text-center text-sm text-slate-500">Ninguna</p>
+                  ) : (
+                    (tasksByStatus.get(status) ?? []).map((task) => (
+                      <DraggableTaskCard
+                        key={task.id}
+                        task={task}
+                        onStatusChange={handleStatusChange}
+                        onUpdateComments={handleUpdateComments}
+                        onDelete={handleDeleteTask}
+                        onDateChange={handleDateChange}
+                        workerName={getWorkerName(task.workerId)}
+                      />
+                    ))
+                  )}
+                </DroppableColumn>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+          <DragOverlay dropAnimation={null}>
+            {activeDragId ? (() => {
+              const task = tasks.find((t) => t.id === activeDragId);
+              return task ? (
+                <TaskCardOverlayContent
+                  task={task}
+                  workerName={getWorkerName(task.workerId)}
+                />
+              ) : null;
+            })() : null}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {STATUS_COLUMNS.map(({ status, label }) => (
+            <div
+              key={status}
+              className={`flex flex-col rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm dark:border-slate-700 dark:bg-slate-800/50 ${
+                mobileStatusFilter !== "all" && mobileStatusFilter !== status ? "hidden md:flex" : ""
+              }`}
+            >
+              <div className="rounded-t-xl border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                <h2 className="font-semibold text-slate-800 dark:text-slate-200">{label}</h2>
+                <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                  {(tasksByStatus.get(status) ?? []).length} tarea(s)
+                </p>
+              </div>
+              <div
+                className="min-h-[120px] flex-1 space-y-3 p-3"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const taskId = e.dataTransfer.getData("taskId");
+                  if (taskId) handleStatusChange(taskId, status);
+                }}
+              >
+                {(tasksByStatus.get(status) ?? []).length === 0 ? (
+                  <p className="py-4 text-center text-sm text-slate-500">Ninguna</p>
+                ) : (
+                  (tasksByStatus.get(status) ?? []).map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onStatusChange={handleStatusChange}
+                      onUpdateComments={handleUpdateComments}
+                      onDelete={handleDeleteTask}
+                      onDateChange={handleDateChange}
+                      workerName={getWorkerName(task.workerId)}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal crear tarea */}
       {createModalOpen && (

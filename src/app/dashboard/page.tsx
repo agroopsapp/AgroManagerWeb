@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { MOCK_TASKS, MOCK_WORKERS, MOCK_ANIMAL_CASES, MOCK_ANIMALS } from "@/data/mock";
-import type { Task, TaskStatus, AnimalCase, IncidentStatus } from "@/types";
+import type { Task, TaskStatus, AnimalCase, IncidentStatus, UserRole } from "@/types";
+import { USER_ROLE } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 
 /** Semana en español: lunes = primer día */
@@ -108,7 +109,9 @@ function IncidentPreviewCard({ incident }: IncidentPreviewProps) {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const isAdmin = user?.email === "admin@agro.local";
+  const role: UserRole | undefined = user?.role;
+  const isSuperAdmin = role === USER_ROLE.SuperAdmin;
+  const isAdmin = role === USER_ROLE.Admin || isSuperAdmin;
 
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("all");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import type { Task as TaskType, TaskPriority, TaskStatus } from "@/types";
 import DatePicker from "@/components/DatePicker";
 
@@ -35,6 +36,18 @@ const statusLabels: Record<TaskStatus, string> = {
   completed: "Finalizada",
 };
 
+function getNextStatus(status: TaskStatus): TaskStatus | null {
+  if (status === "ready") return "in_progress";
+  if (status === "in_progress") return "completed";
+  return null;
+}
+
+function getPrevStatus(status: TaskStatus): TaskStatus | null {
+  if (status === "completed") return "in_progress";
+  if (status === "in_progress") return "ready";
+  return null;
+}
+
 interface TaskCardProps {
   task: TaskType;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
@@ -42,7 +55,14 @@ interface TaskCardProps {
   onDelete?: (taskId: string) => void;
   onDateChange?: (taskId: string, newDate: string) => void;
   workerName?: string;
-  isHighlighted?: boolean;
+  /** dnd-kit: ref del nodo draggable */
+  dragRef?: (element: HTMLElement | null) => void;
+  /** dnd-kit: listeners para el área de arrastre */
+  dragListeners?: Record<string, unknown>;
+  /** dnd-kit: atributos accesibilidad */
+  dragAttributes?: Record<string, unknown>;
+  /** dnd-kit: true mientras se arrastra (mostrar semitransparente) */
+  isDragging?: boolean;
 }
 
 function todayISO() {
@@ -56,8 +76,12 @@ export default function TaskCard({
   onDelete,
   onDateChange,
   workerName,
-  isHighlighted,
+  dragRef,
+  dragListeners,
+  dragAttributes,
+  isDragging,
 }: TaskCardProps) {
+  const useDnd = Boolean(dragRef && dragListeners);
   const cardRef = useRef<HTMLDivElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [dateChangeOpen, setDateChangeOpen] = useState(false);
@@ -70,6 +94,48 @@ export default function TaskCard({
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData("taskId", task.id);
     e.dataTransfer.effectAllowed = "move";
+  };
+
+  // Gestos táctiles simples (swipe izquierda/derecha) para móvil
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement;
+    // Si tocamos un botón o input, no interpretamos como swipe
+    if (target.closest("button") || target.closest("input") || target.closest("textarea")) {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      return;
+    }
+    const touch = e.touches[0];
+    touchStartX.current = touch.clientX;
+    touchStartY.current = touch.clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current == null || touchStartY.current == null) return;
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - touchStartX.current;
+    const dy = touch.clientY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // Umbral: desplazamiento horizontal claro y poco movimiento vertical
+    if (absDx < 40 || absDy > 30) return;
+
+    if (dx > 0) {
+      // Swipe hacia la derecha: avanzar estado
+      const next = getNextStatus(task.status);
+      if (next) onStatusChange(task.id, next);
+    } else {
+      // Swipe hacia la izquierda: retroceder estado
+      const prev = getPrevStatus(task.status);
+      if (prev) onStatusChange(task.id, prev);
+    }
   };
 
   useEffect(() => {
@@ -126,58 +192,68 @@ export default function TaskCard({
     setEditingIndex(null);
   };
 
-  return (
-    <>
-      <div
-        ref={cardRef}
-        className={`rounded-xl border border-slate-200 border-l-4 bg-white p-4 shadow-md transition hover:shadow-lg dark:border-slate-600 dark:bg-slate-800 ${priorityBorderColors[task.priority]} ${
-          isHighlighted
-            ? "ring-2 ring-agro-500 ring-offset-2 ring-offset-slate-50 dark:ring-offset-slate-900"
-            : ""
+  const cardContent = (
+    <motion.div
+      ref={(el) => {
+        (cardRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+        dragRef?.(el);
+      }}
+      layout
+        initial={{ opacity: 0, y: 8, scale: 0.98 }}
+        animate={{ opacity: isDragging ? 0.5 : 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 8, scale: 0.98 }}
+        whileHover={isDragging ? undefined : { scale: 1.02, boxShadow: "0 10px 25px rgba(15,23,42,0.18)" }}
+        whileTap={isDragging ? undefined : { scale: 0.98 }}
+        transition={{ type: "spring", stiffness: 260, damping: 22, mass: 0.8 }}
+        className={`rounded-xl border border-slate-200 border-l-4 bg-white p-4 shadow-md dark:border-slate-600 dark:bg-slate-800 ${priorityBorderColors[task.priority]} ${
+          isDragging ? "opacity-50" : ""
         }`}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              draggable
-              onDragStart={handleDragStart}
-              className="cursor-grab touch-none rounded p-1 hover:bg-slate-100 active:cursor-grabbing dark:hover:bg-slate-700"
-              title="Arrastrar para mover de columna"
-              aria-label="Arrastrar tarea"
-            >
-              <GripIcon />
-            </button>
-            <h3 className="font-semibold text-slate-900 dark:text-slate-100">
-              {task.title}
-            </h3>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${priorityBadgeColors[task.priority]}`}>
-              {task.priority}
-            </span>
-            {onDelete && (
-              <button
-                type="button"
-                onClick={() => setDeleteConfirm(true)}
-                className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                title="Eliminar tarea"
-                aria-label="Eliminar tarea"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      {...(useDnd ? { ...dragListeners, ...dragAttributes } : {})}
+      style={useDnd ? { cursor: "grab" } : undefined}
+    >
+        <div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div
+                className="touch-none rounded p-1 hover:bg-slate-100 dark:hover:bg-slate-700"
+                title="Arrastrar para mover de columna"
+                aria-hidden="true"
               >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+                <GripIcon />
+              </div>
+              <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                {task.title}
+              </h3>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${priorityBadgeColors[task.priority]}`}>
+                {task.priority}
+              </span>
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm(true)}
+                  className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                  title="Eliminar tarea"
+                  aria-label="Eliminar tarea"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            <span className="font-medium">Granja:</span> {task.farmName}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            <span className="font-semibold">Responsable:</span> {workerName || "Sin asignar"}
+          </p>
+          <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{statusLabels[task.status]}</p>
         </div>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-          <span className="font-medium">Granja:</span> {task.farmName}
-        </p>
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-semibold">Responsable:</span> {workerName || "Sin asignar"}
-        </p>
-        <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{statusLabels[task.status]}</p>
 
         <div className="mt-2 flex gap-2">
           <button
@@ -242,7 +318,30 @@ export default function TaskCard({
         </div>
 
         {/* Comentarios solo gestionables desde el modal de Detalles, para hacer la tarjeta más compacta */}
-      </div>
+      </motion.div>
+  );
+
+  const wrappedCard = !useDnd ? (
+    <div
+      draggable
+      onDragStart={(e: React.DragEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.closest("button") || target.closest("input") || target.closest("textarea")) {
+          e.preventDefault();
+          return;
+        }
+        handleDragStart(e);
+      }}
+    >
+      {cardContent}
+    </div>
+  ) : (
+    cardContent
+  );
+
+  return (
+    <>
+      {wrappedCard}
 
       {/* Modal Detalles */}
       {detailsOpen && (
