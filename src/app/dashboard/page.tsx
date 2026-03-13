@@ -1,10 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MOCK_TASKS, MOCK_WORKERS, MOCK_ANIMAL_CASES, MOCK_ANIMALS } from "@/data/mock";
+import {
+  MOCK_WORKERS,
+  MOCK_ANIMAL_CASES,
+  MOCK_ANIMALS,
+  MOCK_FARMS,
+} from "@/data/mock";
 import type { Task, TaskStatus, AnimalCase, IncidentStatus, UserRole } from "@/types";
-import { USER_ROLE } from "@/types";
+import { USER_ROLE, formatTaskId } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTasks } from "@/contexts/TasksContext";
+import DatePicker from "@/components/DatePicker";
+import { useFeatures } from "@/contexts/FeaturesContext";
 
 /** Semana en español: lunes = primer día */
 const WEEKDAY_NAMES_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -59,22 +67,60 @@ function getAnimalName(animalId: string): string {
   return animal?.name ?? "Animal desconocido";
 }
 
+function getAnimalIdentification(animalId: string): string | undefined {
+  return MOCK_ANIMALS.find((a) => a.id === animalId)?.identification;
+}
+
+const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = {
+  reported: "Reportado",
+  in_treatment: "En tratamiento",
+  resolved: "Resuelto",
+};
+
 function TaskPreviewCard({ task }: TaskPreviewProps) {
   const priorityBorder =
     task.priority === "high"
       ? "border-l-red-500"
       : task.priority === "medium"
-      ? "border-l-amber-500"
-      : "border-l-slate-400";
+      ? "border-l-amber-400"
+      : "border-l-slate-300";
+
+  const createdISO = task.createdAt ?? todayISO();
+  const createdLabel = new Date(createdISO + "T12:00:00").toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   return (
-    <div className={`rounded-xl border border-slate-200 border-l-4 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:${priorityBorder} ${priorityBorder}`}>
-      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{task.title}</h3>
-      <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">
-        {getWorkerName(task.workerId)}
+    <div
+      className={`rounded-xl border border-slate-200 border-l-4 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90 ${priorityBorder}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 line-clamp-1">
+          <span className="text-slate-500 dark:text-slate-400 font-normal mr-1.5">#{formatTaskId(task.taskNumber ?? 0)}</span>
+          {task.title}
+        </h3>
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+            task.priority === "high"
+              ? "bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+              : task.priority === "medium"
+              ? "bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+              : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+          }`}
+        >
+          {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
+        </span>
+      </div>
+      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        {task.farmName}
       </p>
       <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-        {task.farmName} · {task.priority === "high" ? "Alta" : task.priority === "medium" ? "Media" : "Baja"}
+        Creada: {createdLabel}
+      </p>
+      <p className="mt-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+        {getWorkerName(task.workerId)}
       </p>
       <p className="mt-1 text-sm text-slate-600 line-clamp-2 dark:text-slate-300">
         {task.managerDetails || "Sin detalles del manager."}
@@ -93,15 +139,57 @@ function IncidentPreviewCard({ incident }: IncidentPreviewProps) {
       ? "Media"
       : "Baja";
 
+  const createdLabel = new Date(incident.date + "T12:00:00").toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+  const borderColor =
+    incident.severity === "critical" || incident.severity === "high"
+      ? "border-l-red-500"
+      : incident.severity === "medium"
+      ? "border-l-amber-400"
+      : "border-l-slate-300";
+
+  const chipClasses =
+    incident.severity === "critical" || incident.severity === "high"
+      ? "bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-300"
+      : incident.severity === "medium"
+      ? "bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+      : "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300";
+
+  const animalId = incident.animalId;
+  const animalName = getAnimalName(animalId);
+  const animalCrotal = getAnimalIdentification(animalId);
+  const animalLine = [animalCrotal, animalName].filter(Boolean).join(" — ") || "—";
+
   return (
-    <div className="rounded-xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:border-l-amber-500">
-      <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-        {getAnimalName(incident.animalId)}
-      </h3>
-      <p className="mt-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">{incident.caseType}</p>
-      <p className="mt-1 text-sm text-slate-600 line-clamp-2 dark:text-slate-300">{incident.summary}</p>
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-        Gravedad: <span className="font-medium">{severityLabel}</span> · Fecha: {incident.date}
+    <div
+      className={`rounded-xl border border-slate-200 border-l-4 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90 ${borderColor}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 line-clamp-1">
+          <span className="text-slate-500 dark:text-slate-400 font-normal mr-1.5">
+            #{formatTaskId(incident.incidentNumber ?? 0)}
+          </span>
+          {incident.caseType}
+        </h3>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${chipClasses}`}>
+          {severityLabel}
+        </span>
+      </div>
+      <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+        <span className="font-medium text-slate-600 dark:text-slate-400">Animal:</span> {animalLine}
+      </p>
+      <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
+        <span className="font-medium text-slate-600 dark:text-slate-400">Creada:</span> {createdLabel}
+      </p>
+      <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
+        {INCIDENT_STATUS_LABELS[incident.status]}
+      </p>
+      <p className="mt-1.5 text-sm text-slate-600 line-clamp-2 dark:text-slate-300">
+        {incident.summary}
       </p>
     </div>
   );
@@ -109,24 +197,64 @@ function IncidentPreviewCard({ incident }: IncidentPreviewProps) {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { enableAnimals } = useFeatures();
+  const { tasks, generalTasks } = useTasks();
   const role: UserRole | undefined = user?.role;
   const isSuperAdmin = role === USER_ROLE.SuperAdmin;
   const isAdmin = role === USER_ROLE.Admin || isSuperAdmin;
+  const canSeeAnimals = enableAnimals && (isAdmin || isSuperAdmin);
 
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("all");
-  const [activeSection, setActiveSection] = useState<"tasks" | "incidents">("tasks");
+  const [selectedFarmId, setSelectedFarmId] = useState<string>("all");
+  const [workerQuery, setWorkerQuery] = useState<string>("");
+  const [farmQuery, setFarmQuery] = useState<string>("");
+  const [taskCodeQuery, setTaskCodeQuery] = useState<string>("");
+  const [showWeekPicker, setShowWeekPicker] = useState(false);
+  const [activeSection, setActiveSection] = useState<"tasks" | "generalTasks" | "incidents">("tasks");
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus | "all">("all");
 
   const tasksForSelectedDateBase = useMemo(() => {
     const today = todayISO();
-    return MOCK_TASKS.filter((t) => (t.date ?? today) === selectedDate);
-  }, [selectedDate]);
+    return tasks.filter((t) => (t.date ?? today) === selectedDate);
+  }, [tasks, selectedDate]);
 
   const tasksForSelectedDate = useMemo(() => {
-    if (!isAdmin || selectedWorkerId === "all") return tasksForSelectedDateBase;
-    return tasksForSelectedDateBase.filter((t) => t.workerId === selectedWorkerId);
-  }, [isAdmin, selectedWorkerId, tasksForSelectedDateBase]);
+    let list = tasksForSelectedDateBase;
+    if (isAdmin) {
+      // Filtro por trabajador (selector + texto)
+      if (selectedWorkerId !== "all") {
+        list = list.filter((t) => t.workerId === selectedWorkerId);
+      }
+      const wq = workerQuery.trim().toLowerCase();
+      if (wq) {
+        list = list.filter((t) => {
+          const worker = MOCK_WORKERS.find((w) => w.id === t.workerId);
+          return worker?.name.toLowerCase().includes(wq);
+        });
+      }
+
+      // Filtro por granja (selector + texto)
+      if (selectedFarmId !== "all") {
+        const farm = MOCK_FARMS.find((f) => f.id === selectedFarmId);
+        if (farm) {
+          list = list.filter((t) => t.farmName === farm.name);
+        }
+      }
+      const fq = farmQuery.trim().toLowerCase();
+      if (fq) {
+        list = list.filter((t) => t.farmName.toLowerCase().includes(fq));
+      }
+      const codeQ = taskCodeQuery.replace(/^#/, "").trim();
+      if (codeQ) {
+        list = list.filter((t) => {
+          const code = formatTaskId(t.taskNumber ?? 0);
+          return code.includes(codeQ) || String(t.taskNumber ?? "").includes(codeQ);
+        });
+      }
+    }
+    return list;
+  }, [isAdmin, selectedWorkerId, workerQuery, selectedFarmId, farmQuery, taskCodeQuery, tasksForSelectedDateBase]);
 
   const tasksByStatus = useMemo(() => {
     const map = new Map<TaskStatus, Task[]>();
@@ -135,6 +263,35 @@ export default function DashboardPage() {
     }
     return map;
   }, [tasksForSelectedDate]);
+
+  // Tareas generales (no asignadas a trabajador). En esta vista el calendario es un filtro opcional:
+  // - Sin filtro: se muestran todas las tareas generales
+  // - Con filtro: solo las de la fecha seleccionada
+  const [generalFilterByDate, setGeneralFilterByDate] = useState(false);
+
+  const generalTasksFiltered = useMemo(() => {
+    let list = generalTasks;
+    if (generalFilterByDate) {
+      const today = todayISO();
+      list = list.filter((t) => (t.date ?? today) === selectedDate);
+    }
+    const codeQ = taskCodeQuery.replace(/^#/, "").trim();
+    if (codeQ && isAdmin) {
+      list = list.filter((t) => {
+        const code = formatTaskId(t.taskNumber ?? 0);
+        return code.includes(codeQ) || String(t.taskNumber ?? "").includes(codeQ);
+      });
+    }
+    return list;
+  }, [generalFilterByDate, selectedDate, generalTasks, taskCodeQuery, isAdmin]);
+
+  const generalTasksByStatus = useMemo(() => {
+    const map = new Map<TaskStatus, Task[]>();
+    for (const { status } of STATUS_COLUMNS) {
+      map.set(status, generalTasksFiltered.filter((t) => t.status === status));
+    }
+    return map;
+  }, [generalTasksFiltered]);
 
   const weekDays = useMemo(() => {
     const d = new Date(selectedDate + "T12:00:00");
@@ -154,6 +311,11 @@ export default function DashboardPage() {
   const inProgress = tasksByStatus.get("in_progress")?.length ?? 0;
   const completed = tasksByStatus.get("completed")?.length ?? 0;
 
+  const totalGeneralTasks = generalTasksFiltered.length;
+  const readyGeneral = generalTasksByStatus.get("ready")?.length ?? 0;
+  const inProgressGeneral = generalTasksByStatus.get("in_progress")?.length ?? 0;
+  const completedGeneral = generalTasksByStatus.get("completed")?.length ?? 0;
+
   const incidentsForSelectedDate = useMemo(() => {
     // Dashboard de animales: solo informativo, por ahora todos los incidentes sin filtrar por fecha
     return MOCK_ANIMAL_CASES;
@@ -168,17 +330,37 @@ export default function DashboardPage() {
   }, [incidentsForSelectedDate]);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Dashboard</h1>
-        <p className="text-slate-600 dark:text-slate-400">
-          Resumen de tareas y animales. La parte de tareas está ligada al calendario; la de animales es solo informativa.
-        </p>
+    <div className="space-y-4">
+      {/* Cabecera con banda de color */}
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-agro-600 via-emerald-500 to-sky-500 px-5 py-3 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-agro-100/80">
+              Panel general
+            </p>
+            <h1 className="mt-1 text-2xl font-bold text-white">Dashboard</h1>
+            <p className="mt-1 text-sm text-agro-50/90">
+              Vista rápida de tareas e incidentes en todas tus granjas.
+            </p>
+          </div>
+          {role && (
+            <div className="flex flex-col items-end gap-1 text-right">
+              <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-agro-50 backdrop-blur">
+                Rol: {role}
+              </span>
+              {isSuperAdmin && (
+                <span className="text-[11px] text-agro-50/80">
+                  Acceso global a todas las empresas
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Pestañas: tareas / animales */}
+      {/* Pestañas: tareas / tareas generales / (animales con incidentes si está activado y rol permite verlo) */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 text-sm dark:border-slate-600 dark:bg-slate-800">
+        <div className="inline-flex rounded-full border border-slate-200 bg-white/80 p-1 text-sm shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/80">
           <button
             type="button"
             onClick={() => setActiveSection("tasks")}
@@ -192,48 +374,126 @@ export default function DashboardPage() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveSection("incidents")}
+            onClick={() => setActiveSection("generalTasks")}
             className={`rounded-md px-3 py-1.5 font-medium transition ${
-              activeSection === "incidents"
+              activeSection === "generalTasks"
                 ? "bg-agro-600 text-white dark:bg-agro-500"
                 : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
-            Animales con incidentes
+            Tareas generales
           </button>
+          {canSeeAnimals && (
+            <button
+              type="button"
+              onClick={() => setActiveSection("incidents")}
+              className={`rounded-md px-3 py-1.5 font-medium transition ${
+                activeSection === "incidents"
+                  ? "bg-agro-600 text-white dark:bg-agro-500"
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              Animales con incidentes
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filtro por trabajador: solo en pestaña de tareas y para admins */}
-      {activeSection === "tasks" && isAdmin && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Trabajador:
-          </span>
-          <select
-            value={selectedWorkerId}
-            onChange={(e) => setSelectedWorkerId(e.target.value)}
-            className="min-w-[220px] rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
-          >
-            <option value="all">Todos los trabajadores</option>
-            {MOCK_WORKERS.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-          {selectedWorkerId !== "all" && (
-            <span className="text-xs text-slate-500 dark:text-slate-400">
-              Mostrando solo tareas de {MOCK_WORKERS.find((w) => w.id === selectedWorkerId)?.name}.
-            </span>
+      {/* Filtros (pestañas Tareas / Tareas generales, solo admins) */}
+      {(activeSection === "tasks" || activeSection === "generalTasks") && isAdmin && (
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+            <span className="text-slate-400 dark:text-slate-500" aria-hidden>⌕</span>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Filtros</h2>
+          </div>
+          <div className={`grid gap-4 p-4 ${activeSection === "generalTasks" ? "grid-cols-1 max-w-xs" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"}`}>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="dash-filter-code" className="text-xs font-medium text-slate-500 dark:text-slate-400">Código de tarea</label>
+              <input
+                id="dash-filter-code"
+                type="text"
+                value={taskCodeQuery}
+                onChange={(e) => setTaskCodeQuery(e.target.value)}
+                placeholder="Ej. 0020 o #0020"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              />
+            </div>
+            {activeSection === "tasks" && (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="dash-filter-worker" className="text-xs font-medium text-slate-500 dark:text-slate-400">Trabajador</label>
+                  <select
+                    id="dash-filter-worker"
+                    value={selectedWorkerId}
+                    onChange={(e) => setSelectedWorkerId(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+                  >
+                    <option value="all">Todos</option>
+                    {MOCK_WORKERS.map((w) => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="dash-filter-worker-txt" className="text-xs font-medium text-slate-500 dark:text-slate-400">Buscar trabajador</label>
+                  <input
+                    id="dash-filter-worker-txt"
+                    type="text"
+                    value={workerQuery}
+                    onChange={(e) => setWorkerQuery(e.target.value)}
+                    placeholder="Por nombre..."
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="dash-filter-farm" className="text-xs font-medium text-slate-500 dark:text-slate-400">Granja</label>
+                  <div className="flex gap-2">
+                    <select
+                      id="dash-filter-farm"
+                      value={selectedFarmId}
+                      onChange={(e) => setSelectedFarmId(e.target.value)}
+                      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+                    >
+                      <option value="all">Todas</option>
+                      {MOCK_FARMS.map((f) => (
+                        <option key={f.id} value={f.id}>{f.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={farmQuery}
+                      onChange={(e) => setFarmQuery(e.target.value)}
+                      placeholder="Buscar granja..."
+                      className="w-36 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+          {(taskCodeQuery.trim() || selectedWorkerId !== "all" || workerQuery.trim() || selectedFarmId !== "all" || farmQuery.trim()) && (
+            <div className="border-t border-slate-100 px-4 py-2 dark:border-slate-700">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Filtrando por{" "}
+                {taskCodeQuery.trim() && `código: ${taskCodeQuery.trim()}`}
+                {taskCodeQuery.trim() && (selectedWorkerId !== "all" || workerQuery.trim() || selectedFarmId !== "all" || farmQuery.trim()) && " · "}
+                {selectedWorkerId !== "all" && `trabajador: ${MOCK_WORKERS.find((w) => w.id === selectedWorkerId)?.name ?? selectedWorkerId}`}
+                {selectedWorkerId !== "all" && workerQuery.trim() && " · "}
+                {workerQuery.trim() && `"${workerQuery.trim()}"`}
+                {(selectedWorkerId !== "all" || workerQuery.trim()) && (selectedFarmId !== "all" || farmQuery.trim()) && " · "}
+                {selectedFarmId !== "all" && `granja: ${MOCK_FARMS.find((f) => f.id === selectedFarmId)?.name ?? selectedFarmId}`}
+                {selectedFarmId !== "all" && farmQuery.trim() && " · "}
+                {farmQuery.trim() && `"${farmQuery.trim()}"`}
+              </span>
+            </div>
           )}
         </div>
       )}
 
       {/* Bloques resumen: cambian según pestaña activa */}
       {activeSection === "tasks" ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-          <div className="col-span-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800 md:col-span-1">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+          <div className="col-span-2 rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90 md:col-span-1">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Fecha
             </p>
@@ -241,19 +501,19 @@ export default function DashboardPage() {
               {formatDateES(selectedDate)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Total tareas
             </p>
             <p className="mt-1 text-2xl font-bold text-slate-900 text-center dark:text-slate-100">{totalTasks}</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Listas para empezar
             </p>
             <p className="mt-1 text-2xl font-bold text-amber-500 text-center">{ready}</p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               En curso
             </p>
@@ -270,9 +530,50 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+      ) : activeSection === "generalTasks" ? (
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+          <div className="col-span-2 rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90 md:col-span-1">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
+              Fecha
+            </p>
+            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+              {formatDateES(selectedDate)}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
+              Total tareas generales
+            </p>
+            <p className="mt-1 text-2xl font-bold text-slate-900 text-center dark:text-slate-100">
+              {totalGeneralTasks}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
+              Listas para empezar
+            </p>
+            <p className="mt-1 text-2xl font-bold text-amber-500 text-center">{readyGeneral}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
+              En curso
+            </p>
+            <p className="mt-1 text-2xl font-bold text-blue-500 text-center">
+              {inProgressGeneral}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
+              Finalizadas
+            </p>
+            <p className="mt-1 text-2xl font-bold text-green-500 text-center">
+              {completedGeneral}
+            </p>
+          </div>
+        </div>
+      ) : canSeeAnimals && activeSection === "incidents" ? (
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Total incidentes
             </p>
@@ -280,7 +581,7 @@ export default function DashboardPage() {
               {incidentsForSelectedDate.length}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Reportados
             </p>
@@ -288,7 +589,7 @@ export default function DashboardPage() {
               {(incidentsByStatus.get("reported") ?? []).length}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               En tratamiento
             </p>
@@ -296,7 +597,7 @@ export default function DashboardPage() {
               {(incidentsByStatus.get("in_treatment") ?? []).length}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Resueltos
             </p>
@@ -305,39 +606,64 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Contenido principal según pestaña */}
       {activeSection === "tasks" ? (
         <>
-          {/* Calendario arriba */}
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Calendario (solo lectura)</p>
-              <div className="flex gap-1">
+          {/* Calendario arriba (más compacto) */}
+          <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                Calendario
+              </p>
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => setSelectedDate(addDays(selectedDate, -7))}
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      const y = window.scrollY;
+                      setSelectedDate(addDays(selectedDate, -7));
+                      window.scrollTo({ top: y, behavior: "auto" });
+                    } else {
+                      setSelectedDate(addDays(selectedDate, -7));
+                    }
+                  }}
                   className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600"
                 >
                   ← Semana anterior
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+                  onClick={() => {
+                    if (typeof window !== "undefined") {
+                      const y = window.scrollY;
+                      setSelectedDate(addDays(selectedDate, 7));
+                      window.scrollTo({ top: y, behavior: "auto" });
+                    } else {
+                      setSelectedDate(addDays(selectedDate, 7));
+                    }
+                  }}
                   className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600"
                 >
                   Semana siguiente →
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowWeekPicker((v) => !v)}
+                  className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-600"
+                >
+                  Ir a semana…
+                </button>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:grid-cols-7">
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 md:grid-cols-7">
               {weekDays.map(({ iso, dayName, dayNum }) => (
                 <button
                   key={iso}
                   type="button"
                   onClick={() => setSelectedDate(iso)}
-                  className={`w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition text-center ${
+                  className={`w-full rounded-lg border px-2.5 py-2 text-xs font-medium transition text-center ${
                     iso === selectedDate
                       ? "border-agro-500 bg-agro-100 text-agro-800 dark:border-agro-400 dark:bg-agro-900/40 dark:text-agro-200"
                       : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
@@ -347,13 +673,13 @@ export default function DashboardPage() {
                 </button>
               ))}
             </div>
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
               Mostrando tareas del <strong>{formatDateES(selectedDate)}</strong>
             </p>
           </div>
 
           {/* Filtro de columnas solo en móvil */}
-          <div className="mt-4 flex gap-2 md:hidden">
+          <div className="mt-2 flex gap-2 md:hidden">
             <button
               type="button"
               onClick={() => setMobileStatusFilter("all")}
@@ -401,13 +727,13 @@ export default function DashboardPage() {
           </div>
 
           {/* Tarjetas por estado, debajo del calendario */}
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-3">
             {STATUS_COLUMNS.map(({ status, label }) => {
               const list = tasksByStatus.get(status) ?? [];
               return (
                 <div
                   key={status}
-                  className={`rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800 ${
+                  className={`rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90 ${
                     mobileStatusFilter !== "all" && mobileStatusFilter !== status ? "hidden md:block" : ""
                   }`}
                 >
@@ -431,6 +757,91 @@ export default function DashboardPage() {
             })}
           </div>
         </>
+      ) : activeSection === "generalTasks" ? (
+        <>
+          {/* Calendario para filtrar opcionalmente las tareas generales */}
+          <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                Calendario
+              </p>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setGeneralFilterByDate(false)}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                    !generalFilterByDate
+                      ? "bg-agro-600 text-white dark:bg-agro-500"
+                      : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  }`}
+                >
+                  Todas las fechas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGeneralFilterByDate(true)}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                    generalFilterByDate
+                      ? "bg-agro-600 text-white dark:bg-agro-500"
+                      : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                  }`}
+                >
+                  Filtrar por fecha
+                </button>
+              </div>
+            </div>
+            {generalFilterByDate ? (
+              <>
+                <div className="mt-1 grid grid-cols-2 gap-1.5 sm:grid-cols-4 md:grid-cols-7">
+                  {weekDays.map(({ iso, dayName, dayNum }) => (
+                    <button
+                      key={iso}
+                      type="button"
+                      onClick={() => setSelectedDate(iso)}
+                      className={`w-full rounded-lg border px-2.5 py-2 text-xs font-medium transition text-center ${
+                        iso === selectedDate
+                          ? "border-agro-500 bg-agro-100 text-agro-800 dark:border-agro-400 dark:bg-agro-900/40 dark:text-agro-200"
+                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
+                      }`}
+                    >
+                      {dayName} {dayNum}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                  Mostrando tareas generales del <strong>{formatDateES(selectedDate)}</strong>
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                Sin filtro de fecha. Mostrando todas las tareas generales pendientes.
+              </p>
+            )}
+          </div>
+
+          {/* Lista de tareas generales (solo columna Lista para empezar, tarjetas en grid 3x3) */}
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                Lista para empezar
+              </h2>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {readyGeneral} tarea(s)
+              </span>
+            </div>
+            {readyGeneral === 0 ? (
+              <p className="py-3 text-sm text-slate-500 dark:text-slate-400">
+                No hay tareas generales pendientes.
+              </p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {(generalTasksByStatus.get("ready") ?? []).map((task) => (
+                  <TaskPreviewCard key={task.id} task={task} />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           {INCIDENT_COLUMNS.map(({ status, label }) => {
@@ -452,12 +863,58 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     {list.map((incident) => (
                       <IncidentPreviewCard key={incident.id} incident={incident} />
-                    ))}
-                  </div>
+        ))}
+      </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal para seleccionar semana con calendario completo */}
+      {showWeekPicker && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setShowWeekPicker(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Elegir semana en el calendario"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl dark:bg-slate-800 dark:border dark:border-slate-600"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                Elegir semana
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowWeekPicker(false)}
+                className="rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                Cerrar
+              </button>
+            </div>
+            <DatePicker
+              value={selectedDate}
+              onChange={(value) => {
+                if (typeof window !== "undefined") {
+                  const y = window.scrollY;
+                  setSelectedDate(value);
+                  setShowWeekPicker(false);
+                  window.scrollTo({ top: y, behavior: "auto" });
+                } else {
+                  setSelectedDate(value);
+                  setShowWeekPicker(false);
+                }
+              }}
+            />
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              Selecciona cualquier día de la semana que quieras ver en el dashboard.
+            </p>
+          </div>
         </div>
       )}
     </div>

@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useFeatures } from "@/contexts/FeaturesContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { USER_ROLE } from "@/types";
 
 type NavItem = {
   href: string;
   label: string;
   icon: string;
+  adminOnly?: boolean;
 };
 
 type NavSection = {
@@ -20,6 +24,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: "🏠" },
       { href: "/dashboard/tasks", label: "Tasks", icon: "📋" },
+      { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
       { href: "/dashboard/incidents", label: "Animal incidents", icon: "⚠" },
     ],
   },
@@ -48,6 +53,11 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { enableAnimals } = useFeatures();
+  const { user } = useAuth();
+  const role = user?.role;
+  const canSeeAnimals =
+    enableAnimals && (role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin);
 
   return (
     <aside
@@ -63,7 +73,19 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 {section.title}
               </p>
             )}
-            {section.items.map(({ href, label, icon }) => {
+            {section.items.map(({ href, label, icon, adminOnly }) => {
+              // Solo Admin/SuperAdmin ven "Tareas sin asignar"
+              if (adminOnly && role !== USER_ROLE.Admin && role !== USER_ROLE.SuperAdmin) {
+                return null;
+              }
+              // Ocultar rutas de animales cuando la funcionalidad está desactivada
+              // o el usuario no es Admin / SuperAdmin
+              if (
+                !canSeeAnimals &&
+                (href === "/dashboard/incidents" || href === "/dashboard/animals")
+              ) {
+                return null;
+              }
               const isActive = pathname === href;
               return (
                 <Link

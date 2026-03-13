@@ -14,10 +14,9 @@ const STATUS_COLUMNS: { status: IncidentStatus; label: string }[] = [
 ];
 
 const SEVERITY_OPTIONS: { value: AnimalCaseType["severity"]; label: string }[] = [
-  { value: "critical", label: "Crítico" },
-  { value: "high", label: "Alto" },
-  { value: "medium", label: "Medio" },
-  { value: "low", label: "Bajo" },
+  { value: "high", label: "Alta" },
+  { value: "medium", label: "Media" },
+  { value: "low", label: "Baja" },
 ];
 
 export default function IncidentsPage() {
@@ -31,18 +30,49 @@ export default function IncidentsPage() {
   const [formSeverity, setFormSeverity] = useState<AnimalCaseType["severity"]>("medium");
   const [formDate, setFormDate] = useState(() => new Date().toISOString().slice(0, 10));
 
+  const [filterCrotal, setFilterCrotal] = useState("");
+  const [filterDate, setFilterDate] = useState("");
+  const [filterSeverity, setFilterSeverity] = useState<AnimalCaseType["severity"] | "all">("all");
+  const [filterCaseType, setFilterCaseType] = useState("");
+
   const selectedTemplate = INCIDENT_TEMPLATES.find((t) => t.id === formTemplateId);
+
+  const casesFiltered = useMemo(() => {
+    let list = cases;
+    const crotalQ = filterCrotal.trim().toLowerCase();
+    if (crotalQ) {
+      list = list.filter((c) => {
+        const animal = MOCK_ANIMALS.find((a) => a.id === c.animalId);
+        const id = (animal?.identification ?? "").toLowerCase();
+        return id.includes(crotalQ);
+      });
+    }
+    if (filterDate) {
+      list = list.filter((c) => c.date === filterDate);
+    }
+    if (filterSeverity !== "all") {
+      list = list.filter((c) => c.severity === filterSeverity);
+    }
+    const typeQ = filterCaseType.trim().toLowerCase();
+    if (typeQ) {
+      list = list.filter((c) => c.caseType.toLowerCase().includes(typeQ));
+    }
+    return list;
+  }, [cases, filterCrotal, filterDate, filterSeverity, filterCaseType]);
 
   const casesByStatus = useMemo(() => {
     const map = new Map<IncidentStatus, AnimalCaseType[]>();
     for (const { status } of STATUS_COLUMNS) {
-      map.set(status, cases.filter((c) => c.status === status));
+      map.set(status, casesFiltered.filter((c) => c.status === status));
     }
     return map;
-  }, [cases]);
+  }, [casesFiltered]);
 
   const getAnimalName = (animalId: string) =>
     MOCK_ANIMALS.find((a) => a.id === animalId)?.name ?? animalId;
+
+  const getAnimalIdentification = (animalId: string) =>
+    MOCK_ANIMALS.find((a) => a.id === animalId)?.identification;
 
   const handleStatusChange = (caseId: string, newStatus: IncidentStatus) => {
     setCases((prev) =>
@@ -82,8 +112,10 @@ export default function IncidentsPage() {
     const summary = formSummary.trim();
     if (!formAnimalId || !caseType || !summary) return;
 
+    const nextNum = Math.max(0, ...cases.map((c) => c.incidentNumber ?? 0)) + 1;
     const newCase: AnimalCaseType = {
       id: `c${Date.now()}`,
+      incidentNumber: nextNum,
       animalId: formAnimalId,
       caseType,
       status: "reported",
@@ -111,6 +143,80 @@ export default function IncidentsPage() {
         >
           Añadir incidente
         </button>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
+        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+          <span className="text-slate-400 dark:text-slate-500" aria-hidden>⌕</span>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Filtros</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="inc-filter-crotal" className="text-xs font-medium text-slate-500 dark:text-slate-400">Crotal</label>
+            <input
+              id="inc-filter-crotal"
+              type="text"
+              value={filterCrotal}
+              onChange={(e) => setFilterCrotal(e.target.value)}
+              placeholder="Nº crotal del animal..."
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="inc-filter-date" className="text-xs font-medium text-slate-500 dark:text-slate-400">Fecha</label>
+            <input
+              id="inc-filter-date"
+              type="date"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+            />
+            {filterDate && (
+              <button type="button" onClick={() => setFilterDate("")} className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-400">
+                Todas las fechas
+              </button>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="inc-filter-severity" className="text-xs font-medium text-slate-500 dark:text-slate-400">Importancia</label>
+            <select
+              id="inc-filter-severity"
+              value={filterSeverity}
+              onChange={(e) => setFilterSeverity(e.target.value as AnimalCaseType["severity"] | "all")}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+            >
+              <option value="all">Todas</option>
+              {SEVERITY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="inc-filter-task" className="text-xs font-medium text-slate-500 dark:text-slate-400">Tarea / tipo</label>
+            <input
+              id="inc-filter-task"
+              type="text"
+              value={filterCaseType}
+              onChange={(e) => setFilterCaseType(e.target.value)}
+              placeholder="Ej. Cojera, Herida..."
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+            />
+          </div>
+        </div>
+        {(filterCrotal.trim() || filterDate || filterSeverity !== "all" || filterCaseType.trim()) && (
+          <div className="border-t border-slate-100 px-4 py-2 dark:border-slate-700">
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Filtrando por{" "}
+              {filterCrotal.trim() && `crotal: "${filterCrotal.trim()}"`}
+              {filterCrotal.trim() && (filterDate || filterSeverity !== "all" || filterCaseType.trim()) && " · "}
+              {filterDate && `fecha: ${filterDate}`}
+              {filterDate && (filterSeverity !== "all" || filterCaseType.trim()) && " · "}
+              {filterSeverity !== "all" && `importancia: ${SEVERITY_OPTIONS.find((o) => o.value === filterSeverity)?.label ?? filterSeverity}`}
+              {filterSeverity !== "all" && filterCaseType.trim() && " · "}
+              {filterCaseType.trim() && `tarea: "${filterCaseType.trim()}"`}
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -142,6 +248,7 @@ export default function IncidentsPage() {
                     key={c.id}
                     case={c}
                     animalName={getAnimalName(c.animalId)}
+                    animalIdentification={getAnimalIdentification(c.animalId)}
                     onStatusChange={handleStatusChange}
                     onDelete={handleDelete}
                   />

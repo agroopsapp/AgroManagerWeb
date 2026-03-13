@@ -70,25 +70,71 @@ function addDays(iso: string, days: number) {
 const today = todayISO();
 
 export const MOCK_TASKS: Task[] = [
-  { id: "t1", title: "Feed pigs", priority: "high", farmName: "Granja Norte", workerId: "w1", status: "ready", managerDetails: "Dar pienso a los cerdos del corral 3 en dos turnos: mañana 7:00 y tarde 15:00. Revisar que el bebedero esté limpio.", comments: [], date: today },
-  { id: "t2", title: "Clean stable", priority: "medium", farmName: "Granja Norte", workerId: "w1", status: "in_progress", managerDetails: "Limpiar boxes y pasillos. Cambiar cama y retirar estiércol al estercolero. Revisar desagües.", comments: [], date: today },
-  { id: "t3", title: "Check sick cow", priority: "high", farmName: "Granja Sur", workerId: "w2", status: "in_progress", managerDetails: "Vaca número 12 con posible cojera. Revisar pata y estado general. Si sigue mal, avisar al veterinario.", comments: [], date: addDays(today, 1) },
-  { id: "t4", title: "Prepare animal feed", priority: "medium", farmName: "Granja Sur", workerId: "w2", status: "completed", managerDetails: "Preparar mezcla según ficha del almacén. Cantidad para dos días. Guardar sobrante en lugar fresco.", comments: [], date: addDays(today, -1) },
-  { id: "t5", title: "Fix fence", priority: "high", farmName: "Granja Este", workerId: "w3", status: "completed", managerDetails: "Tramo norte, postes 5 a 8. Llevar alambre y grapas. Cuidado con el ganado al entrar.", comments: [], date: addDays(today, -2) },
-  { id: "t6", title: "Vaccinate calves", priority: "medium", farmName: "Granja Este", workerId: "w3", status: "completed", managerDetails: "Vacuna en nevera. Aplicar según calendario a los terneros marcados. Anotar en la hoja de control.", comments: [], date: today },
-  { id: "t7", title: "Revisar bebederos", priority: "low", farmName: "Granja Norte", workerId: "w1", status: "in_progress", managerDetails: "Comprobar caudal y limpieza en todos los corrales.", comments: [], date: addDays(today, 1) },
-  { id: "t8", title: "Pesar terneros", priority: "medium", farmName: "Granja Sur", workerId: "w2", status: "completed", managerDetails: "Anotar pesos en la hoja de control. Señalar los que bajen de peso.", comments: [], date: addDays(today, -1) },
-  { id: "t9", title: "Reponer paja", priority: "low", farmName: "Granja Este", workerId: "w4", status: "ready", managerDetails: "Llevar fardos al almacén y repartir en boxes vacíos.", comments: [], date: addDays(today, 2) },
+  { id: "t1", taskNumber: 1, title: "Feed pigs", priority: "high", farmName: "Granja Norte", workerId: "w1", status: "ready", managerDetails: "Dar pienso a los cerdos del corral 3 en dos turnos: mañana 7:00 y tarde 15:00. Revisar que el bebedero esté limpio.", comments: [], createdAt: today, date: today },
+  { id: "t2", taskNumber: 2, title: "Clean stable", priority: "medium", farmName: "Granja Norte", workerId: "w1", status: "in_progress", managerDetails: "Limpiar boxes y pasillos. Cambiar cama y retirar estiércol al estercolero. Revisar desagües.", comments: [], createdAt: today, date: today },
+  { id: "t3", taskNumber: 3, title: "Check sick cow", priority: "high", farmName: "Granja Sur", workerId: "w2", status: "in_progress", managerDetails: "Vaca número 12 con posible cojera. Revisar pata y estado general. Si sigue mal, avisar al veterinario.", comments: [], createdAt: today, date: addDays(today, 1) },
+  { id: "t4", taskNumber: 4, title: "Prepare animal feed", priority: "medium", farmName: "Granja Sur", workerId: "w2", status: "completed", managerDetails: "Preparar mezcla según ficha del almacén. Cantidad para dos días. Guardar sobrante en lugar fresco.", comments: [], createdAt: today, date: addDays(today, -1) },
+  { id: "t5", taskNumber: 5, title: "Fix fence", priority: "high", farmName: "Granja Este", workerId: "w3", status: "completed", managerDetails: "Tramo norte, postes 5 a 8. Llevar alambre y grapas. Cuidado con el ganado al entrar.", comments: [], createdAt: today, date: addDays(today, -2) },
+  { id: "t6", taskNumber: 6, title: "Vaccinate calves", priority: "medium", farmName: "Granja Este", workerId: "w3", status: "completed", managerDetails: "Vacuna en nevera. Aplicar según calendario a los terneros marcados. Anotar en la hoja de control.", comments: [], createdAt: today, date: today },
+  { id: "t7", taskNumber: 7, title: "Revisar bebederos", priority: "low", farmName: "Granja Norte", workerId: "w1", status: "in_progress", managerDetails: "Comprobar caudal y limpieza en todos los corrales.", comments: [], createdAt: today, date: addDays(today, 1) },
+  { id: "t8", taskNumber: 8, title: "Pesar terneros", priority: "medium", farmName: "Granja Sur", workerId: "w2", status: "completed", managerDetails: "Anotar pesos en la hoja de control. Señalar los que bajen de peso.", comments: [], createdAt: today, date: addDays(today, -1) },
+  { id: "t9", taskNumber: 9, title: "Reponer paja", priority: "low", farmName: "Granja Este", workerId: "w4", status: "ready", managerDetails: "Llevar fardos al almacén y repartir en boxes vacíos.", comments: [], createdAt: today, date: addDays(today, 2) },
   // Tareas adicionales para poblar el dashboard (especialmente el día de hoy)
-  { id: "t10", title: "Revisar almacén de pienso", priority: "low", farmName: "Granja Norte", workerId: "w1", status: "ready", managerDetails: "Comprobar existencias de pienso y anotar necesidades de pedido.", comments: [], date: today },
-  { id: "t11", title: "Control de nacimientos", priority: "high", farmName: "Granja Sur", workerId: "w2", status: "in_progress", managerDetails: "Revisar parideras y anotar nuevos nacimientos en el sistema.", comments: [], date: today },
-  { id: "t12", title: "Limpieza zona de carga", priority: "medium", farmName: "Granja Este", workerId: "w3", status: "ready", managerDetails: "Dejar libre de obstáculos la zona de carga de camiones.", comments: [], date: today },
-  { id: "t13", title: "Revisión eléctrica", priority: "high", farmName: "Granja Norte", workerId: "w4", status: "in_progress", managerDetails: "Comprobar cuadro eléctrico y enchufes de la nave principal.", comments: [], date: today },
-  { id: "t14", title: "Ordenar herramientas", priority: "low", farmName: "Granja Sur", workerId: "w1", status: "completed", managerDetails: "Colocar herramientas en el panel y etiquetar las más usadas.", comments: [], date: today },
-  { id: "t15", title: "Control de ventilación", priority: "medium", farmName: "Granja Este", workerId: "w2", status: "ready", managerDetails: "Revisar ventiladores y abrir/cerrar ventanas según temperatura.", comments: [], date: today },
-  { id: "t16", title: "Revisión bebederos nave 2", priority: "low", farmName: "Granja Norte", workerId: "w3", status: "in_progress", managerDetails: "Verificar presión de agua y posibles fugas en nave 2.", comments: [], date: today },
-  { id: "t17", title: "Formación en bioseguridad", priority: "medium", farmName: "Granja Sur", workerId: "w4", status: "completed", managerDetails: "Pequeña charla con el equipo sobre protocolos de entrada y salida.", comments: [], date: today },
-  { id: "t18", title: "Comprobar cerraduras", priority: "low", farmName: "Granja Este", workerId: "w1", status: "ready", managerDetails: "Revisar que todas las puertas exteriores cierren correctamente.", comments: [], date: today },
+  { id: "t10", taskNumber: 10, title: "Revisar almacén de pienso", priority: "low", farmName: "Granja Norte", workerId: "w1", status: "ready", managerDetails: "Comprobar existencias de pienso y anotar necesidades de pedido.", comments: [], createdAt: today, date: today },
+  { id: "t11", taskNumber: 11, title: "Control de nacimientos", priority: "high", farmName: "Granja Sur", workerId: "w2", status: "in_progress", managerDetails: "Revisar parideras y anotar nuevos nacimientos en el sistema.", comments: [], createdAt: today, date: today },
+  { id: "t12", taskNumber: 12, title: "Limpieza zona de carga", priority: "medium", farmName: "Granja Este", workerId: "w3", status: "ready", managerDetails: "Dejar libre de obstáculos la zona de carga de camiones.", comments: [], createdAt: today, date: today },
+  { id: "t13", taskNumber: 13, title: "Revisión eléctrica", priority: "high", farmName: "Granja Norte", workerId: "w4", status: "in_progress", managerDetails: "Comprobar cuadro eléctrico y enchufes de la nave principal.", comments: [], createdAt: today, date: today },
+  { id: "t14", taskNumber: 14, title: "Ordenar herramientas", priority: "low", farmName: "Granja Sur", workerId: "w1", status: "completed", managerDetails: "Colocar herramientas en el panel y etiquetar las más usadas.", comments: [], createdAt: today, date: today },
+  { id: "t15", taskNumber: 15, title: "Control de ventilación", priority: "medium", farmName: "Granja Este", workerId: "w2", status: "ready", managerDetails: "Revisar ventiladores y abrir/cerrar ventanas según temperatura.", comments: [], createdAt: today, date: today },
+  { id: "t16", taskNumber: 16, title: "Revisión bebederos nave 2", priority: "low", farmName: "Granja Norte", workerId: "w3", status: "in_progress", managerDetails: "Verificar presión de agua y posibles fugas en nave 2.", comments: [], createdAt: today, date: today },
+  { id: "t17", taskNumber: 17, title: "Formación en bioseguridad", priority: "medium", farmName: "Granja Sur", workerId: "w4", status: "completed", managerDetails: "Pequeña charla con el equipo sobre protocolos de entrada y salida.", comments: [], createdAt: today, date: today },
+  { id: "t18", taskNumber: 18, title: "Comprobar cerraduras", priority: "low", farmName: "Granja Este", workerId: "w1", status: "ready", managerDetails: "Revisar que todas las puertas exteriores cierren correctamente.", comments: [], createdAt: today, date: today },
+];
+
+// Tareas generales (no asignadas a ningún trabajador concreto)
+export const MOCK_GENERAL_TASKS: Task[] = [
+  {
+    id: "gt1",
+    taskNumber: 19,
+    title: "Revisión semanal de seguridad",
+    priority: "high",
+    farmName: "Granja Norte",
+    workerId: "",
+    status: "ready",
+    managerDetails:
+      "Comprobar salidas de emergencia, extintores y señalización en todas las instalaciones.",
+    comments: [],
+    createdAt: today,
+    date: today,
+  },
+  {
+    id: "gt2",
+    taskNumber: 20,
+    title: "Revisión de stocks de medicamentos",
+    priority: "medium",
+    farmName: "Granja Sur",
+    workerId: "",
+    status: "ready",
+    managerDetails:
+      "Verificar fechas de caducidad y cantidades mínimas de medicamentos críticos.",
+    comments: [],
+    createdAt: today,
+    date: today,
+  },
+  {
+    id: "gt3",
+    taskNumber: 21,
+    title: "Copia de seguridad del sistema",
+    priority: "low",
+    farmName: "Sin asignar a granja",
+    workerId: "",
+    status: "ready",
+    managerDetails:
+      "Lanzar backup completo de la base de datos y revisar que haya espacio suficiente.",
+    comments: [],
+    createdAt: today,
+    date: today,
+  },
 ];
 
 /** Programación de tareas periódicas (se generan en los días indicados). */
@@ -113,8 +159,8 @@ export const INCIDENT_TEMPLATES: IncidentTemplate[] = [
 
 /** Casos/incidentes por animal. Fechas relativas a hoy para que aparezcan en estadísticas (día/semana). */
 export const MOCK_ANIMAL_CASES: AnimalCase[] = [
-  { id: "c1", animalId: "a1", caseType: "Cojera", status: "reported", summary: "Animal con dificultad al andar.", severity: "medium", date: today },
-  { id: "c2", animalId: "a3", caseType: "Infección respiratoria", status: "in_treatment", summary: "Tos y mucosidad. Aislado.", severity: "high", date: today },
-  { id: "c3", animalId: "a2", caseType: "Control veterinario rutinario", status: "resolved", summary: "Revisión y vacunas.", severity: "low", date: addDays(today, -2) },
-  { id: "c4", animalId: "a5", caseType: "Herida", status: "in_treatment", summary: "Herida en pata. Limpieza y desinfección.", severity: "medium", date: addDays(today, -1) },
+  { id: "c1", incidentNumber: 1, animalId: "a1", caseType: "Cojera", status: "reported", summary: "Animal con dificultad al andar.", severity: "medium", date: today },
+  { id: "c2", incidentNumber: 2, animalId: "a3", caseType: "Infección respiratoria", status: "in_treatment", summary: "Tos y mucosidad. Aislado.", severity: "high", date: today },
+  { id: "c3", incidentNumber: 3, animalId: "a2", caseType: "Control veterinario rutinario", status: "resolved", summary: "Revisión y vacunas.", severity: "low", date: addDays(today, -2) },
+  { id: "c4", incidentNumber: 4, animalId: "a5", caseType: "Herida", status: "in_treatment", summary: "Herida en pata. Limpieza y desinfección.", severity: "medium", date: addDays(today, -1) },
 ];

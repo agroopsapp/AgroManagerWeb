@@ -5,6 +5,8 @@ export type TaskStatus = "ready" | "in_progress" | "completed";
 
 export interface Task {
   id: string;
+  /** Número de tarea visible (0001, 0002, ...). Opcional en datos legacy. */
+  taskNumber?: number;
   title: string;
   priority: TaskPriority;
   farmName: string;
@@ -13,8 +15,15 @@ export interface Task {
   /** Detalles escritos por el manager */
   managerDetails: string;
   comments: string[];
+  /** Fecha de creación (YYYY-MM-DD). Opcional mientras migramos datos antiguos. */
+  createdAt?: string;
   /** Fecha asignada (YYYY-MM-DD). Si no existe, se considera “hoy”. */
   date?: string;
+}
+
+/** Formatea el número de tarea como ID visible (0001, 0002, ...). */
+export function formatTaskId(taskNumber: number): string {
+  return String(taskNumber).padStart(4, "0");
 }
 
 /** Días de la semana: 1 = Lunes, 7 = Domingo */
@@ -89,6 +98,8 @@ export type IncidentStatus = "reported" | "in_treatment" | "resolved";
 /** Caso/incidente vinculado a un animal (según modelo AnimalCases) */
 export interface AnimalCase {
   id: string;
+  /** Número visible de incidencia (#0001, #0002, ...). Opcional en datos legacy. */
+  incidentNumber?: number;
   animalId: string;
   caseType: string;
   status: IncidentStatus;

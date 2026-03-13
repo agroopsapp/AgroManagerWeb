@@ -1,9 +1,17 @@
 "use client";
 
 import { useTheme } from "@/contexts/ThemeContext";
+import { useFeatures } from "@/contexts/FeaturesContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { USER_ROLE } from "@/types";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { enableAnimals, setEnableAnimals } = useFeatures();
+  const { user } = useAuth();
+  const role = user?.role;
+  const canEditAnimalsFeature =
+    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin;
 
   return (
     <div className="space-y-4">
@@ -44,6 +52,38 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {canEditAnimalsFeature && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-200">
+            Funcionalidad de animales
+          </h2>
+          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+            Decide si quieres usar seguimiento específico de animales (fichas e incidentes) o solo gestión de tareas generales.
+          </p>
+          <label className="inline-flex items-center gap-3">
+            <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-agro-500 dark:bg-slate-600">
+              <input
+                type="checkbox"
+                checked={enableAnimals}
+                onChange={(e) => setEnableAnimals(e.target.checked)}
+                className="peer sr-only"
+              />
+              <span
+                className={`absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  enableAnimals ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </span>
+            <span className="text-sm text-slate-700 dark:text-slate-200">
+              Activar seguimiento de animales (se muestran menú de <strong>Animals</strong>,{" "}
+              <strong>Animal incidents</strong> y la pestaña de{" "}
+              <strong>Animales con incidentes</strong> en el Dashboard).
+            </span>
+          </label>
+        </div>
+      )}
     </div>
   );
 }
+

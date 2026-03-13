@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -13,9 +14,13 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { MOCK_TASKS, MOCK_WORKERS, MOCK_FARMS, TASK_TEMPLATES, MOCK_RECURRING_SCHEDULES } from "@/data/mock";
-import type { Task, TaskStatus, TaskPriority, RecurringTaskSchedule, DayOfWeek } from "@/types";
+import { MOCK_WORKERS, MOCK_FARMS, TASK_TEMPLATES, MOCK_RECURRING_SCHEDULES } from "@/data/mock";
+import type { Task, TaskStatus, TaskPriority, RecurringTaskSchedule, DayOfWeek, UserRole } from "@/types";
+import { USER_ROLE, formatTaskId } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTasks } from "@/contexts/TasksContext";
 import TaskCard from "@/components/TaskCard";
+import CreateTaskModal from "@/components/CreateTaskModal";
 
 /** Semana en español: lunes = primer día */
 const WEEKDAY_NAMES_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -107,7 +112,10 @@ function TaskCardOverlayContent({ task, workerName }: { task: Task; workerName: 
       className={`rounded-xl border border-slate-200 border-l-4 bg-white p-4 shadow-lg dark:border-slate-600 dark:bg-slate-800 ${priorityBorder} cursor-grabbing rotate-2 scale-105`}
     >
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{task.title}</h3>
+        <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+          <span className="text-slate-500 dark:text-slate-400 font-normal mr-2">#{formatTaskId(task.taskNumber ?? 0)}</span>
+          {task.title}
+        </h3>
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium uppercase ${priorityBadge}`}>
           {task.priority}
         </span>
@@ -153,12 +161,23 @@ function DraggableTaskCard({
 }
 
 export default function TasksPage() {
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const role: UserRole | undefined = user?.role;
+  const isSuperAdmin = role === USER_ROLE.SuperAdmin;
+  const isAdmin = role === USER_ROLE.Admin || isSuperAdmin;
   const isDesktop = useIsDesktop();
-  const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+  const { tasks, setTasks, getNextTaskNumber } = useTasks();
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [mobileStatusFilter, setMobileStatusFilter] = useState<TaskStatus | "all">("all");
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>("all");
+  const [selectedFarmId, setSelectedFarmId] = useState<string>("all");
+  const [workerQuery, setWorkerQuery] = useState<string>("");
+  const [farmQuery, setFarmQuery] = useState<string>("");
+  const [taskCodeQuery, setTaskCodeQuery] = useState<string>("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -175,14 +194,6 @@ export default function TasksPage() {
     handleStatusChange(String(active.id), newStatus);
   };
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createMode, setCreateMode] = useState<CreateMode>("template");
-  const [formTemplateId, setFormTemplateId] = useState(TASK_TEMPLATES[0]?.id ?? "");
-  const [formCustomTitle, setFormCustomTitle] = useState("");
-  const [formCustomDetails, setFormCustomDetails] = useState("");
-  const [formWorkerId, setFormWorkerId] = useState(MOCK_WORKERS[0]?.id ?? "");
-  const [formFarmId, setFormFarmId] = useState(MOCK_FARMS[0]?.id ?? "");
-  const [formPriority, setFormPriority] = useState<TaskPriority>("medium");
-  const [formDate, setFormDate] = useState<string>(() => todayISO());
 
   const [recurringSchedules, setRecurringSchedules] = useState<RecurringTaskSchedule[]>(MOCK_RECURRING_SCHEDULES);
   const [recurringModalOpen, setRecurringModalOpen] = useState(false);
@@ -197,8 +208,45 @@ export default function TasksPage() {
 
   const tasksForSelectedDate = useMemo(() => {
     const today = todayISO();
-    return tasks.filter((t) => (t.date ?? today) === selectedDate);
-  }, [tasks, selectedDate]);
+    let list = tasks.filter((t) => (t.date ?? today) === selectedDate);
+
+    if (isAdmin) {
+      // Filtro por trabajador (selector + texto)
+      if (selectedWorkerId !== "all") {
+        list = list.filter((t) => t.workerId === selectedWorkerId);
+      }
+      const wq = workerQuery.trim().toLowerCase();
+      if (wq) {
+        list = list.filter((t) => {
+          const worker = MOCK_WORKERS.find((w) => w.id === t.workerId);
+          return worker?.name.toLowerCase().includes(wq);
+        });
+      }
+
+      // Filtro por granja (selector + texto)
+      if (selectedFarmId !== "all") {
+        const farm = MOCK_FARMS.find((f) => f.id === selectedFarmId);
+        if (farm) {
+          list = list.filter((t) => t.farmName === farm.name);
+        }
+      }
+      const fq = farmQuery.trim().toLowerCase();
+      if (fq) {
+        list = list.filter((t) => t.farmName.toLowerCase().includes(fq));
+      }
+
+      // Filtro por código de tarea (#0001, #0020, etc.)
+      const codeQ = taskCodeQuery.replace(/^#/, "").trim();
+      if (codeQ) {
+        list = list.filter((t) => {
+          const code = formatTaskId(t.taskNumber ?? 0);
+          return code.includes(codeQ) || String(t.taskNumber ?? "").includes(codeQ);
+        });
+      }
+    }
+
+    return list;
+  }, [tasks, selectedDate, isAdmin, selectedWorkerId, workerQuery, selectedFarmId, farmQuery, taskCodeQuery]);
 
   const tasksByStatus = useMemo(() => {
     const map = new Map<TaskStatus, Task[]>();
@@ -263,21 +311,15 @@ export default function TasksPage() {
     );
   };
 
-  const openCreateModal = () => {
-    setCreateMode("template");
-    setFormTemplateId(TASK_TEMPLATES[0]?.id ?? "");
-    setFormCustomTitle("");
-    setFormCustomDetails("");
-    setFormWorkerId(MOCK_WORKERS[0]?.id ?? "");
-    setFormFarmId(MOCK_FARMS[0]?.id ?? "");
-    setFormPriority("medium");
-    setFormDate(selectedDate);
-    setCreateModalOpen(true);
-  };
+  const openCreateModal = () => setCreateModalOpen(true);
+  const closeCreateModal = () => setCreateModalOpen(false);
 
-  const closeCreateModal = () => {
-    setCreateModalOpen(false);
-  };
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      setCreateModalOpen(true);
+      router.replace("/dashboard/tasks", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const openRecurringModal = () => {
     setRecurringMode("template");
@@ -305,40 +347,8 @@ export default function TasksPage() {
     return (d === 0 ? 7 : d) as DayOfWeek;
   };
 
-  const selectedTemplate = TASK_TEMPLATES.find((t) => t.id === formTemplateId);
   const selectedRecurringTemplate = TASK_TEMPLATES.find((t) => t.id === recurringTemplateId);
-  const farm = MOCK_FARMS.find((f) => f.id === formFarmId);
   const recurringFarm = MOCK_FARMS.find((f) => f.id === recurringFarmId);
-
-  const handleCreateTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    let title: string;
-    let managerDetails: string;
-
-    if (createMode === "template") {
-      if (!selectedTemplate) return;
-      title = selectedTemplate.title;
-      managerDetails = selectedTemplate.managerDetails;
-    } else {
-      title = formCustomTitle.trim();
-      managerDetails = formCustomDetails.trim();
-      if (!title) return;
-    }
-
-    const newTask: Task = {
-      id: `t${Date.now()}`,
-      title,
-      priority: formPriority,
-      farmName: farm?.name ?? "Sin granja",
-      workerId: formWorkerId,
-      status: "ready",
-      managerDetails: managerDetails || "Sin detalles.",
-      comments: [],
-      date: formDate,
-    };
-    setTasks((prev) => [...prev, newTask]);
-    closeCreateModal();
-  };
 
   const handleCreateRecurring = (e: React.FormEvent) => {
     e.preventDefault();
@@ -374,8 +384,11 @@ export default function TasksPage() {
   const generateTodayTasks = () => {
     const today = getTodayDayOfWeek();
     const toCreate = recurringSchedules.filter((s) => s.daysOfWeek.includes(today));
+    const todayIso = todayISO();
+    let nextNum = getNextTaskNumber();
     const newTasks: Task[] = toCreate.map((s) => ({
       id: `t${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      taskNumber: nextNum++,
       title: s.title,
       priority: s.priority,
       farmName: s.farmName,
@@ -383,7 +396,8 @@ export default function TasksPage() {
       status: "ready" as TaskStatus,
       managerDetails: s.managerDetails,
       comments: [],
-      date: todayISO(),
+      createdAt: todayIso,
+      date: todayIso,
     }));
     setTasks((prev) => [...prev, ...newTasks]);
   };
@@ -417,6 +431,77 @@ export default function TasksPage() {
           </button>
         </div>
       </div>
+
+      {/* Filtros (solo Admin / SuperAdmin) */}
+      {isAdmin && (
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
+          <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+            <span className="text-slate-400 dark:text-slate-500" aria-hidden>⌕</span>
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Filtros</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="filter-task-code" className="text-xs font-medium text-slate-500 dark:text-slate-400">Código de tarea</label>
+              <input
+                id="filter-task-code"
+                type="text"
+                value={taskCodeQuery}
+                onChange={(e) => setTaskCodeQuery(e.target.value)}
+                placeholder="Ej. 0020 o #0020"
+                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="filter-worker" className="text-xs font-medium text-slate-500 dark:text-slate-400">Trabajador</label>
+              <select
+                id="filter-worker"
+                value={selectedWorkerId}
+                onChange={(e) => setSelectedWorkerId(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              >
+                <option value="all">Todos</option>
+                {MOCK_WORKERS.map((w) => (
+                  <option key={w.id} value={w.id}>{w.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="filter-worker-search" className="text-xs font-medium text-slate-500 dark:text-slate-400">Buscar trabajador</label>
+              <input
+                id="filter-worker-search"
+                type="text"
+                value={workerQuery}
+                onChange={(e) => setWorkerQuery(e.target.value)}
+                placeholder="Por nombre..."
+                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
+              <label htmlFor="filter-farm" className="text-xs font-medium text-slate-500 dark:text-slate-400">Granja</label>
+              <div className="flex gap-2">
+                <select
+                  id="filter-farm"
+                  value={selectedFarmId}
+                  onChange={(e) => setSelectedFarmId(e.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+                >
+                  <option value="all">Todas</option>
+                  {MOCK_FARMS.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={farmQuery}
+                  onChange={(e) => setFarmQuery(e.target.value)}
+                  placeholder="Buscar granja..."
+                  className="w-36 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -644,201 +729,11 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Modal crear tarea */}
-      {createModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={closeCreateModal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="create-task-title"
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-hidden flex flex-col dark:bg-slate-800 dark:border dark:border-slate-600"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-600">
-              <h2 id="create-task-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                Crear tarea
-              </h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">
-                Elige una tarea preconfigurada o define una personalizada.
-              </p>
-            </div>
-            <form onSubmit={handleCreateTask} className="flex flex-1 flex-col overflow-hidden">
-              <div className="space-y-4 overflow-y-auto p-4">
-                {/* Tipo: preconfigurada o personalizada */}
-                <div>
-                  <p className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-300">Tipo de tarea</p>
-                  <div className="flex gap-4">
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="radio"
-                        name="createMode"
-                        checked={createMode === "template"}
-                        onChange={() => setCreateMode("template")}
-                        className="text-agro-600 focus:ring-agro-500"
-                      />
-                      <span className="text-sm dark:text-slate-200">Preconfigurada</span>
-                    </label>
-                    <label className="flex cursor-pointer items-center gap-2">
-                      <input
-                        type="radio"
-                        name="createMode"
-                        checked={createMode === "custom"}
-                        onChange={() => setCreateMode("custom")}
-                        className="text-agro-600 focus:ring-agro-500"
-                      />
-                      <span className="text-sm dark:text-slate-200">Personalizada</span>
-                    </label>
-                  </div>
-                </div>
-
-                {createMode === "template" ? (
-                  <div>
-                    <label htmlFor="task-template" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                      Tarea preconfigurada
-                    </label>
-                    <select
-                      id="task-template"
-                      value={formTemplateId}
-                      onChange={(e) => setFormTemplateId(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
-                    >
-                      {TASK_TEMPLATES.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.title}
-                        </option>
-                      ))}
-                    </select>
-                    {selectedTemplate && (
-                      <p className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                        {selectedTemplate.managerDetails}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div>
-                      <label htmlFor="custom-title" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Título de la tarea
-                      </label>
-                      <input
-                        id="custom-title"
-                        type="text"
-                        value={formCustomTitle}
-                        onChange={(e) => setFormCustomTitle(e.target.value)}
-                        placeholder="Ej. Revisar bomba de agua"
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="custom-details" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Detalles (opcional)
-                      </label>
-                      <textarea
-                        id="custom-details"
-                        value={formCustomDetails}
-                        onChange={(e) => setFormCustomDetails(e.target.value)}
-                        placeholder="Instrucciones para el trabajador..."
-                        rows={3}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Trabajador */}
-                <div>
-                  <label htmlFor="task-worker" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Asignar a
-                  </label>
-                  <select
-                    id="task-worker"
-                    value={formWorkerId}
-                    onChange={(e) => setFormWorkerId(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
-                  >
-                    {MOCK_WORKERS.map((w) => (
-                      <option key={w.id} value={w.id}>
-                        {w.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Granja */}
-                <div>
-                  <label htmlFor="task-farm" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Granja
-                  </label>
-                  <select
-                    id="task-farm"
-                    value={formFarmId}
-                    onChange={(e) => setFormFarmId(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
-                  >
-                    {MOCK_FARMS.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Importancia */}
-                <div>
-                  <label htmlFor="task-priority" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Importancia
-                  </label>
-                  <select
-                    id="task-priority"
-                    value={formPriority}
-                    onChange={(e) => setFormPriority(e.target.value as TaskPriority)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
-                  >
-                    {PRIORITY_OPTIONS.map((p) => (
-                      <option key={p.value} value={p.value}>
-                        {p.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Fecha */}
-                <div>
-                  <label htmlFor="task-date" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Fecha de la tarea
-                  </label>
-                  <input
-                    id="task-date"
-                    type="date"
-                    value={formDate}
-                    onChange={(e) => setFormDate(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 border-t border-slate-200 px-4 py-3 dark:border-slate-600">
-                <button
-                  type="button"
-                  onClick={closeCreateModal}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-600"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={createMode === "custom" && !formCustomTitle.trim()}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Crear tarea
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CreateTaskModal
+        open={createModalOpen}
+        onClose={closeCreateModal}
+        defaultDate={selectedDate}
+      />
 
       {/* Modal tarea periódica */}
       {recurringModalOpen && (

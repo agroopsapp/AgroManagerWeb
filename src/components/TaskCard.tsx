@@ -3,20 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import type { Task as TaskType, TaskPriority, TaskStatus } from "@/types";
+import { formatTaskId } from "@/types";
 import DatePicker from "@/components/DatePicker";
-
-function GripIcon() {
-  return (
-    <svg className="h-4 w-4 text-slate-400" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <circle cx="9" cy="6" r="1.5" />
-      <circle cx="15" cy="6" r="1.5" />
-      <circle cx="9" cy="12" r="1.5" />
-      <circle cx="15" cy="12" r="1.5" />
-      <circle cx="9" cy="18" r="1.5" />
-      <circle cx="15" cy="18" r="1.5" />
-    </svg>
-  );
-}
 
 const priorityBorderColors: Record<TaskPriority, string> = {
   high: "border-l-red-500 dark:border-l-red-500",
@@ -67,6 +55,15 @@ interface TaskCardProps {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function formatDateShort(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  return d.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 export default function TaskCard({
@@ -216,14 +213,10 @@ export default function TaskCard({
         <div>
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div
-                className="touch-none rounded p-1 hover:bg-slate-100 dark:hover:bg-slate-700"
-                title="Arrastrar para mover de columna"
-                aria-hidden="true"
-              >
-                <GripIcon />
-              </div>
               <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                <span className="text-slate-500 dark:text-slate-400 font-normal mr-2">
+                  #{formatTaskId(task.taskNumber ?? 0)}
+                </span>
                 {task.title}
               </h3>
             </div>
@@ -251,6 +244,10 @@ export default function TaskCard({
           </p>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
             <span className="font-semibold">Responsable:</span> {workerName || "Sin asignar"}
+          </p>
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            <span className="font-semibold">Creada:</span>{" "}
+            {formatDateShort(task.createdAt ?? todayISO())}
           </p>
           <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">{statusLabels[task.status]}</p>
         </div>

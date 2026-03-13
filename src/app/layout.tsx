@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { FeaturesProvider } from "@/contexts/FeaturesContext";
 
 export const metadata: Metadata = {
   title: "AgroOps - Gestión de granja",
@@ -20,7 +21,9 @@ export default function RootLayout({
           }}
         />
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <FeaturesProvider>
+            <AuthProvider>{children}</AuthProvider>
+          </FeaturesProvider>
         </ThemeProvider>
       </body>
     </html>

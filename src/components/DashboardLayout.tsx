@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { TasksProvider } from "@/contexts/TasksContext";
+import { USER_ROLE } from "@/types";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
@@ -13,6 +15,7 @@ const QUICK_MENU_ITEMS = [
   // Fila 1
   { href: "/dashboard", label: "Dashboard", icon: "🏠" },
   { href: "/dashboard/tasks", label: "Tasks", icon: "📋" },
+  { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
   { href: "/dashboard/incidents", label: "Animal incidents", icon: "⚠" },
   // Fila 2
   { href: "/dashboard/animals", label: "Animals", icon: "🐄" },
@@ -59,6 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null;
 
   return (
+    <TasksProvider>
     <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-900">
       <Header
         onToggleMobileSidebar={() => setMobileSidebarOpen((v) => !v)}
@@ -83,7 +87,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                {QUICK_MENU_ITEMS.map(({ href, label, icon }) => (
+                {QUICK_MENU_ITEMS.map(({ href, label, icon, adminOnly }) => {
+                  if (adminOnly && user?.role !== USER_ROLE.Admin && user?.role !== USER_ROLE.SuperAdmin) {
+                    return null;
+                  }
+                  return (
                   <Link
                     key={href}
                     href={href}
@@ -95,7 +103,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </span>
                     <span className="mt-1 text-[11px]">{label}</span>
                   </Link>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -111,5 +120,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-auto bg-slate-50 p-4 dark:bg-slate-900 md:hidden">{children}</main>
       </div>
     </div>
+    </TasksProvider>
   );
 }
