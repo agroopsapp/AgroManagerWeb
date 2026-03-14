@@ -5,13 +5,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTasks } from "@/contexts/TasksContext";
 import { MOCK_WORKERS, MOCK_FARMS } from "@/data/mock";
 import { USER_ROLE, formatTaskId } from "@/types";
-import type { Task } from "@/types";
+import type { Task, TaskFamily } from "@/types";
 import DatePicker from "@/components/DatePicker";
 import CreateTaskModal from "@/components/CreateTaskModal";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
+
+const TASK_FAMILY_LABELS: Record<TaskFamily, string> = {
+  veterinaria: "Veterinaria",
+  campo: "Campo",
+  alimentacion: "Alimentación",
+  limpieza: "Limpieza",
+};
 
 export default function UnassignedTasksPage() {
   const { user } = useAuth();
@@ -27,15 +34,22 @@ export default function UnassignedTasksPage() {
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [taskCodeQuery, setTaskCodeQuery] = useState("");
+  const [filterFamily, setFilterFamily] = useState<TaskFamily | "">("");
 
   const generalTasksFiltered = useMemo(() => {
+    let list = generalTasks;
     const codeQ = taskCodeQuery.replace(/^#/, "").trim();
-    if (!codeQ) return generalTasks;
-    return generalTasks.filter((t) => {
-      const code = formatTaskId(t.taskNumber ?? 0);
-      return code.includes(codeQ) || String(t.taskNumber ?? "").includes(codeQ);
-    });
-  }, [generalTasks, taskCodeQuery]);
+    if (codeQ) {
+      list = list.filter((t) => {
+        const code = formatTaskId(t.taskNumber ?? 0);
+        return code.includes(codeQ) || String(t.taskNumber ?? "").includes(codeQ);
+      });
+    }
+    if (filterFamily) {
+      list = list.filter((t) => t.family === filterFamily);
+    }
+    return list;
+  }, [generalTasks, taskCodeQuery, filterFamily]);
 
   const openAssign = (task: Task) => {
     setAssigningTask(task);
@@ -111,7 +125,7 @@ export default function UnassignedTasksPage() {
           <span className="text-slate-400 dark:text-slate-500" aria-hidden>⌕</span>
           <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Filtros</h2>
         </div>
-        <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:max-w-md">
+        <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="unassigned-filter-code" className="text-xs font-medium text-slate-500 dark:text-slate-400">Código de tarea</label>
             <input
@@ -123,6 +137,20 @@ export default function UnassignedTasksPage() {
               className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
             />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="unassigned-filter-family" className="text-xs font-medium text-slate-500 dark:text-slate-400">Familia de tarea</label>
+            <select
+              id="unassigned-filter-family"
+              value={filterFamily}
+              onChange={(e) => setFilterFamily((e.target.value || "") as TaskFamily | "")}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+            >
+              <option value="">Todas</option>
+              {(Object.entries(TASK_FAMILY_LABELS) as [TaskFamily, string][]).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -131,7 +159,7 @@ export default function UnassignedTasksPage() {
           <p className="text-slate-600 dark:text-slate-400">
             {generalTasks.length === 0
               ? "No hay tareas sin asignar en este momento."
-              : "Ninguna tarea coincide con el filtro de código."}
+              : "Ninguna tarea coincide con los filtros."}
           </p>
         </div>
       ) : (
@@ -273,6 +301,11 @@ function UnassignedCard({
       <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
         Responsable: Sin asignar
       </p>
+      {task.family && (
+        <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">
+          Familia: {TASK_FAMILY_LABELS[task.family]}
+        </p>
+      )}
       {task.managerDetails && (
         <p className="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-300">
           {task.managerDetails}

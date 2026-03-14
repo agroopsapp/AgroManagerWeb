@@ -1,5 +1,8 @@
 export type TaskPriority = "high" | "medium" | "low";
 
+/** Familia de tarea para clasificación (veterinaria, campo, alimentación, limpieza). */
+export type TaskFamily = "veterinaria" | "campo" | "alimentacion" | "limpieza";
+
 /** Lista para empezar → En desarrollo → Finalizada */
 export type TaskStatus = "ready" | "in_progress" | "completed";
 
@@ -15,6 +18,8 @@ export interface Task {
   /** Detalles escritos por el manager */
   managerDetails: string;
   comments: string[];
+  /** Familia de tarea (veterinaria, campo, alimentación, limpieza). Opcional en datos legacy. */
+  family?: TaskFamily;
   /** Fecha de creación (YYYY-MM-DD). Opcional mientras migramos datos antiguos. */
   createdAt?: string;
   /** Fecha asignada (YYYY-MM-DD). Si no existe, se considera “hoy”. */

@@ -104,6 +104,7 @@ export const MOCK_GENERAL_TASKS: Task[] = [
     managerDetails:
       "Comprobar salidas de emergencia, extintores y señalización en todas las instalaciones.",
     comments: [],
+    family: "limpieza",
     createdAt: today,
     date: today,
   },
@@ -118,6 +119,7 @@ export const MOCK_GENERAL_TASKS: Task[] = [
     managerDetails:
       "Verificar fechas de caducidad y cantidades mínimas de medicamentos críticos.",
     comments: [],
+    family: "veterinaria",
     createdAt: today,
     date: today,
   },
@@ -132,6 +134,7 @@ export const MOCK_GENERAL_TASKS: Task[] = [
     managerDetails:
       "Lanzar backup completo de la base de datos y revisar que haya espacio suficiente.",
     comments: [],
+    family: "limpieza",
     createdAt: today,
     date: today,
   },

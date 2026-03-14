@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTasks } from "@/contexts/TasksContext";
 import { TASK_TEMPLATES, MOCK_WORKERS, MOCK_FARMS } from "@/data/mock";
-import type { Task, TaskPriority } from "@/types";
+import type { Task, TaskPriority, TaskFamily } from "@/types";
 
 type CreateMode = "template" | "custom";
 
@@ -15,6 +15,13 @@ const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
   { value: "high", label: "Alta" },
   { value: "medium", label: "Media" },
   { value: "low", label: "Baja" },
+];
+
+const TASK_FAMILY_OPTIONS: { value: TaskFamily; label: string }[] = [
+  { value: "veterinaria", label: "Veterinaria" },
+  { value: "campo", label: "Campo" },
+  { value: "alimentacion", label: "Alimentación" },
+  { value: "limpieza", label: "Limpieza" },
 ];
 
 interface CreateTaskModalProps {
@@ -34,6 +41,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
   const [formWorkerId, setFormWorkerId] = useState("");
   const [formFarmId, setFormFarmId] = useState("");
   const [formPriority, setFormPriority] = useState<TaskPriority>("medium");
+  const [formFamily, setFormFamily] = useState<TaskFamily>("campo");
   const [formDate, setFormDate] = useState(() => todayISO());
 
   useEffect(() => {
@@ -45,6 +53,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
       setFormWorkerId("");
       setFormFarmId("");
       setFormPriority("medium");
+      setFormFamily("campo");
       setFormDate(defaultDate ?? todayISO());
     }
   }, [open, defaultDate]);
@@ -79,6 +88,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
       status: "ready",
       managerDetails: managerDetails || "Sin detalles.",
       comments: [],
+      family: formFamily,
       createdAt: today,
       date: formDate,
     };
@@ -249,6 +259,24 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                 {PRIORITY_OPTIONS.map((p) => (
                   <option key={p.value} value={p.value}>
                     {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="task-family" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Familia de tarea
+              </label>
+              <select
+                id="task-family"
+                value={formFamily}
+                onChange={(e) => setFormFamily(e.target.value as TaskFamily)}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+              >
+                {TASK_FAMILY_OPTIONS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.label}
                   </option>
                 ))}
               </select>

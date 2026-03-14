@@ -41,69 +41,97 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-agro-50 p-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg sm:p-8">
-          <div className="mb-[1cm] flex flex-col items-center text-center">
-            <Image
-              src="/PngLogoTexto.png"
-              alt="AgroOps"
-              width={360}
-              height={100}
-              className="h-auto w-full max-w-[360px] object-contain object-center"
-              priority
-            />
-            <p className="mt-0 text-slate-600">Inicia sesión en tu cuenta</p>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-700">
-                {error}
+    <div
+      className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 p-4"
+      style={{
+        backgroundImage: "url('/login-bg.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <div className="absolute inset-0 bg-slate-900/25" aria-hidden />
+
+      <div className="relative z-10 flex flex-col items-center gap-6 px-4">
+        {/* Tarjeta: logo y formulario */}
+        <div className="w-full max-w-[460px]">
+          <div className="rounded-2xl border border-white/10 bg-white/90 px-8 py-7 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-800/90">
+            <div className="flex flex-col items-center">
+              <Image
+                src="/PngLogoTexto.png"
+                alt="AgroOps"
+                width={280}
+                height={80}
+                className="h-auto w-full max-w-[280px] object-contain"
+                priority
+              />
+            </div>
+
+            <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+              {error && (
+                <div className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400"
+                >
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  className="mt-1.5 w-full border-0 border-b-2 border-slate-200 bg-transparent px-0 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-0 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  autoComplete="email"
+                />
               </div>
-            )}
-            <div>
-              <label
-                htmlFor="email"
-                className="mb-1 block text-sm font-medium text-slate-700"
+
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400"
+                >
+                  Contraseña
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="mt-1.5 w-full border-0 border-b-2 border-slate-200 bg-transparent px-0 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-0 dark:border-slate-600 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  autoComplete="current-password"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-agro-600 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-agro-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@email.com"
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-2 focus:ring-agro-500/20"
-                autoComplete="email"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-1 block text-sm font-medium text-slate-700"
-              >
-                Contraseña
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-2 focus:ring-agro-500/20"
-                autoComplete="current-password"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-agro-600 py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-agro-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {loading ? "Entrando..." : "Iniciar sesión"}
-            </button>
-          </form>
+                {loading ? (
+                  "Entrando..."
+                ) : (
+                  <>
+                    Iniciar sesión
+                    <span className="text-white/80" aria-hidden>→</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
         </div>
+
+        {/* Fuera de la tarjeta: pie sobre el fondo */}
+        <p className="text-center text-xs text-white/70 drop-shadow-sm">
+          AgroOps · Tu explotación al día
+        </p>
       </div>
     </div>
   );
