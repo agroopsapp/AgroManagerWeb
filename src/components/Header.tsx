@@ -52,9 +52,9 @@ export default function Header({ onToggleMobileSidebar, onToggleQuickMenu }: Hea
       </div>
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-2 text-slate-600 dark:text-slate-300 sm:flex">
-          <span className="text-sm font-medium">{user?.name ?? "Usuario"}</span>
+          <span className="text-sm font-medium">{user?.email ?? "Usuario"}</span>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-agro-100 text-agro-700 font-semibold dark:bg-agro-900/50 dark:text-agro-300">
-            {(user?.name ?? "U").charAt(0).toUpperCase()}
+            {(user?.email ?? "U").charAt(0).toUpperCase()}
           </div>
         </div>
         <button

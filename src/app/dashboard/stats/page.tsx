@@ -46,7 +46,7 @@ function getWeekRange(iso: string): [string, string] {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  ready: "Lista para empezar",
+  ready: "Pendientes",
   in_progress: "En desarrollo",
   completed: "Finalizada",
 };
@@ -274,7 +274,7 @@ export default function StatsPage() {
                     borderRadius: "0.5rem",
                   }}
                   labelStyle={{ color: "inherit" }}
-                  formatter={(value: number) => [value, "Tareas"]}
+                  formatter={(value: unknown) => [typeof value === "number" ? value : 0, "Tareas"]}
                   labelFormatter={(label) => label}
                 />
                 <Bar dataKey="total" name="Tareas" radius={[4, 4, 0, 0]}>
@@ -324,7 +324,7 @@ export default function StatsPage() {
                     border: "1px solid rgb(203 213 225)",
                     borderRadius: "0.5rem",
                   }}
-                  formatter={(value: number) => [value, "Animales"]}
+                  formatter={(value: unknown) => [typeof value === "number" ? value : 0, "Animales"]}
                 />
                 <Bar dataKey="total" name="Animales" radius={[0, 4, 4, 0]} minPointSize={8}>
                   {animalsByFarm.map((entry, index) => (
@@ -364,7 +364,7 @@ export default function StatsPage() {
                     border: "1px solid rgb(203 213 225)",
                     borderRadius: "0.5rem",
                   }}
-                  formatter={(value: number) => [value, "Incidentes"]}
+                  formatter={(value: unknown) => [typeof value === "number" ? value : 0, "Incidentes"]}
                   labelFormatter={(label) => label}
                 />
                 <Bar dataKey="total" name="Incidentes" radius={[4, 4, 0, 0]}>
@@ -408,7 +408,7 @@ export default function StatsPage() {
                       border: "1px solid rgb(203 213 225)",
                       borderRadius: "0.5rem",
                     }}
-                    formatter={(value: number, name: string) => [value, name]}
+                    formatter={(value: unknown, name: unknown): [number, string] => [typeof value === "number" ? value : 0, String(name ?? "")]}
                   />
                   <Legend />
                 </PieChart>
@@ -448,7 +448,7 @@ export default function StatsPage() {
                     border: "1px solid rgb(203 213 225)",
                     borderRadius: "0.5rem",
                   }}
-                  formatter={(value: number, name: string) => [value, name]}
+                  formatter={(value: unknown, name: unknown): [number, string] => [typeof value === "number" ? value : 0, String(name ?? "")]}
                 />
                 <Legend />
               </PieChart>

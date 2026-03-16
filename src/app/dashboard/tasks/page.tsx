@@ -36,13 +36,13 @@ const DAY_LABELS: { value: DayOfWeek; label: string }[] = [
 ];
 
 const STATUS_COLUMNS: { status: TaskStatus; label: string }[] = [
-  { status: "ready", label: "Lista para empezar" },
+  { status: "ready", label: "Pendientes" },
   { status: "in_progress", label: "En desarrollo" },
   { status: "completed", label: "Finalizada" },
 ];
 
 const STATUS_LABEL_BY_VALUE: Record<TaskStatus, string> = {
-  ready: "Lista para empezar",
+  ready: "Pendientes",
   in_progress: "En desarrollo",
   completed: "Finalizada",
 };
@@ -154,7 +154,7 @@ function DraggableTaskCard({
       {...taskCardProps}
       dragRef={setNodeRef}
       dragListeners={listeners}
-      dragAttributes={attributes}
+      dragAttributes={attributes as unknown as Record<string, unknown>}
       isDragging={isDragging}
     />
   );
