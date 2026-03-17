@@ -27,12 +27,13 @@ export default function Header({ onToggleMobileSidebar, onToggleQuickMenu }: Hea
           <button
             type="button"
             onClick={onToggleQuickMenu}
-            className="inline-flex items-center justify-center rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700"
-            aria-label="Abrir menú rápido"
+            className="inline-flex items-center gap-2 rounded-full border border-agro-500 bg-agro-50 px-3 py-2 text-xs font-semibold text-agro-700 shadow-sm hover:bg-agro-100 active:scale-[0.98] dark:border-agro-400 dark:bg-agro-900/40 dark:text-agro-100"
+            aria-label="Abrir menú principal"
           >
-            <span className="text-xl" aria-hidden>
-              ⋮⋮
+            <span className="text-lg" aria-hidden>
+              ☰
             </span>
+            <span className="uppercase tracking-wide">Menú</span>
           </button>
         </div>
         <Link

@@ -15,6 +15,7 @@ const QUICK_MENU_ITEMS = [
   // Fila 1
   { href: "/dashboard", label: "Panel", icon: "🏠" },
   { href: "/dashboard/tasks", label: "Tareas", icon: "📋" },
+  { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
   { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
   { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
   // Fila 2
@@ -71,8 +72,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex flex-1">
         {/* Menú rápido: grid 3x3 */}
         {quickMenuOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="w-full max-w-xs rounded-2xl bg-white p-4 shadow-xl dark:bg-slate-900 dark:border dark:border-slate-700">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            onClick={() => setQuickMenuOpen(false)}
+          >
+            <div
+              className="w-full max-w-xs rounded-2xl bg-white p-4 shadow-xl dark:bg-slate-900 dark:border dark:border-slate-700"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                   Menú rápido
@@ -96,12 +103,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     key={href}
                     href={href}
                     onClick={() => setQuickMenuOpen(false)}
-                    className="flex min-h-[72px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                    className="flex min-h-[80px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                   >
                     <span className="text-2xl" aria-hidden>
                       {icon}
                     </span>
-                    <span className="mt-1 text-[11px]">{label}</span>
+                    <span className="mt-1 max-w-[90px] text-[11px] leading-tight text-center">
+                      {label}
+                    </span>
                   </Link>
                   );
                 })}
