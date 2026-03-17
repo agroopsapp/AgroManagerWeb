@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { FeaturesProvider } from "@/contexts/FeaturesContext";
+import { PwaProvider } from "@/components/PwaProvider";
 
 export const metadata: Metadata = {
   title: "AgroOps - Gestión de granja",
@@ -22,7 +23,10 @@ export default function RootLayout({
         />
         <ThemeProvider>
           <FeaturesProvider>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              {children}
+              <PwaProvider />
+            </AuthProvider>
           </FeaturesProvider>
         </ThemeProvider>
       </body>
