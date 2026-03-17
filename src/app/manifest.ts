@@ -5,7 +5,7 @@ const manifest = (): MetadataRoute.Manifest => ({
   short_name: "AgroOps",
   description: "Dashboard para gestión de tareas e incidentes en granja",
   start_url: "/",
-  display: "standalone",
+  display: "fullscreen",
   orientation: "portrait",
   background_color: "#020617",
   theme_color: "#22c55e",
