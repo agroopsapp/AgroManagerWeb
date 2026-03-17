@@ -76,9 +76,9 @@ export default function SettingsPage() {
               />
             </span>
             <span className="text-sm text-slate-700 dark:text-slate-200">
-              Activar seguimiento de animales (se muestran menú de <strong>Animals</strong>,{" "}
-              <strong>Animal incidents</strong> y la pestaña de{" "}
-              <strong>Animales con incidentes</strong> en el Dashboard).
+              Activar seguimiento de animales (se muestran los menús de <strong>Animales</strong>,{" "}
+              <strong>Incidencias animales</strong> y la pestaña de{" "}
+              <strong>Animales con incidentes</strong> en el panel).
             </span>
           </label>
         </div>

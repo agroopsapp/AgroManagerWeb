@@ -19,7 +19,7 @@ const priorityBadgeColors: Record<TaskPriority, string> = {
 };
 
 const statusLabels: Record<TaskStatus, string> = {
-  ready: "Pendientes",
+  ready: "Lista para empezar",
   in_progress: "En desarrollo",
   completed: "Finalizada",
 };

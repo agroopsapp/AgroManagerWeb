@@ -13,17 +13,17 @@ const SIDEBAR_STORAGE_KEY = "agroops_sidebar_collapsed";
 
 const QUICK_MENU_ITEMS = [
   // Fila 1
-  { href: "/dashboard", label: "Dashboard", icon: "🏠" },
-  { href: "/dashboard/tasks", label: "Tasks", icon: "📋" },
+  { href: "/dashboard", label: "Panel", icon: "🏠" },
+  { href: "/dashboard/tasks", label: "Tareas", icon: "📋" },
   { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
-  { href: "/dashboard/incidents", label: "Animal incidents", icon: "⚠" },
+  { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
   // Fila 2
-  { href: "/dashboard/animals", label: "Animals", icon: "🐄" },
-  { href: "/dashboard/users", label: "Workers", icon: "👤" },
-  { href: "/dashboard/farms", label: "Farms", icon: "🌾" },
+  { href: "/dashboard/animals", label: "Animales", icon: "🐄" },
+  { href: "/dashboard/users", label: "Trabajadores", icon: "👤" },
+  { href: "/dashboard/farms", label: "Granjas", icon: "🌾" },
   // Fila 3
-  { href: "/dashboard/stats", label: "Stats", icon: "📈" },
-  { href: "/dashboard/settings", label: "Settings", icon: "⚙" },
+  { href: "/dashboard/stats", label: "Estadísticas", icon: "📈" },
+  { href: "/dashboard/settings", label: "Ajustes", icon: "⚙" },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

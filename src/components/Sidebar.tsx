@@ -22,27 +22,28 @@ const navSections: NavSection[] = [
   {
     title: "Operativa",
     items: [
-      { href: "/dashboard", label: "Dashboard", icon: "🏠" },
-      { href: "/dashboard/tasks", label: "Tasks", icon: "📋" },
+      { href: "/dashboard", label: "Panel", icon: "🏠" },
+      { href: "/dashboard/tasks", label: "Tareas", icon: "📋" },
+      { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
       { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
-      { href: "/dashboard/incidents", label: "Animal incidents", icon: "⚠" },
+      { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
     ],
   },
   {
     title: "Datos",
     items: [
-      { href: "/dashboard/animals", label: "Animals", icon: "🐄" },
-      { href: "/dashboard/users", label: "Workers", icon: "👤" },
-      { href: "/dashboard/farms", label: "Farms", icon: "🌾" },
+      { href: "/dashboard/animals", label: "Animales", icon: "🐄" },
+      { href: "/dashboard/users", label: "Trabajadores", icon: "👤" },
+      { href: "/dashboard/farms", label: "Granjas", icon: "🌾" },
     ],
   },
   {
     title: "Análisis",
-    items: [{ href: "/dashboard/stats", label: "Stats", icon: "📈" }],
+    items: [{ href: "/dashboard/stats", label: "Estadísticas", icon: "📈" }],
   },
   {
     title: "Sistema",
-    items: [{ href: "/dashboard/settings", label: "Settings", icon: "⚙" }],
+    items: [{ href: "/dashboard/settings", label: "Ajustes", icon: "⚙" }],
   },
 ];
 

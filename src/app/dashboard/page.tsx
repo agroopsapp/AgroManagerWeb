@@ -18,7 +18,7 @@ import { useFeatures } from "@/contexts/FeaturesContext";
 const WEEKDAY_NAMES_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 const STATUS_COLUMNS: { status: TaskStatus; label: string }[] = [
-  { status: "ready", label: "Pendientes" },
+  { status: "ready", label: "Lista para empezar" },
   { status: "in_progress", label: "En desarrollo" },
   { status: "completed", label: "Finalizada" },
 ];
@@ -331,26 +331,26 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      {/* Cabecera con banda de color (compacta) */}
-      <div className="overflow-hidden rounded-xl bg-gradient-to-r from-agro-600 via-emerald-500 to-sky-500 px-4 py-2 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-baseline gap-2">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-agro-100/80 shrink-0">
+      {/* Cabecera con banda de color */}
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-agro-600 via-emerald-500 to-sky-500 px-5 py-3 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-agro-100/80">
               Panel general
-            </span>
-            <h1 className="text-lg font-bold text-white truncate">Dashboard</h1>
-            <span className="hidden text-[11px] text-agro-50/90 sm:inline truncate">
-              Vista rápida de tareas e incidentes.
-            </span>
+            </p>
+            <h1 className="mt-1 text-2xl font-bold text-white">Dashboard</h1>
+            <p className="mt-1 text-sm text-agro-50/90">
+              Vista rápida de tareas e incidentes en todas tus granjas.
+            </p>
           </div>
           {role && (
-            <div className="flex items-center gap-1.5 shrink-0 text-right">
-              <span className="rounded-full border border-white/30 bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-agro-50 backdrop-blur">
+            <div className="flex flex-col items-end gap-1 text-right">
+              <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-agro-50 backdrop-blur">
                 Rol: {role}
               </span>
               {isSuperAdmin && (
-                <span className="hidden text-[10px] text-agro-50/80 sm:inline">
-                  Acceso global
+                <span className="text-[11px] text-agro-50/80">
+                  Acceso global a todas las empresas
                 </span>
               )}
             </div>
@@ -509,7 +509,7 @@ export default function DashboardPage() {
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Pendientes
+              Listas para empezar
             </p>
             <p className="mt-1 text-2xl font-bold text-amber-500 text-center">{ready}</p>
           </div>
@@ -550,7 +550,7 @@ export default function DashboardPage() {
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Pendientes
+              Listas para empezar
             </p>
             <p className="mt-1 text-2xl font-bold text-amber-500 text-center">{readyGeneral}</p>
           </div>
@@ -819,11 +819,11 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Lista de tareas generales (solo columna Pendientes, tarjetas en grid 3x3) */}
+          {/* Lista de tareas generales (solo columna Lista para empezar, tarjetas en grid 3x3) */}
           <div className="mt-3 rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <div className="mb-2 flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                Pendientes
+                Lista para empezar
               </h2>
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 {readyGeneral} tarea(s)
