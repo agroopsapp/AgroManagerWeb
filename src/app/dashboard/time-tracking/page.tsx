@@ -66,42 +66,38 @@ function createInitialMockEntries(): TimeEntryMock[] {
   const baseWorkerId = 1;
   const baseCreatedBy = 1;
 
-  const makeDay = (offsetDays: number, hasTwoShifts = false): TimeEntryMock[] => {
+  const makeDay = (offsetDays: number, startHour: number, endHour: number, breakMinutes: number): TimeEntryMock => {
     const d = new Date(now);
     d.setDate(d.getDate() - offsetDays);
     const workDate = d.toISOString().slice(0, 10);
 
-    const mk = (startHour: number, endHour: number | null, idx: number): TimeEntryMock => {
-      const start = new Date(d);
-      start.setHours(startHour, 0, 0, 0);
-      const end =
-        endHour != null
-          ? new Date(new Date(d).setHours(endHour, 0, 0, 0)).toISOString()
-          : null;
-      return {
-        id: Number(`${offsetDays}${idx}`),
-        workerId: baseWorkerId,
-        workDate,
-        checkInUtc: start.toISOString(),
-        checkOutUtc: end,
-        isEdited: false,
-        createdAtUtc: start.toISOString(),
-        createdBy: baseCreatedBy,
-        updatedAtUtc: null,
-        updatedBy: null,
-      };
-    };
+    const start = new Date(d);
+    start.setHours(startHour, 0, 0, 0);
+    const end = new Date(d);
+    end.setHours(endHour, 0, 0, 0);
 
-    if (hasTwoShifts) {
-      return [mk(8, 12, 1), mk(13, 17, 2)];
-    }
-    return [mk(8, 16, 1)];
+    return {
+      id: Number(`${offsetDays}1`),
+      workerId: baseWorkerId,
+      workDate,
+      checkInUtc: start.toISOString(),
+      checkOutUtc: end.toISOString(),
+      isEdited: false,
+      createdAtUtc: start.toISOString(),
+      createdBy: baseCreatedBy,
+      updatedAtUtc: end.toISOString(),
+      updatedBy: baseCreatedBy,
+      breakMinutes,
+    };
   };
 
   return [
-    ...makeDay(1, true),
-    ...makeDay(2),
-    ...makeDay(3),
+    // Ayer: jornada larga con 2h de descanso
+    makeDay(1, 8, 18, 120),
+    // Hace 2 días: 1h de descanso
+    makeDay(2, 8, 17, 60),
+    // Hace 3 días: sin descanso
+    makeDay(3, 8, 16, 0),
   ];
 }
 
@@ -412,6 +408,7 @@ export default function TimeTrackingPage() {
                       <th className="px-3 py-2">Fecha</th>
                       <th className="px-3 py-2">Entrada</th>
                       <th className="px-3 py-2">Salida</th>
+                      <th className="px-3 py-2">Descanso</th>
                       <th className="px-3 py-2 text-right">Duración</th>
                     </tr>
                   </thead>
@@ -432,6 +429,9 @@ export default function TimeTrackingPage() {
                           </td>
                           <td className="px-3 py-2 text-xs">
                             {formatTimeLocal(e.checkOutUtc)}
+                          </td>
+                          <td className="px-3 py-2 text-xs">
+                            {formatMinutesShort(e.breakMinutes ?? 0)}
                           </td>
                           <td className="px-3 py-2 text-right text-xs font-semibold">
                             {formatMinutesShort(
