@@ -2772,9 +2772,9 @@ export default function TimeTrackingPage() {
             </div>
             <div
               ref={equipoTablaScrollRef}
-              className="mt-2 max-h-[min(70vh,520px)] w-full min-w-0 max-w-full touch-pan-x overflow-x-auto overflow-y-auto rounded-xl border border-slate-100 dark:border-slate-700 [-webkit-overflow-scrolling:touch]"
+              className="mt-2 max-h-[min(70vh,520px)] w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto rounded-xl border border-slate-100 dark:border-slate-700 [-webkit-overflow-scrolling:touch] [touch-action:pan-x_pan-y]"
               style={{
-                overscrollBehaviorX: "contain",
+                overscrollBehavior: "contain",
                 WebkitOverflowScrolling: "touch",
               }}
             >
@@ -3548,8 +3548,8 @@ export default function TimeTrackingPage() {
             ) : (
               <>
               <div
-                className="mt-3 max-h-80 min-w-0 overflow-x-auto overflow-y-auto rounded-lg border border-slate-100 [-webkit-overflow-scrolling:touch] dark:border-slate-700"
-                style={{ overscrollBehaviorX: "contain" }}
+                className="mt-3 max-h-80 min-w-0 overflow-x-auto overflow-y-auto rounded-lg border border-slate-100 [-webkit-overflow-scrolling:touch] dark:border-slate-700 [touch-action:pan-x_pan-y]"
+                style={{ overscrollBehavior: "contain" }}
               >
                 <table className="w-full min-w-[940px] text-left text-xs text-slate-600 dark:text-slate-300 sm:min-w-[1000px] md:min-w-full">
                   <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-300">
