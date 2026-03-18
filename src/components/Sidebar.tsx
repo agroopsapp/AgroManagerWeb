@@ -54,7 +54,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const { enableAnimals } = useFeatures();
+  const { enableAnimals, enableTimeTracking } = useFeatures();
   const { user } = useAuth();
   const role = user?.role;
   const canSeeAnimals =
@@ -77,6 +77,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {section.items.map(({ href, label, icon, adminOnly }) => {
               // Solo Admin/SuperAdmin ven "Tareas sin asignar"
               if (adminOnly && role !== USER_ROLE.Admin && role !== USER_ROLE.SuperAdmin) {
+                return null;
+              }
+              if (!enableTimeTracking && href === "/dashboard/time-tracking") {
                 return null;
               }
               // Ocultar rutas de animales cuando la funcionalidad está desactivada

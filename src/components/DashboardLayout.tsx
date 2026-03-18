@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFeatures } from "@/contexts/FeaturesContext";
 import { TasksProvider } from "@/contexts/TasksContext";
 import { USER_ROLE } from "@/types";
 import Header from "./Header";
@@ -29,6 +30,7 @@ const QUICK_MENU_ITEMS = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isReady } = useAuth();
+  const { enableAnimals, enableTimeTracking } = useFeatures();
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -60,7 +62,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 px-6 text-center dark:bg-slate-900">
+        <p className="max-w-md text-sm text-slate-600 dark:text-slate-400">
+          No hay sesión activa o ha caducado. Vuelve a iniciar sesión para entrar al panel.
+        </p>
+        <Link
+          href="/login"
+          className="rounded-xl bg-agro-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-agro-700"
+        >
+          Ir al inicio de sesión
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <TasksProvider>
@@ -69,7 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onToggleMobileSidebar={() => setMobileSidebarOpen((v) => !v)}
         onToggleQuickMenu={() => setQuickMenuOpen((v) => !v)}
       />
-      <div className="flex flex-1">
+      <div className="flex min-w-0 flex-1">
         {/* Menú rápido: grid 3x3 */}
         {quickMenuOpen && (
           <div
@@ -98,6 +114,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   if (adminOnly && user?.role !== USER_ROLE.Admin && user?.role !== USER_ROLE.SuperAdmin) {
                     return null;
                   }
+                  if (!enableTimeTracking && href === "/dashboard/time-tracking") {
+                    return null;
+                  }
+                  if (
+                    !enableAnimals &&
+                    (href === "/dashboard/incidents" || href === "/dashboard/animals")
+                  ) {
+                    return null;
+                  }
                   return (
                   <Link
                     key={href}
@@ -122,11 +147,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Layout escritorio */}
         <div className="hidden w-full md:flex md:flex-row">
           <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
-          <main className="flex-1 overflow-auto bg-slate-50 p-6 dark:bg-slate-900">{children}</main>
+          <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-6 dark:bg-slate-900">
+            {children}
+          </main>
         </div>
 
         {/* Contenido móvil (sin sidebar fijo) */}
-        <main className="flex-1 overflow-auto bg-slate-50 p-4 dark:bg-slate-900 md:hidden">{children}</main>
+        <main className="min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 px-3 py-4 dark:bg-slate-900 md:hidden">
+          {children}
+        </main>
       </div>
     </div>
     </TasksProvider>

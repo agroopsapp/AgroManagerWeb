@@ -36,7 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as StoredAuthState;
-        if (parsed.token && parsed.user && typeof parsed.expiresAt === "number") {
+        if (
+          parsed.token &&
+          parsed.user &&
+          typeof parsed.expiresAt === "number" &&
+          Number.isFinite(parsed.expiresAt)
+        ) {
           if (parsed.expiresAt > Date.now()) {
             setUser(parsed.user);
             setToken(parsed.token);
@@ -67,7 +72,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: data.user.email,
       role: data.user.role as AuthUser["role"],
     };
-    const expiresAt = Date.now() + (data.expiresIn ?? 0) * 1000;
+    const expiresInSec =
+      typeof data.expiresIn === "number" && data.expiresIn > 0
+        ? data.expiresIn
+        : 60 * 60 * 24 * 7;
+    const expiresAt = Date.now() + expiresInSec * 1000;
     const stored: StoredAuthState = {
       token: data.token,
       expiresAt,

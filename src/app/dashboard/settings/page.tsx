@@ -7,11 +7,13 @@ import { USER_ROLE } from "@/types";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { enableAnimals, setEnableAnimals } = useFeatures();
+  const { enableAnimals, setEnableAnimals, enableTimeTracking, setEnableTimeTracking } =
+    useFeatures();
   const { user } = useAuth();
   const role = user?.role;
   const canEditAnimalsFeature =
     role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin;
+  const isSuperAdmin = role === USER_ROLE.SuperAdmin;
 
   return (
     <div className="space-y-4">
@@ -52,6 +54,39 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {isSuperAdmin && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
+          <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-200">
+            Registro de jornada (fichador)
+          </h2>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200">
+            Solo superadministrador
+          </p>
+          <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+            Activa o desactiva el módulo de fichaje para todos los usuarios. Si está desactivado, no
+            verán la entrada en el menú y no podrán acceder a la pantalla.
+          </p>
+          <label className="inline-flex items-center gap-3">
+            <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-agro-500 dark:bg-slate-600">
+              <input
+                type="checkbox"
+                checked={enableTimeTracking}
+                onChange={(e) => setEnableTimeTracking(e.target.checked)}
+                className="peer sr-only"
+              />
+              <span
+                className={`absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  enableTimeTracking ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </span>
+            <span className="text-sm text-slate-700 dark:text-slate-200">
+              Mostrar <strong>Registro de jornada</strong> (fichador) en la aplicación
+            </span>
+          </label>
+        </div>
+      )}
 
       {canEditAnimalsFeature && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
