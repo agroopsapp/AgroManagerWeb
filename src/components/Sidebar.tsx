@@ -57,8 +57,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { enableAnimals, enableTimeTracking } = useFeatures();
   const { user } = useAuth();
   const role = user?.role;
+  const isAdminLike =
+    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin || role === USER_ROLE.Manager;
   const canSeeAnimals =
-    enableAnimals && (role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin);
+    enableAnimals && isAdminLike;
 
   return (
     <aside
@@ -75,8 +77,15 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </p>
             )}
             {section.items.map(({ href, label, icon, adminOnly }) => {
+              // Worker: no tiene "Panel" de manager
+              if (href === "/dashboard" && role === USER_ROLE.Worker) {
+                return null;
+              }
+
+              const resolvedHref = href === "/dashboard" ? "/dashboard/manager" : href;
+
               // Solo Admin/SuperAdmin ven "Tareas sin asignar"
-              if (adminOnly && role !== USER_ROLE.Admin && role !== USER_ROLE.SuperAdmin) {
+              if (adminOnly && !isAdminLike) {
                 return null;
               }
               if (!enableTimeTracking && href === "/dashboard/time-tracking") {
@@ -90,11 +99,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               ) {
                 return null;
               }
-              const isActive = pathname === href;
+              const isActive = pathname === resolvedHref;
               return (
                 <Link
-                  key={href}
-                  href={href}
+                  key={resolvedHref}
+                  href={resolvedHref}
                   title={collapsed ? label : undefined}
                   className={`flex items-center rounded-lg px-3 py-3 text-sm font-medium transition md:py-2.5 ${
                     collapsed ? "justify-center md:px-3" : "gap-3 px-4"

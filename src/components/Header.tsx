@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { USER_ROLE } from "@/types";
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -13,6 +14,7 @@ interface HeaderProps {
 export default function Header({ onToggleMobileSidebar, onToggleQuickMenu }: HeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const panelHref = user?.role === USER_ROLE.Worker ? "/dashboard/tasks" : "/dashboard/manager";
 
   const handleLogout = () => {
     logout();
@@ -37,7 +39,7 @@ export default function Header({ onToggleMobileSidebar, onToggleQuickMenu }: Hea
           </button>
         </div>
         <Link
-          href="/dashboard"
+          href={panelHref}
           className="flex items-center gap-2 text-xl font-bold text-agro-700 dark:text-agro-400"
         >
           <Image

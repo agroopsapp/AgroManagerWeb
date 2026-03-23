@@ -12,8 +12,9 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const role = user?.role;
   const canEditAnimalsFeature =
-    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin;
-  const isSuperAdmin = role === USER_ROLE.SuperAdmin;
+    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin || role === USER_ROLE.Manager;
+  const canEditTimeTrackingFeature =
+    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin || role === USER_ROLE.Manager;
 
   return (
     <div className="space-y-4">
@@ -55,7 +56,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {isSuperAdmin && (
+      {canEditTimeTrackingFeature && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
           <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-200">
             Registro de jornada (fichador)

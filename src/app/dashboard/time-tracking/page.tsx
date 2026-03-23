@@ -2,6 +2,8 @@
 
 import { startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { FICHADOR_STORAGE_KEY } from "@/lib/fichadorStorage";
+import { workerIdForLoggedUser } from "@/lib/fichajeWorker";
 import { USER_ROLE } from "@/types";
 
 // --- Tipos y helpers locales (mock) ---
@@ -81,6 +83,11 @@ interface TimeEntryMock {
   previousCheckOutUtc?: string | null;
   /** Nota opcional del administrador al corregir horario. */
   edicionNotaAdmin?: string | null;
+  /**
+   * El backend cerró la jornada a las 23:59 del mismo día (sin fichaje real de salida).
+   * Hasta que el trabajador confirme entrada/salida/descanso reales, no puede fichar hoy.
+   */
+  cierreAutomaticoMedianoche?: boolean;
 }
 
 function formatTiempoAnterior(iso: string | null | undefined): string {
@@ -118,6 +125,49 @@ function workDateIsWeekend(workDate: string): boolean {
   if (!y || !m || !d) return false;
   const day = new Date(y, m - 1, d, 12, 0, 0, 0).getDay();
   return day === 0 || day === 6;
+}
+
+/** El lun–vie más antiguo (en los últimos N días) sin registro o sin jornada bien cerrada. */
+function primeraPendienteLaboralEnVentana(
+  entries: TimeEntryMock[],
+  workerId: number,
+  maxDiasAtras = 14,
+  ref: Date = new Date()
+): {
+  workDate: string;
+  sinFichaje: boolean;
+  entrada: TimeEntryMock | null;
+} | null {
+  let candidato: {
+    workDate: string;
+    sinFichaje: boolean;
+    entrada: TimeEntryMock | null;
+  } | null = null;
+  for (let i = 1; i <= maxDiasAtras; i++) {
+    const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() - i, 12, 0, 0, 0);
+    const wd = localCalendarISO(d);
+    if (workDateIsWeekend(wd)) continue;
+    const list = entries.filter((e) => e.workerId === workerId && e.workDate === wd);
+    const e =
+      list.length === 0
+        ? null
+        : [...list].sort(
+            (a, b) => new Date(b.checkInUtc).getTime() - new Date(a.checkInUtc).getTime()
+          )[0];
+    const sinFichaje = e === null;
+    const sinCerrar =
+      e !== null &&
+      (e.checkOutUtc == null || e.cierreAutomaticoMedianoche === true);
+    if (!sinFichaje && !sinCerrar) continue;
+    if (candidato === null || wd < candidato.workDate) {
+      candidato = {
+        workDate: wd,
+        sinFichaje,
+        entrada: sinCerrar ? e : null,
+      };
+    }
+  }
+  return candidato;
 }
 
 function workDateWithinLastNDays(workDate: string, n: number, ref: Date = new Date()): boolean {
@@ -1009,10 +1059,16 @@ function BreakDurationClock({
 }
 
 /**
- * Demo fichador: si es true, ayer queda con entrada sin salida → letrero rojo y bloqueo hasta completar.
- * Pon false para probar el flujo normal (ayer cerrado).
+ * Demo “ayer” (solo una activa):
+ * - CIERRE_AUTO (recomendado): fichó entrada, olvidó salida → el sistema cierra a 23:59; debe reimputar.
+ * - SIN_CERRAR: misma situación pero jornada aún abierta (sin salida en BD).
+ * Ambas false: sin bloqueo por ayer; el histórico sigue mostrando otros días.
+ *
+ * Otro caso realista en el histórico (sin entrada ni salida): día laborable sin fila en BD
+ * → fila roja «Sin imputar (día laboral)» (olvidó fichar de punta a punta / usar «Olvidé fichar»).
  */
-const MOCK_DEMO_YESTERDAY_SIN_CERRAR = true;
+const MOCK_DEMO_YESTERDAY_SIN_CERRAR = false;
+const MOCK_DEMO_YESTERDAY_CIERRE_AUTO = true;
 
 /** Último viernes ya pasado (si hoy es viernes, el de hace 7 días). Siempre laborable. */
 function dateOfLastFriday(from: Date = new Date()): Date {
@@ -1039,11 +1095,13 @@ function dateOfLastMonday(from: Date = new Date()): Date {
   return d;
 }
 
-// Genera unos registros de ejemplo (sin sábado ni domingo en histórico demo)
-function createInitialMockEntries(): TimeEntryMock[] {
+// Genera registros de ejemplo solo para el trabajador de la sesión (fichaje personal).
+function createInitialMockEntries(workerId: number, sessionEmail: string): TimeEntryMock[] {
   const now = new Date();
-  const baseWorkerId = 1;
-  const baseCreatedBy = 1;
+  const baseWorkerId = workerId;
+  const baseCreatedBy = workerId;
+  const who =
+    sessionEmail.trim() || (MOCK_APP_USER_EMAIL_BY_WORKER[workerId] ?? "usuario@empresa.demo");
 
   const makeClosedEntry = (
     calendarDay: Date,
@@ -1083,9 +1141,7 @@ function createInitialMockEntries(): TimeEntryMock[] {
       razon,
       lastModifiedByEmail:
         lastModifiedByEmail ??
-        (razon === "imputacion_manual_error"
-          ? MOCK_RRHH_LAST_MODIFIER
-          : MOCK_APP_USER_EMAIL_BY_WORKER[baseWorkerId] ?? "usuario@empresa.demo"),
+        (razon === "imputacion_manual_error" ? MOCK_RRHH_LAST_MODIFIER : who),
     };
   };
 
@@ -1110,7 +1166,36 @@ function createInitialMockEntries(): TimeEntryMock[] {
       updatedBy: null,
       breakMinutes: 0,
       razon: "imputacion_normal",
-      lastModifiedByEmail: MOCK_APP_USER_EMAIL_BY_WORKER[baseWorkerId] ?? "usuario@empresa.demo",
+      lastModifiedByEmail: who,
+    };
+  };
+
+  /** Ayer: el servidor cerró a las 23:59 del mismo día — obliga a reimputar (misma UX que sin salida). */
+  const makeAyerCierreAuto2359 = (): TimeEntryMock => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
+    const workDate = localCalendarISO(d);
+    const start = new Date(d);
+    start.setHours(8, 5, 0, 0);
+    const end2359 = new Date(d);
+    end2359.setHours(23, 59, 0, 0);
+    const startIso = start.toISOString();
+    const outIso = end2359.toISOString();
+    return {
+      id: 101,
+      workerId: baseWorkerId,
+      workDate,
+      checkInUtc: startIso,
+      checkOutUtc: outIso,
+      isEdited: true,
+      createdAtUtc: startIso,
+      createdBy: baseCreatedBy,
+      updatedAtUtc: outIso,
+      updatedBy: baseCreatedBy,
+      breakMinutes: 0,
+      razon: "imputacion_normal",
+      cierreAutomaticoMedianoche: true,
+      lastModifiedByEmail: who,
     };
   };
 
@@ -1119,27 +1204,23 @@ function createInitialMockEntries(): TimeEntryMock[] {
   const ayerStr = localYesterdayISO();
 
   const historialAntiguo: TimeEntryMock[] = [];
-  // No duplicar el mismo día que “ayer sin cerrar” (entrada abierta)
-  if (!(MOCK_DEMO_YESTERDAY_SIN_CERRAR && localCalendarISO(lunesPasado) === ayerStr)) {
-    historialAntiguo.push({
-      ...makeClosedEntry(lunesPasado, 202, 8, 16, 60, "imputacion_normal", "maria.garcia@empresa.demo"),
-      lastModifiedByName: "María García",
-    });
+  const demoAyer =
+    MOCK_DEMO_YESTERDAY_SIN_CERRAR || MOCK_DEMO_YESTERDAY_CIERRE_AUTO;
+  // No duplicar el día de “ayer” si ya va en el registro demo (p. ej. ayer = lunes o viernes)
+  if (!demoAyer || localCalendarISO(lunesPasado) !== ayerStr) {
+    historialAntiguo.push(makeClosedEntry(lunesPasado, 202, 8, 16, 60, "imputacion_normal", who));
   }
-  historialAntiguo.push(
-    makeClosedEntry(
-      viernesPasado,
-      201,
-      8,
-      17,
-      30,
-      "imputacion_normal",
-      MOCK_RRHH_LAST_MODIFIER
-    )
-  );
+  if (!demoAyer || localCalendarISO(viernesPasado) !== ayerStr) {
+    historialAntiguo.push(
+      makeClosedEntry(viernesPasado, 201, 8, 17, 30, "imputacion_normal", who)
+    );
+  }
 
   if (MOCK_DEMO_YESTERDAY_SIN_CERRAR) {
     return [makeAyerEntradaSinSalida(), ...historialAntiguo];
+  }
+  if (MOCK_DEMO_YESTERDAY_CIERRE_AUTO) {
+    return [makeAyerCierreAuto2359(), ...historialAntiguo];
   }
 
   return [...historialAntiguo];
@@ -1170,6 +1251,8 @@ type EquipoTablaFila =
 
 const RAZON_NO_LABORAL = "Fin de semana (no laboral)";
 const RAZON_SIN_IMPUTAR = "Sin imputar (día laboral)";
+const RAZON_IMPUTACION_AUTOMATICA = "Imputación automática";
+const MODIFICADO_POR_SISTEMA = "Sistema";
 
 /** CSV de la vista calendario (incl. no laboral y sin imputar). */
 function buildEquipoTableCsvFilas(filas: EquipoTablaFila[]): string {
@@ -1652,7 +1735,6 @@ function createTeamHistorialDemo(): TimeEntryMock[] {
     );
 }
 
-const FICHADOR_STORAGE_KEY = "agro-fichador-entries-v1";
 /** Historial equipo (edits admin): misma pestaña; sobrevive F5 sin recargar datos demo. */
 const EQUIPO_HISTORIAL_STORAGE_KEY = "agro-equipo-historial-v1";
 
@@ -1684,9 +1766,10 @@ function parseStoredTimeEntries(raw: string | null): TimeEntryMock[] | null {
 }
 
 export default function TimeTrackingPage() {
-  const { user } = useAuth();
+  const { user, isReady } = useAuth();
+  const miWorkerId = useMemo(() => workerIdForLoggedUser(user), [user?.id, user?.email]);
   const canVerEquipo =
-    user?.role === USER_ROLE.Admin || user?.role === USER_ROLE.SuperAdmin;
+    user?.role === USER_ROLE.Admin || user?.role === USER_ROLE.SuperAdmin || user?.role === USER_ROLE.Manager;
   const [fichadorPanel, setFichadorPanel] = useState<"personal" | "equipo">("personal");
   const [filtroPersonaEquipo, setFiltroPersonaEquipo] = useState<number | "todas">("todas");
   const [mesEquipo, setMesEquipo] = useState(currentMonthLocalISO);
@@ -1788,7 +1871,7 @@ export default function TimeTrackingPage() {
       for (const { workDate, isWeekend } of diasCalendarioMesEquipo) {
         if (isWeekend) {
           const we = entriesMesEquipoPorTrabajador.get(`${wid}-${workDate}`);
-          if (we && isAusenciaRazon(we.razon)) {
+          if (we) {
             filas.push({ kind: "registro", e: we });
           } else {
             filas.push({ kind: "noLaboral", workerId: wid, workDate });
@@ -2098,7 +2181,9 @@ export default function TimeTrackingPage() {
   const [forgotFullBreakCustom, setForgotFullBreakCustom] = useState("");
   const [forgotBreakOtro, setForgotBreakOtro] = useState(false);
   const [forgotError, setForgotError] = useState<string | null>(null);
-  const [forgotMode, setForgotMode] = useState<"solo_hoy" | "full_hoy" | "full_ayer" | null>(null);
+  const [forgotMode, setForgotMode] = useState<
+    "solo_hoy" | "full_hoy" | "full_ayer" | "full_ultimo_laboral" | null
+  >(null);
 
   type AyerCompletaStep = "closed" | "inicio" | "fin" | "descanso" | "descanso_cant";
   const [ayerCompStep, setAyerCompStep] = useState<AyerCompletaStep>("closed");
@@ -2113,44 +2198,96 @@ export default function TimeTrackingPage() {
   const ayerUtc = yesterdayISO();
   const ayerLocal = localYesterdayISO();
 
-  const todayEntries = useMemo(
-    () => entries.filter((e) => e.workDate === today),
-    [entries, today]
+  const todayEntriesPersonal = useMemo(
+    () => entries.filter((e) => e.workDate === today && e.workerId === miWorkerId),
+    [entries, today, miWorkerId]
   );
 
   const openEntry = useMemo(
     () =>
-      todayEntries
+      todayEntriesPersonal
         .slice()
         .sort((a, b) => new Date(b.checkInUtc).getTime() - new Date(a.checkInUtc).getTime())
         .find((e) => e.checkOutUtc === null) ?? null,
-    [todayEntries]
+    [todayEntriesPersonal]
   );
 
   const hasOpenEntry = !!openEntry;
 
   const esFechaAyer = (wd: string) => wd === ayerUtc || wd === ayerLocal;
 
-  /** Entrada de ayer sin salida → obligatorio cerrar manualmente antes de fichar hoy. */
-  const registroAyerParcial = useMemo(
-    () => entries.find((e) => esFechaAyer(e.workDate) && e.checkOutUtc == null) ?? null,
-    [entries, ayerUtc, ayerLocal]
+  const pendienteLaboral = useMemo(
+    () => primeraPendienteLaboralEnVentana(entries, miWorkerId, 14),
+    [entries, miWorkerId]
   );
 
-  const necesitaCompletarAyer = registroAyerParcial !== null;
+  const fechaUltimoLaboral = pendienteLaboral?.workDate ?? ayerLocal;
+  const ultimoLaboralSinFichaje = pendienteLaboral?.sinFichaje === true;
+  const ultimoLaboralSinCerrar =
+    pendienteLaboral !== null && pendienteLaboral.sinFichaje === false;
+  const entradaUltimoLaboral = pendienteLaboral?.entrada ?? null;
 
-  /** Tabla histórico: ventana 7 días y sin sábado/domingo (vista tipo L–V en demo). */
-  const historicoRecienteRows = useMemo(
-    () =>
-      entries
-        .filter((e) => workDateWithinLastNDays(e.workDate, 7))
-        .filter((e) => !workDateIsWeekend(e.workDate))
-        .slice()
-        .sort((a, b) => (a.workDate < b.workDate ? 1 : a.workDate > b.workDate ? -1 : 0)),
-    [entries]
-  );
+  /** Hay al menos un día laborable en ventana sin registro o sin cerrar bien → aviso (no bloquea fichar). */
+  const hayDiasSinCuadrarEnHistorico = pendienteLaboral !== null;
 
-  const fechaAyerEtiqueta = registroAyerParcial?.workDate ?? ayerLocal;
+  /** Registro existente pero mal cerrado → flujo «Completar…» (desde histórico / modal). */
+  const registroAyerParcial = ultimoLaboralSinCerrar ? entradaUltimoLaboral : null;
+
+  type HistoricoPersonalFila =
+    | { kind: "entry"; entry: TimeEntryMock }
+    | { kind: "sinRegistro"; workDate: string };
+
+  /**
+   * Los últimos 7 días calendario (incl. sábado y domingo): cada día pasado muestra registro o fila vacía.
+   * El día actual solo aparece si ya hay fichaje.
+   */
+  const historicoPersonalFilas = useMemo((): HistoricoPersonalFila[] => {
+    const today = localTodayISO();
+    const wid = miWorkerId;
+    const filas: HistoricoPersonalFila[] = [];
+    for (let delta = 0; delta < 7; delta++) {
+      const d = new Date();
+      d.setDate(d.getDate() - delta);
+      const wd = localCalendarISO(d);
+      if (!workDateWithinLastNDays(wd, 7)) continue;
+      const dayEntries = entries.filter((x) => x.workerId === wid && x.workDate === wd);
+      const e =
+        dayEntries.length === 0
+          ? null
+          : [...dayEntries].sort(
+              (a, b) => new Date(b.checkInUtc).getTime() - new Date(a.checkInUtc).getTime()
+            )[0];
+      if (wd < today) {
+        if (!e) filas.push({ kind: "sinRegistro", workDate: wd });
+        else filas.push({ kind: "entry", entry: e });
+      } else if (e) {
+        filas.push({ kind: "entry", entry: e });
+      }
+    }
+    filas.sort((a, b) => {
+      const da = a.kind === "entry" ? a.entry.workDate : a.workDate;
+      const db = b.kind === "entry" ? b.entry.workDate : b.workDate;
+      return db.localeCompare(da);
+    });
+    return filas;
+  }, [entries, miWorkerId]);
+
+  /**
+   * Fila en rojo: día laborable ya pasado sin registro, o registro sin cerrar.
+   * Fin de semana sin fichaje no se marca en rojo (misma tabla, celdas vacías).
+   */
+  const historicoFilaSinImputarPasado = (fila: HistoricoPersonalFila): boolean => {
+    const today = localTodayISO();
+    if (fila.kind === "sinRegistro") {
+      return !workDateIsWeekend(fila.workDate);
+    }
+    const e = fila.entry;
+    if (e.workDate >= today) return false;
+    if (isAusenciaRazon(e.razon)) return false;
+    return e.checkOutUtc == null || e.cierreAutomaticoMedianoche === true;
+  };
+
+  const fechaAyerEtiqueta = fechaUltimoLaboral;
 
   const ayerMinutosBrutos = useMemo(() => {
     const m = minutesGrossWorkDay(fechaAyerEtiqueta, ayerManStart, ayerManEnd);
@@ -2160,18 +2297,20 @@ export default function TimeTrackingPage() {
   /** Jornada de hoy ya cerrada (entrada + salida). Solo se permite un ciclo por día. */
   const closedTodayEntry = useMemo(
     () =>
-      todayEntries
+      todayEntriesPersonal
         .filter((e) => e.checkOutUtc !== null)
         .sort((a, b) => new Date(b.checkOutUtc!).getTime() - new Date(a.checkOutUtc!).getTime())[0] ??
       null,
-    [todayEntries]
+    [todayEntriesPersonal]
   );
 
   const jornadaCompletadaHoy = closedTodayEntry !== null && !hasOpenEntry;
 
-  const hasEntryFor = (workDate: string) => entries.some((e) => e.workDate === workDate);
+  const hasEntryForMiTrabajador = (workDate: string) =>
+    entries.some((e) => e.workDate === workDate && e.workerId === miWorkerId);
 
-  const olvideFicharBotonActivo = !necesitaCompletarAyer && !hasEntryFor(today);
+  const olvideFicharBotonActivo =
+    !hasEntryForMiTrabajador(today) && forgotStep === "closed" && actionLoading === null;
 
   const resetForgotModal = () => {
     setForgotStep("closed");
@@ -2188,10 +2327,6 @@ export default function TimeTrackingPage() {
   };
 
   const openForgotModal = () => {
-    if (necesitaCompletarAyer) {
-      setError("Primero completa el registro de ayer (entrada, salida y descanso) con el aviso rojo.");
-      return;
-    }
     setForgotError(null);
     setForgotTargetDate(null);
     setForgotStep("pick_day");
@@ -2220,17 +2355,26 @@ export default function TimeTrackingPage() {
   };
 
   const submitCompletarAyer = (forcedBreak?: number) => {
-    const openAyer = entries.find((e) => esFechaAyer(e.workDate) && e.checkOutUtc == null);
-    const closedAyerExists = entries.some(
-      (e) => esFechaAyer(e.workDate) && e.checkOutUtc != null && e.checkOutUtc !== ""
+    const wdTarget = fechaUltimoLaboral;
+    const pendienteAyer = entries.find(
+      (e) =>
+        e.workerId === miWorkerId &&
+        e.workDate === wdTarget &&
+        (e.checkOutUtc == null || e.cierreAutomaticoMedianoche === true)
     );
-    // Solo salir si ya no hay nada que cerrar (evita el bug: había cierre duplicado + entrada abierta
-    // y el antiguo `some(checkOut)` impedía guardar y el aviso rojo no desaparecía).
-    if (!openAyer && closedAyerExists) {
-      resetAyerCompletaModal();
+    const diaYaConfirmado = entries.some(
+      (e) =>
+        e.workerId === miWorkerId &&
+        e.workDate === wdTarget &&
+        e.checkOutUtc != null &&
+        e.checkOutUtc !== "" &&
+        e.cierreAutomaticoMedianoche !== true
+    );
+    if (!pendienteAyer) {
+      if (diaYaConfirmado) resetAyerCompletaModal();
       return;
     }
-    const wd = openAyer?.workDate ?? ayerLocal;
+    const wd = pendienteAyer.workDate;
     const checkInUtc = dateTimeLocalToUtcIso(wd, ayerManStart);
     const checkOutUtc = checkoutLocalIsoAfterCheckin(wd, checkInUtc, ayerManEnd);
     let breakMin = 0;
@@ -2245,12 +2389,17 @@ export default function TimeTrackingPage() {
     }
     const nowIso = new Date().toISOString();
     setEntries((prev) => {
-      const openAyerIds = prev
-        .filter((e) => esFechaAyer(e.workDate) && e.checkOutUtc == null)
+      const idsPendienteAyer = prev
+        .filter(
+          (e) =>
+            e.workerId === miWorkerId &&
+            e.workDate === wdTarget &&
+            (e.checkOutUtc == null || e.cierreAutomaticoMedianoche === true)
+        )
         .map((e) => e.id);
-      if (openAyerIds.length > 0) {
+      if (idsPendienteAyer.length > 0) {
         return prev.map((x) =>
-          openAyerIds.includes(x.id)
+          idsPendienteAyer.includes(x.id)
             ? {
                 ...x,
                 previousCheckInUtc: x.checkInUtc,
@@ -2264,8 +2413,9 @@ export default function TimeTrackingPage() {
                 salidaManual: true,
                 isEdited: true,
                 updatedAtUtc: nowIso,
-                updatedBy: 1,
+                updatedBy: miWorkerId,
                 lastModifiedByEmail: user?.email ?? null,
+                cierreAutomaticoMedianoche: false,
               }
             : x
         );
@@ -2275,15 +2425,15 @@ export default function TimeTrackingPage() {
         ...prev,
         {
           id: maxId + 1,
-          workerId: 1,
+          workerId: miWorkerId,
           workDate: wd,
           checkInUtc,
           checkOutUtc,
           isEdited: true,
           createdAtUtc: nowIso,
-          createdBy: 1,
+          createdBy: miWorkerId,
           updatedAtUtc: nowIso,
-          updatedBy: 1,
+          updatedBy: miWorkerId,
           razon: "imputacion_manual_error",
           salidaManual: true,
           breakMinutes: breakMin,
@@ -2301,7 +2451,7 @@ export default function TimeTrackingPage() {
       setForgotError("Solo puedes registrar solo la entrada para el día de hoy.");
       return;
     }
-    if (hasEntryFor(forgotTargetDate)) {
+    if (hasEntryForMiTrabajador(forgotTargetDate)) {
       setForgotError("Ya existe un fichaje para ese día.");
       return;
     }
@@ -2313,13 +2463,13 @@ export default function TimeTrackingPage() {
         ...prev,
         {
           id: maxId + 1,
-          workerId: 1,
+          workerId: miWorkerId,
           workDate: forgotTargetDate,
           checkInUtc,
           checkOutUtc: null,
           isEdited: true,
           createdAtUtc: nowIso,
-          createdBy: 1,
+          createdBy: miWorkerId,
           updatedAtUtc: null,
           updatedBy: null,
           razon: "imputacion_manual_error",
@@ -2334,7 +2484,7 @@ export default function TimeTrackingPage() {
 
   const submitForgotJornadaCompleta = (forcedBreakMinutes?: number) => {
     if (!forgotTargetDate) return;
-    if (hasEntryFor(forgotTargetDate)) {
+    if (hasEntryForMiTrabajador(forgotTargetDate)) {
       setForgotError("Ya existe un fichaje para ese día.");
       return;
     }
@@ -2363,15 +2513,15 @@ export default function TimeTrackingPage() {
         ...prev,
         {
           id: maxId + 1,
-          workerId: 1,
+          workerId: miWorkerId,
           workDate: forgotTargetDate,
           checkInUtc,
           checkOutUtc,
           isEdited: true,
           createdAtUtc: nowIso,
-          createdBy: 1,
+          createdBy: miWorkerId,
           updatedAtUtc: nowIso,
-          updatedBy: 1,
+          updatedBy: miWorkerId,
           razon: "imputacion_manual_error",
           entradaManual: false,
           breakMinutes: breakMin,
@@ -2383,19 +2533,23 @@ export default function TimeTrackingPage() {
   };
 
   useEffect(() => {
+    if (!isReady) return;
+    const wid = workerIdForLoggedUser(user);
+    const email = user?.email?.trim() || "usuario@empresa.demo";
     if (FICHADOR_PERSISTIR_DATOS && typeof window !== "undefined") {
       const stored = parseStoredTimeEntries(localStorage.getItem(FICHADOR_STORAGE_KEY));
       if (stored !== null) {
-        setEntries(stored);
+        const mine = stored.filter((e) => e.workerId === wid);
+        setEntries(mine.length > 0 ? mine : createInitialMockEntries(wid, email));
       } else {
-        setEntries(createInitialMockEntries());
+        setEntries(createInitialMockEntries(wid, email));
       }
     } else {
-      setEntries(createInitialMockEntries());
+      setEntries(createInitialMockEntries(wid, email));
     }
     setEntriesHydrated(true);
     setLoading(false);
-  }, []);
+  }, [isReady, user?.id, user?.email]);
 
   useEffect(() => {
     if (
@@ -2415,11 +2569,9 @@ export default function TimeTrackingPage() {
   const handleCheckIn = async () => {
     setError(null);
     const workDate = localTodayISO();
-    if (necesitaCompletarAyer) {
-      setError("Antes debes completar el registro de ayer (aviso rojo).");
-      return;
-    }
-    const yaHayFichajeHoy = entries.some((e) => e.workDate === workDate);
+    const yaHayFichajeHoy = entries.some(
+      (e) => e.workDate === workDate && e.workerId === miWorkerId
+    );
     if (yaHayFichajeHoy) {
       setError(
         "Solo puedes fichar la entrada una vez al día. Si ya cerraste la jornada, mañana podrás volver a fichar."
@@ -2431,19 +2583,19 @@ export default function TimeTrackingPage() {
       setEntries((prev) => {
         const now = new Date();
         const wd = localTodayISO();
-        if (prev.some((e) => e.workDate === wd)) {
+        if (prev.some((e) => e.workDate === wd && e.workerId === miWorkerId)) {
           return prev;
         }
         const maxId = prev.reduce((max, e) => (e.id > max ? e.id : max), 0);
         const newEntry: TimeEntryMock = {
           id: maxId + 1,
-          workerId: 1,
+          workerId: miWorkerId,
           workDate: wd,
           checkInUtc: now.toISOString(),
           checkOutUtc: null,
           isEdited: false,
           createdAtUtc: now.toISOString(),
-          createdBy: 1,
+          createdBy: miWorkerId,
           updatedAtUtc: null,
           updatedBy: null,
           razon: "imputacion_normal",
@@ -2496,7 +2648,7 @@ export default function TimeTrackingPage() {
                 ...e,
                 checkOutUtc: nowIso,
                 updatedAtUtc: nowIso,
-                updatedBy: 1,
+                updatedBy: miWorkerId,
                 breakMinutes: breakMin,
                 lastModifiedByEmail: user?.email ?? null,
               }
@@ -2961,22 +3113,28 @@ export default function TimeTrackingPage() {
                       return (
                         <tr
                           key={`nl-${fila.workerId}-${fila.workDate}`}
-                          className="border-t border-slate-200/80 bg-slate-50/90 text-slate-500 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-400"
+                          className="border-t border-slate-200 bg-slate-100/95 text-slate-600 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300"
                         >
-                          <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold">
+                          <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
                             {workerNameById(fila.workerId)}
                           </td>
-                          <td className="px-3 py-2 text-xs">{formatDateES(fila.workDate)}</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs italic">{RAZON_NO_LABORAL}</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-right text-xs">—</td>
-                          <td className="sticky right-0 z-[1] bg-slate-50/95 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:bg-slate-800/95">
+                          <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
+                            {formatDateES(fila.workDate)}
+                          </td>
+                          <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                          <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                          <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                          <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                          <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                          <td className="max-w-[11rem] px-3 py-2 text-xs italic text-sky-700 dark:text-sky-400">
+                            {RAZON_NO_LABORAL}
+                          </td>
+                          <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                          <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                          <td className="px-3 py-2 text-right text-xs text-slate-500 dark:text-slate-400">
+                            —
+                          </td>
+                          <td className="sticky right-0 z-[1] border-l border-slate-200/80 bg-slate-100 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-600 dark:bg-slate-800/55">
                             <button
                               type="button"
                               onClick={() =>
@@ -2987,7 +3145,7 @@ export default function TimeTrackingPage() {
                                   isWeekendFila: true,
                                 })
                               }
-                              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                              className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
                             >
                               Editar
                             </button>
@@ -2999,24 +3157,28 @@ export default function TimeTrackingPage() {
                       return (
                         <tr
                           key={`si-${fila.workerId}-${fila.workDate}`}
-                          className="border-t border-red-200 bg-red-50/95 text-red-900 dark:border-red-900/50 dark:bg-red-950/35 dark:text-red-100"
+                          className="border-t border-rose-200 bg-rose-50/95 text-rose-950 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-50"
                         >
-                          <td className="whitespace-nowrap px-3 py-2 text-xs font-bold">
+                          <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-rose-900 dark:text-rose-100">
                             {workerNameById(fila.workerId)}
                           </td>
-                          <td className="px-3 py-2 text-xs font-semibold">
+                          <td className="px-3 py-2 text-xs font-semibold text-rose-900 dark:text-rose-100">
                             {formatDateES(fila.workDate)}
                           </td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs font-semibold">{RAZON_SIN_IMPUTAR}</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-xs">—</td>
-                          <td className="px-3 py-2 text-right text-xs font-semibold">—</td>
-                          <td className="sticky right-0 z-[1] bg-red-50/98 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)] dark:bg-red-950/50">
+                          <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
+                          <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
+                          <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
+                          <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
+                          <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
+                          <td className="max-w-[11rem] px-3 py-2 text-xs font-semibold text-rose-800 dark:text-rose-200">
+                            {RAZON_SIN_IMPUTAR}
+                          </td>
+                          <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
+                          <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
+                          <td className="px-3 py-2 text-right text-xs font-semibold text-rose-800 dark:text-rose-200">
+                            —
+                          </td>
+                          <td className="sticky right-0 z-[1] border-l border-rose-200/80 bg-rose-50 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-rose-800 dark:bg-rose-950/45">
                             <button
                               type="button"
                               onClick={() =>
@@ -3027,7 +3189,7 @@ export default function TimeTrackingPage() {
                                   isWeekendFila: false,
                                 })
                               }
-                              className="rounded-lg border border-red-300 bg-white px-2 py-1 text-[10px] font-semibold text-red-800 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/40 dark:text-red-100 dark:hover:bg-red-900/70"
+                              className="rounded-lg border border-rose-400 bg-white px-2 py-1 text-[10px] font-semibold text-rose-900 hover:bg-rose-100 dark:border-rose-600 dark:bg-rose-900/50 dark:text-rose-100 dark:hover:bg-rose-900/80"
                             >
                               Editar
                             </button>
@@ -3309,34 +3471,16 @@ export default function TimeTrackingPage() {
 
       {fichadorPanel === "personal" && (
         <>
-      {necesitaCompletarAyer && registroAyerParcial && (
-        <div className="sticky top-2 z-30 min-w-0 max-w-full rounded-2xl border-2 border-rose-600 bg-rose-50 px-3 py-3 shadow-md dark:border-rose-500 dark:bg-rose-950/35 sm:px-4 sm:py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 space-y-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-rose-800 dark:text-rose-200">
-                Registro de ayer incompleto (obligatorio)
-              </p>
-              <p className="rounded-lg border border-rose-200 bg-white/80 px-2.5 py-1.5 text-xs text-rose-900 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-100">
-                <span className="font-semibold text-rose-800 dark:text-rose-200">Hoy:</span>{" "}
-                {formatDateES(today)}
-              </p>
-              <p className="break-words text-sm text-rose-900 dark:text-rose-100">
-                <span className="font-semibold text-rose-800 dark:text-rose-200">Ayer</span> (
-                {formatDateES(fechaAyerEtiqueta)}): consta{" "}
-                <strong>entrada a las {formatTimeLocal(registroAyerParcial.checkInUtc)}</strong> y{" "}
-                <strong>no hay salida</strong> (no se cerró la jornada). Debes indicar salida y
-                descanso a mano; hasta entonces no podrás fichar el día de hoy.
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={ayerCompStep !== "closed"}
-              onClick={abrirCompletarAyer}
-              className="shrink-0 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-60"
-            >
-              Completar ayer ahora
-            </button>
-          </div>
+      {hayDiasSinCuadrarEnHistorico && (
+        <div
+          className="sticky top-2 z-30 min-w-0 max-w-full rounded-xl border border-rose-300 bg-rose-50 px-3 py-2.5 shadow-sm dark:border-rose-600 dark:bg-rose-950/40 sm:px-4 sm:py-3"
+          role="status"
+        >
+          <p className="text-sm leading-snug text-rose-900 dark:text-rose-100">
+            <span className="font-semibold">Histórico:</span> hay días laborables sin fichaje correcto
+            (aparecen en rojo en la tabla).{" "}
+            <strong>Habla con el administrador</strong> para cuadrar las horas laborales.
+          </p>
         </div>
       )}
 
@@ -3397,11 +3541,7 @@ export default function TimeTrackingPage() {
                 <button
                   type="button"
                   onClick={hasOpenEntry ? handleCheckOut : handleCheckIn}
-                  disabled={
-                    actionLoading !== null ||
-                    forgotStep !== "closed" ||
-                    (!hasOpenEntry && necesitaCompletarAyer)
-                  }
+                  disabled={actionLoading !== null || forgotStep !== "closed"}
                   className={`inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                     hasOpenEntry
                       ? "bg-rose-600 hover:bg-rose-700 focus:ring-rose-500"
@@ -3423,16 +3563,22 @@ export default function TimeTrackingPage() {
               >
                 Olvidé fichar
               </button>
-              {necesitaCompletarAyer && (
-                <p className="text-[11px] font-medium text-rose-700 dark:text-rose-300">
-                  Completa el registro de ayer (bloque rojo) antes de fichar u olvidé fichar.
-                </p>
-              )}
-              {!olvideFicharBotonActivo && !necesitaCompletarAyer && (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Ya hay registro para hoy y ayer. Correcciones de días anteriores las gestiona un
-                  responsable.
-                </p>
+              {hayDiasSinCuadrarEnHistorico && (
+                <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                  <p>
+                    Puedes fichar con normalidad; la regularización de días pasados la coordina
+                    administración.
+                  </p>
+                  {ultimoLaboralSinCerrar && ayerCompStep === "closed" && (
+                    <button
+                      type="button"
+                      onClick={abrirCompletarAyer}
+                      className="font-semibold text-agro-700 underline-offset-2 hover:underline dark:text-agro-400"
+                    >
+                      Completar salida y descanso del día pendiente (opcional)
+                    </button>
+                  )}
+                </div>
               )}
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 {jornadaCompletadaHoy
@@ -3456,13 +3602,13 @@ export default function TimeTrackingPage() {
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                 Cargando registros…
               </p>
-            ) : todayEntries.length === 0 ? (
+            ) : todayEntriesPersonal.length === 0 ? (
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                 Hoy todavía no hay fichajes registrados.
               </p>
             ) : (
               <ul className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
-                {todayEntries
+                {todayEntriesPersonal
                   .slice()
                   .sort(
                     (a, b) =>
@@ -3527,7 +3673,12 @@ export default function TimeTrackingPage() {
                   Histórico reciente
                 </p>
                 <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
-                  Últimos 7 días (lun–vie; sábado y domingo no se listan en esta vista).
+                  <strong className="text-slate-800 dark:text-slate-100">
+                    Solo se muestran tus registros
+                  </strong>{" "}
+                  (usuario con sesión iniciada). Últimos 7 días calendario (incluye fin de semana).
+                  En rojo: laborables sin registro o sin jornada cerrada. Fin de semana sin fichaje en
+                  gris y «Fin de semana (no laboral)».
                 </p>
               </div>
               <span className="shrink-0 self-start rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium text-slate-500 dark:bg-slate-700/60 dark:text-slate-300 sm:px-3 sm:text-[11px]">
@@ -3539,11 +3690,11 @@ export default function TimeTrackingPage() {
               <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                 Cargando histórico…
               </p>
-            ) : historicoRecienteRows.length === 0 ? (
+            ) : historicoPersonalFilas.length === 0 ? (
               <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                 {entries.length === 0
                   ? "No hay registros de jornada en los últimos días."
-                  : "No hay filas lun–vie en los últimos 7 días (o solo hay registros de fin de semana, que aquí no se muestran)."}
+                  : "No hay datos que mostrar en la ventana de 7 días."}
               </p>
             ) : (
               <>
@@ -3551,10 +3702,11 @@ export default function TimeTrackingPage() {
                 className="mt-3 max-h-80 min-w-0 overflow-x-auto overflow-y-auto rounded-lg border border-slate-100 [-webkit-overflow-scrolling:touch] dark:border-slate-700 [touch-action:pan-x_pan-y]"
                 style={{ overscrollBehavior: "contain" }}
               >
-                <table className="w-full min-w-[940px] text-left text-xs text-slate-600 dark:text-slate-300 sm:min-w-[1000px] md:min-w-full">
+                <table className="w-full min-w-[1040px] text-left text-xs text-slate-600 dark:text-slate-300 sm:min-w-[1100px] md:min-w-full">
                   <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-300">
                     <tr>
                       <th className="px-3 py-2">Fecha</th>
+                      <th className="min-w-[9rem] max-w-[13rem] px-3 py-2">Usuario</th>
                       <th className="px-3 py-2">Entrada</th>
                       <th className="px-3 py-2">Salida</th>
                       <th className="whitespace-normal px-3 py-2 leading-tight">
@@ -3585,13 +3737,85 @@ export default function TimeTrackingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {historicoRecienteRows.map((e) => (
-                        <tr
-                          key={e.id}
-                          className="border-t border-slate-100 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80"
-                        >
+                    {historicoPersonalFilas.map((fila) => {
+                      const alerta = historicoFilaSinImputarPasado(fila);
+                      const rowClass = alerta
+                        ? "border-t border-rose-200 bg-rose-50/95 text-rose-950 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-100"
+                        : "border-t border-slate-100 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80";
+                      if (fila.kind === "sinRegistro") {
+                        const emDash = "—";
+                        const esFinDeSemana = workDateIsWeekend(fila.workDate);
+                        const sinRowClass = alerta
+                          ? rowClass
+                          : esFinDeSemana
+                            ? "border-t border-slate-200 bg-slate-100/95 text-slate-600 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300"
+                            : rowClass;
+                        const cellMuted = alerta
+                          ? "px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90"
+                          : esFinDeSemana
+                            ? "px-3 py-2 text-xs text-slate-500 dark:text-slate-400"
+                            : "px-3 py-2 text-xs text-slate-400 dark:text-slate-500";
+                        const razonCell = esFinDeSemana ? (
+                          <span className="italic text-sky-700 dark:text-sky-400">
+                            {RAZON_NO_LABORAL}
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-rose-800 dark:text-rose-200">
+                            {RAZON_SIN_IMPUTAR}
+                          </span>
+                        );
+                        return (
+                          <tr key={`sin-${fila.workDate}`} className={sinRowClass}>
+                            <td
+                              className={`px-3 py-2 text-xs font-medium ${alerta ? "text-rose-900 dark:text-rose-100" : esFinDeSemana ? "text-slate-700 dark:text-slate-200" : "text-slate-600 dark:text-slate-300"}`}
+                            >
+                              {formatDateES(fila.workDate)}
+                            </td>
+                            <td
+                              className={`max-w-[13rem] px-3 py-2 text-xs leading-snug ${alerta ? "text-rose-900 dark:text-rose-100" : esFinDeSemana ? "text-slate-700 dark:text-slate-200" : "text-slate-700 dark:text-slate-200"}`}
+                            >
+                              <span className="font-medium">{workerNameById(miWorkerId)}</span>
+                              {user?.email?.trim() && (
+                                <span
+                                  className="mt-0.5 block truncate text-[10px] font-normal text-slate-500 dark:text-slate-400"
+                                  title={user.email}
+                                >
+                                  {user.email}
+                                </span>
+                              )}
+                            </td>
+                            <td className={cellMuted}>{emDash}</td>
+                            <td className={cellMuted}>{emDash}</td>
+                            <td className={cellMuted}>{emDash}</td>
+                            <td className={cellMuted}>{emDash}</td>
+                            <td className={cellMuted}>{emDash}</td>
+                            <td className="max-w-[10rem] px-3 py-2 text-xs leading-snug">
+                              {razonCell}
+                            </td>
+                            <td className={cellMuted}>{emDash}</td>
+                            <td className={cellMuted}>{emDash}</td>
+                            <td className={`${cellMuted} text-right`}>{emDash}</td>
+                          </tr>
+                        );
+                      }
+                      const e = fila.entry;
+                      return (
+                        <tr key={e.id} className={rowClass}>
                           <td className="px-3 py-2 text-xs">
                             {formatDateES(e.workDate)}
+                          </td>
+                          <td
+                            className={`max-w-[13rem] px-3 py-2 text-xs leading-snug ${alerta ? "text-rose-900 dark:text-rose-100" : "text-slate-700 dark:text-slate-200"}`}
+                          >
+                            <span className="font-medium">{workerNameById(miWorkerId)}</span>
+                            {user?.email?.trim() && (
+                              <span
+                                className="mt-0.5 block truncate text-[10px] font-normal text-slate-500 dark:text-slate-400"
+                                title={user.email}
+                              >
+                                {user.email}
+                              </span>
+                            )}
                           </td>
                           <td className="px-3 py-2 text-xs">
                             {formatTimeLocal(e.checkInUtc)}
@@ -3613,45 +3837,69 @@ export default function TimeTrackingPage() {
                               className={
                                 e.razon === "imputacion_manual_error"
                                   ? "rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-100"
-                                  : "text-slate-700 dark:text-slate-200"
+                                  : alerta
+                                    ? "text-rose-900 dark:text-rose-100"
+                                    : "text-slate-700 dark:text-slate-200"
                               }
                             >
-                              {formatRazon(e.razon)}
+                              {e.cierreAutomaticoMedianoche
+                                ? RAZON_IMPUTACION_AUTOMATICA
+                                : formatRazon(e.razon)}
                             </span>
                           </td>
                           <td
-                            className="max-w-[14rem] px-3 py-2 text-xs text-slate-700 dark:text-slate-200"
-                            title={formatLastModifiedByUser(e, { sessionEmail: user?.email })}
+                            className={`max-w-[14rem] px-3 py-2 text-xs ${alerta ? "text-rose-900 dark:text-rose-100" : "text-slate-700 dark:text-slate-200"}`}
+                            title={
+                              e.cierreAutomaticoMedianoche
+                                ? MODIFICADO_POR_SISTEMA
+                                : user?.email?.trim() || formatLastModifiedByUser(e)
+                            }
                           >
                             <span className="line-clamp-2 break-all">
-                              {formatLastModifiedByUser(e, { sessionEmail: user?.email })}
+                              {e.cierreAutomaticoMedianoche
+                                ? MODIFICADO_POR_SISTEMA
+                                : user?.email?.trim() || formatLastModifiedByUser(e)}
                             </span>
                           </td>
                           <td
-                            className="whitespace-nowrap px-3 py-2 text-xs text-slate-600 dark:text-slate-300"
+                            className={`whitespace-nowrap px-3 py-2 text-xs ${alerta ? "text-rose-800 dark:text-rose-200" : "text-slate-600 dark:text-slate-300"}`}
                             title={e.updatedAtUtc ?? ""}
                           >
                             {formatFechaModificacionUtc(e.updatedAtUtc)}
                           </td>
-                          <td className="px-3 py-2 text-right text-xs font-semibold">
-                            {formatMinutesShort(
-                              (() => {
-                                const total = diffDurationMinutes(
-                                  e.checkInUtc,
-                                  e.checkOutUtc
-                                );
-                                if (total === null) return null;
-                                return Math.max(0, total - (e.breakMinutes ?? 0));
-                              })()
-                            )}
+                          <td
+                            className={`px-3 py-2 text-right text-xs font-semibold ${alerta ? "text-rose-900 dark:text-rose-200" : ""}`}
+                            title={
+                              e.cierreAutomaticoMedianoche
+                                ? "Se calculará al confirmar salida y descanso reales"
+                                : undefined
+                            }
+                          >
+                            {e.cierreAutomaticoMedianoche
+                              ? "—"
+                              : formatMinutesShort(
+                                  (() => {
+                                    const total = diffDurationMinutes(
+                                      e.checkInUtc,
+                                      e.checkOutUtc
+                                    );
+                                    if (total === null) return null;
+                                    return Math.max(0, total - (e.breakMinutes ?? 0));
+                                  })()
+                                )}
                           </td>
                         </tr>
-                      ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-              <p className="mt-1.5 text-center text-[10px] text-slate-400 md:hidden">
-                ← Desliza para ver fecha modificación, «antes» y duración →
+              <p className="mt-1.5 text-balance px-1 text-center text-[10px] text-slate-500 dark:text-slate-400">
+                Ejemplo: día laboral sin filas = olvidó fichar; entrada + 23:59 = olvidó cerrar (debe
+                confirmar).
+              </p>
+              <p className="mt-0.5 text-center text-[10px] text-slate-400 md:hidden">
+                ← Desliza para ver usuario, fecha modificación, «antes» y duración →
               </p>
               </>
             )}
@@ -3662,7 +3910,7 @@ export default function TimeTrackingPage() {
       )}
 
       {/* Modal: completar registro de ayer (entrada + salida + descanso) */}
-      {ayerCompStep !== "closed" && necesitaCompletarAyer && (
+      {ayerCompStep !== "closed" && ultimoLaboralSinCerrar && registroAyerParcial && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-xl dark:border dark:border-slate-600 dark:bg-slate-800">
             <div className="mb-3 flex items-start justify-between gap-2">
@@ -3907,44 +4155,20 @@ export default function TimeTrackingPage() {
                   ¿De qué día es el fichaje?
                 </h2>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-                  Solo puedes corregir <strong>hoy</strong> o <strong>ayer</strong>. Otros días los
-                  gestiona un responsable.
+                  Solo puedes usar esta corrección para <strong>hoy</strong> si aún no consta tu
+                  fichaje. Días anteriores los gestiona administración.
                 </p>
-                <div className="mt-4 flex flex-col gap-2">
+                <div className="mt-4">
                   <button
                     type="button"
-                    disabled={hasEntryFor(today)}
                     onClick={() => {
                       setForgotError(null);
                       setForgotTargetDate(today);
                       setForgotStep("pick_type");
                     }}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-50"
+                    className="w-full rounded-xl bg-agro-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-agro-700 dark:hover:bg-agro-500"
                   >
-                    Hoy
-                    {hasEntryFor(today) && (
-                      <span className="mt-0.5 block text-xs font-normal text-slate-500">
-                        Ya hay fichaje para hoy
-                      </span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={hasEntryFor(ayerLocal) || hasEntryFor(ayerUtc)}
-                    onClick={() => {
-                      setForgotError(null);
-                      setForgotTargetDate(ayerLocal);
-                      setForgotMode("full_ayer");
-                      setForgotStep("full_start");
-                    }}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-50"
-                  >
-                    Ayer
-                    {(hasEntryFor(ayerLocal) || hasEntryFor(ayerUtc)) && (
-                      <span className="mt-0.5 block text-xs font-normal text-slate-500">
-                        Ya hay fichaje para ayer
-                      </span>
-                    )}
+                    Continuar (hoy)
                   </button>
                 </div>
               </>
@@ -4056,7 +4280,7 @@ export default function TimeTrackingPage() {
                     type="button"
                     onClick={() => {
                       setForgotError(null);
-                      if (forgotMode === "full_ayer") {
+                      if (forgotMode === "full_ayer" || forgotMode === "full_ultimo_laboral") {
                         setForgotMode(null);
                         setForgotTargetDate(null);
                         setForgotStep("pick_day");

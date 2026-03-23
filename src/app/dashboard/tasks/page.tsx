@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTasks } from "@/contexts/TasksContext";
 import TaskCard from "@/components/TaskCard";
 import CreateTaskModal from "@/components/CreateTaskModal";
+import DashboardAvisos from "@/components/DashboardAvisos";
 
 /** Semana en español: lunes = primer día */
 const WEEKDAY_NAMES_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -166,7 +167,7 @@ export default function TasksPage() {
   const router = useRouter();
   const role: UserRole | undefined = user?.role;
   const isSuperAdmin = role === USER_ROLE.SuperAdmin;
-  const isAdmin = role === USER_ROLE.Admin || isSuperAdmin;
+  const isAdmin = role === USER_ROLE.Admin || isSuperAdmin || role === USER_ROLE.Manager;
   const isDesktop = useIsDesktop();
   const { tasks, setTasks, getNextTaskNumber } = useTasks();
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
@@ -259,6 +260,11 @@ export default function TasksPage() {
     }
     return map;
   }, [tasksForSelectedDate]);
+
+  const taskCountTotal = tasksForSelectedDate.length;
+  const taskCountReady = tasksByStatus.get("ready")?.length ?? 0;
+  const taskCountInProgress = tasksByStatus.get("in_progress")?.length ?? 0;
+  const taskCountCompleted = tasksByStatus.get("completed")?.length ?? 0;
 
   /** 7 días: lunes a domingo de la semana que contiene selectedDate (lunes = primer día) */
   const weekDays = useMemo(() => {
@@ -432,80 +438,199 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Filtros (solo Admin / SuperAdmin) */}
-      {isAdmin && (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
-          <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
-            <span className="text-slate-400 dark:text-slate-500" aria-hidden>⌕</span>
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Filtros</h2>
-          </div>
-          <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="filter-task-code" className="text-xs font-medium text-slate-500 dark:text-slate-400">Código de tarea</label>
-              <input
-                id="filter-task-code"
-                type="text"
-                value={taskCodeQuery}
-                onChange={(e) => setTaskCodeQuery(e.target.value)}
-                placeholder="Ej. 0020 o #0020"
-                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-              />
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(320px,400px)_1fr] lg:items-start lg:gap-8">
+        <aside className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4 lg:self-start">
+          {/* Contexto: un solo bloque, jerarquía clara, sin cajas anidadas */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-md dark:border-slate-600 dark:bg-slate-800">
+            <p className="text-xs font-bold uppercase tracking-widest text-agro-600 dark:text-agro-400">
+              Contexto del día
+            </p>
+            <p className="mt-3 text-lg font-bold leading-snug text-slate-900 dark:text-slate-50">
+              {formatDateES(selectedDate)}
+            </p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Resumen de tareas para la fecha seleccionada en el calendario.
+            </p>
+            <div className="mt-6 flex flex-col items-center rounded-xl bg-slate-50 py-5 dark:bg-slate-900/50">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Total del día
+              </p>
+              <p className="mt-1 text-4xl font-extrabold tabular-nums text-slate-900 dark:text-white">
+                {taskCountTotal}
+              </p>
+              <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">tareas</p>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="filter-worker" className="text-xs font-medium text-slate-500 dark:text-slate-400">Trabajador</label>
-              <select
-                id="filter-worker"
-                value={selectedWorkerId}
-                onChange={(e) => setSelectedWorkerId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-              >
-                <option value="all">Todos</option>
-                {MOCK_WORKERS.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="filter-worker-search" className="text-xs font-medium text-slate-500 dark:text-slate-400">Buscar trabajador</label>
-              <input
-                id="filter-worker-search"
-                type="text"
-                value={workerQuery}
-                onChange={(e) => setWorkerQuery(e.target.value)}
-                placeholder="Por nombre..."
-                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
-              <label htmlFor="filter-farm" className="text-xs font-medium text-slate-500 dark:text-slate-400">Granja</label>
-              <div className="flex gap-2">
-                <select
-                  id="filter-farm"
-                  value={selectedFarmId}
-                  onChange={(e) => setSelectedFarmId(e.target.value)}
-                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-                >
-                  <option value="all">Todas</option>
-                  {MOCK_FARMS.map((f) => (
-                    <option key={f.id} value={f.id}>{f.name}</option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={farmQuery}
-                  onChange={(e) => setFarmQuery(e.target.value)}
-                  placeholder="Buscar granja..."
-                  className="w-36 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-                />
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-amber-50 px-2 py-4 text-center dark:bg-amber-950/40">
+                <p className="text-xs font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                  Inicio
+                </p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-amber-600 dark:text-amber-400">
+                  {taskCountReady}
+                </p>
+              </div>
+              <div className="rounded-xl bg-blue-50 px-2 py-4 text-center dark:bg-blue-950/40">
+                <p className="text-xs font-bold uppercase tracking-wide text-blue-800 dark:text-blue-200">
+                  Curso
+                </p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
+                  {taskCountInProgress}
+                </p>
+              </div>
+              <div className="rounded-xl bg-emerald-50 px-2 py-4 text-center dark:bg-emerald-950/40">
+                <p className="text-xs font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
+                  Fin
+                </p>
+                <p className="mt-2 text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  {taskCountCompleted}
+                </p>
               </div>
             </div>
           </div>
-        </div>
-      )}
+          <div className="min-w-0">
+            <DashboardAvisos variant="comfortable" />
+          </div>
+          {isAdmin && (
+            <div className="rounded-2xl border border-slate-200/90 bg-white shadow-md dark:border-slate-600 dark:bg-slate-800">
+              <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-lg text-slate-600 dark:bg-slate-700 dark:text-slate-300" aria-hidden>
+                  ⌕
+                </span>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Filtros</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Refina las tareas del día</p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-5 p-5">
+                <div>
+                  <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    Persona
+                  </p>
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <label htmlFor="tasks-filter-worker" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Trabajador
+                      </label>
+                      <select
+                        id="tasks-filter-worker"
+                        value={selectedWorkerId}
+                        onChange={(e) => setSelectedWorkerId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm transition focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:focus:bg-slate-900"
+                      >
+                        <option value="all">Todos los trabajadores</option>
+                        {MOCK_WORKERS.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="tasks-filter-worker-txt" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Buscar por nombre
+                      </label>
+                      <input
+                        id="tasks-filter-worker-txt"
+                        type="text"
+                        value={workerQuery}
+                        onChange={(e) => setWorkerQuery(e.target.value)}
+                        placeholder="Escribe un nombre…"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="h-px bg-slate-100 dark:bg-slate-700" aria-hidden />
+                <div>
+                  <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    Ubicación
+                  </p>
+                  <div className="flex flex-col gap-4">
+                    <div>
+                      <label htmlFor="tasks-filter-farm" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Granja
+                      </label>
+                      <select
+                        id="tasks-filter-farm"
+                        value={selectedFarmId}
+                        onChange={(e) => setSelectedFarmId(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:focus:bg-slate-900"
+                      >
+                        <option value="all">Todas las granjas</option>
+                        {MOCK_FARMS.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="tasks-filter-farm-txt" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Buscar granja
+                      </label>
+                      <input
+                        id="tasks-filter-farm-txt"
+                        type="text"
+                        value={farmQuery}
+                        onChange={(e) => setFarmQuery(e.target.value)}
+                        placeholder="Nombre de la granja…"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="h-px bg-slate-100 dark:bg-slate-700" aria-hidden />
+                <div>
+                  <label htmlFor="tasks-filter-code" className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Código de tarea
+                  </label>
+                  <input
+                    id="tasks-filter-code"
+                    type="text"
+                    maxLength={12}
+                    value={taskCodeQuery}
+                    onChange={(e) => setTaskCodeQuery(e.target.value)}
+                    placeholder="Ej. 0020 o #0020"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm tabular-nums text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:focus:bg-slate-900"
+                  />
+                </div>
+                <div className="rounded-xl bg-slate-50 px-4 py-3.5 dark:bg-slate-900/40">
+                  {taskCodeQuery.trim() ||
+                  selectedWorkerId !== "all" ||
+                  workerQuery.trim() ||
+                  selectedFarmId !== "all" ||
+                  farmQuery.trim() ? (
+                    <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">Aplicado: </span>
+                      {taskCodeQuery.trim() && <>código «{taskCodeQuery.trim()}»</>}
+                      {taskCodeQuery.trim() &&
+                        (selectedWorkerId !== "all" ||
+                          workerQuery.trim() ||
+                          selectedFarmId !== "all" ||
+                          farmQuery.trim()) &&
+                        " · "}
+                      {selectedWorkerId !== "all" &&
+                        (MOCK_WORKERS.find((w) => w.id === selectedWorkerId)?.name ?? "")}
+                      {workerQuery.trim() && ` búsqueda «${workerQuery.trim()}»`}
+                      {selectedFarmId !== "all" &&
+                        ` · ${MOCK_FARMS.find((f) => f.id === selectedFarmId)?.name ?? ""}`}
+                      {farmQuery.trim() && ` · granja «${farmQuery.trim()}»`}
+                    </p>
+                  ) : (
+                    <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+                      Sin filtros: se muestran todas las tareas del día.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </aside>
 
+        <div className="flex min-w-0 flex-col gap-4">
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Calendario</p>
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Semana operativa</p>
           <div className="flex gap-1">
             <button
               type="button"
@@ -728,6 +853,9 @@ export default function TasksPage() {
           ))}
         </div>
       )}
+
+        </div>
+      </div>
 
       <CreateTaskModal
         open={createModalOpen}

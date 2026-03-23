@@ -25,7 +25,7 @@ export default function UnassignedTasksPage() {
   const { generalTasks, setGeneralTasks, assignUnassignedTask } = useTasks();
   const role = user?.role;
   const canAccess =
-    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin;
+    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin || role === USER_ROLE.Manager;
 
   const [assigningTask, setAssigningTask] = useState<Task | null>(null);
   const [assignWorkerId, setAssignWorkerId] = useState<string>("");

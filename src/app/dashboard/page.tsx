@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   MOCK_WORKERS,
   MOCK_ANIMAL_CASES,
@@ -13,6 +13,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTasks } from "@/contexts/TasksContext";
 import DatePicker from "@/components/DatePicker";
 import { useFeatures } from "@/contexts/FeaturesContext";
+import DashboardAvisos from "@/components/DashboardAvisos";
+import { useRouter } from "next/navigation";
 
 /** Semana en español: lunes = primer día */
 const WEEKDAY_NAMES_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -196,13 +198,27 @@ function IncidentPreviewCard({ incident }: IncidentPreviewProps) {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isReady } = useAuth();
   const { enableAnimals } = useFeatures();
   const { tasks, generalTasks } = useTasks();
   const role: UserRole | undefined = user?.role;
   const isSuperAdmin = role === USER_ROLE.SuperAdmin;
-  const isAdmin = role === USER_ROLE.Admin || isSuperAdmin;
+  const isAdmin = role === USER_ROLE.Admin || isSuperAdmin || role === USER_ROLE.Manager;
   const canSeeAnimals = enableAnimals && (isAdmin || isSuperAdmin);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (!user?.role) return;
+    if (user.role === USER_ROLE.Worker) {
+      router.replace("/dashboard/tasks");
+      return;
+    }
+    // Para admin/manager/superadmin, el “Panel” se sirve desde /dashboard/manager.
+    router.replace("/dashboard/manager");
+  }, [isReady, user?.role, router]);
+
+  const isRedirecting = isReady && !!user?.role;
 
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("all");
@@ -329,7 +345,11 @@ export default function DashboardPage() {
     return map;
   }, [incidentsForSelectedDate]);
 
-  return (
+  return isRedirecting ? (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+    </div>
+  ) : (
     <div className="space-y-4">
       {/* Cabecera con banda de color */}
       <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-agro-600 via-emerald-500 to-sky-500 px-5 py-3 shadow-sm">
@@ -399,179 +419,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Filtros (pestañas Tareas / Tareas generales, solo admins) */}
-      {(activeSection === "tasks" || activeSection === "generalTasks") && isAdmin && (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
-          <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
-            <span className="text-slate-400 dark:text-slate-500" aria-hidden>⌕</span>
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Filtros</h2>
-          </div>
-          <div className={`grid gap-4 p-4 ${activeSection === "generalTasks" ? "grid-cols-1 max-w-xs" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"}`}>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="dash-filter-code" className="text-xs font-medium text-slate-500 dark:text-slate-400">Código de tarea</label>
-              <input
-                id="dash-filter-code"
-                type="text"
-                value={taskCodeQuery}
-                onChange={(e) => setTaskCodeQuery(e.target.value)}
-                placeholder="Ej. 0020 o #0020"
-                className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-              />
-            </div>
-            {activeSection === "tasks" && (
-              <>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="dash-filter-worker" className="text-xs font-medium text-slate-500 dark:text-slate-400">Trabajador</label>
-                  <select
-                    id="dash-filter-worker"
-                    value={selectedWorkerId}
-                    onChange={(e) => setSelectedWorkerId(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-                  >
-                    <option value="all">Todos</option>
-                    {MOCK_WORKERS.map((w) => (
-                      <option key={w.id} value={w.id}>{w.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="dash-filter-worker-txt" className="text-xs font-medium text-slate-500 dark:text-slate-400">Buscar trabajador</label>
-                  <input
-                    id="dash-filter-worker-txt"
-                    type="text"
-                    value={workerQuery}
-                    onChange={(e) => setWorkerQuery(e.target.value)}
-                    placeholder="Por nombre..."
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="dash-filter-farm" className="text-xs font-medium text-slate-500 dark:text-slate-400">Granja</label>
-                  <div className="flex gap-2">
-                    <select
-                      id="dash-filter-farm"
-                      value={selectedFarmId}
-                      onChange={(e) => setSelectedFarmId(e.target.value)}
-                      className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-                    >
-                      <option value="all">Todas</option>
-                      {MOCK_FARMS.map((f) => (
-                        <option key={f.id} value={f.id}>{f.name}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      value={farmQuery}
-                      onChange={(e) => setFarmQuery(e.target.value)}
-                      placeholder="Buscar granja..."
-                      className="w-36 rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-          {(taskCodeQuery.trim() || selectedWorkerId !== "all" || workerQuery.trim() || selectedFarmId !== "all" || farmQuery.trim()) && (
-            <div className="border-t border-slate-100 px-4 py-2 dark:border-slate-700">
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Filtrando por{" "}
-                {taskCodeQuery.trim() && `código: ${taskCodeQuery.trim()}`}
-                {taskCodeQuery.trim() && (selectedWorkerId !== "all" || workerQuery.trim() || selectedFarmId !== "all" || farmQuery.trim()) && " · "}
-                {selectedWorkerId !== "all" && `trabajador: ${MOCK_WORKERS.find((w) => w.id === selectedWorkerId)?.name ?? selectedWorkerId}`}
-                {selectedWorkerId !== "all" && workerQuery.trim() && " · "}
-                {workerQuery.trim() && `"${workerQuery.trim()}"`}
-                {(selectedWorkerId !== "all" || workerQuery.trim()) && (selectedFarmId !== "all" || farmQuery.trim()) && " · "}
-                {selectedFarmId !== "all" && `granja: ${MOCK_FARMS.find((f) => f.id === selectedFarmId)?.name ?? selectedFarmId}`}
-                {selectedFarmId !== "all" && farmQuery.trim() && " · "}
-                {farmQuery.trim() && `"${farmQuery.trim()}"`}
-              </span>
-            </div>
-          )}
+      {canSeeAnimals && activeSection === "incidents" && (
+        <div className="mx-auto mb-4 w-full max-w-lg">
+          <DashboardAvisos />
         </div>
       )}
 
-      {/* Bloques resumen: cambian según pestaña activa */}
-      {activeSection === "tasks" ? (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-          <div className="col-span-2 rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90 md:col-span-1">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Fecha
-            </p>
-            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {formatDateES(selectedDate)}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Total tareas
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 text-center dark:text-slate-100">{totalTasks}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Listas para empezar
-            </p>
-            <p className="mt-1 text-2xl font-bold text-amber-500 text-center">{ready}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              En curso
-            </p>
-            <p className="mt-1 text-2xl font-bold text-blue-500 text-center">
-              {inProgress}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm dark:border-slate-600 dark:bg-slate-800">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Finalizadas
-            </p>
-            <p className="mt-1 text-2xl font-bold text-green-500 text-center">
-              {completed}
-            </p>
-          </div>
-        </div>
-      ) : activeSection === "generalTasks" ? (
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-          <div className="col-span-2 rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90 md:col-span-1">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Fecha
-            </p>
-            <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {formatDateES(selectedDate)}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Total tareas generales
-            </p>
-            <p className="mt-1 text-2xl font-bold text-slate-900 text-center dark:text-slate-100">
-              {totalGeneralTasks}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Listas para empezar
-            </p>
-            <p className="mt-1 text-2xl font-bold text-amber-500 text-center">{readyGeneral}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              En curso
-            </p>
-            <p className="mt-1 text-2xl font-bold text-blue-500 text-center">
-              {inProgressGeneral}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/90 p-2 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
-              Finalizadas
-            </p>
-            <p className="mt-1 text-2xl font-bold text-green-500 text-center">
-              {completedGeneral}
-            </p>
-          </div>
-        </div>
-      ) : canSeeAnimals && activeSection === "incidents" ? (
+      {canSeeAnimals && activeSection === "incidents" ? (
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white/90 p-2.5 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
@@ -610,12 +464,199 @@ export default function DashboardPage() {
 
       {/* Contenido principal según pestaña */}
       {activeSection === "tasks" ? (
-        <>
-          {/* Calendario arriba (más compacto) */}
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(260px,300px)_1fr] lg:items-start lg:gap-5">
+          <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
+            <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Contexto
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {formatDateES(selectedDate)}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Estado global del día seleccionado.
+              </p>
+              <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/90 p-2.5 dark:border-slate-700 dark:bg-slate-900/40">
+                <p className="text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Total{" "}
+                  <span className="text-2xl font-bold text-slate-900 tabular-nums dark:text-slate-100">
+                    {totalTasks}
+                  </span>
+                </p>
+                <div className="mt-2 grid grid-cols-3 gap-1.5">
+                  <div className="rounded-lg border border-amber-100/80 bg-amber-50/95 py-2 text-center dark:border-amber-900/40 dark:bg-amber-950/30">
+                    <p className="text-[10px] font-semibold uppercase text-amber-800 dark:text-amber-200">
+                      Inicio
+                    </p>
+                    <p className="text-xl font-bold text-amber-500 tabular-nums">{ready}</p>
+                  </div>
+                  <div className="rounded-lg border border-blue-100/80 bg-blue-50/95 py-2 text-center dark:border-blue-900/40 dark:bg-blue-950/30">
+                    <p className="text-[10px] font-semibold uppercase text-blue-800 dark:text-blue-200">
+                      Curso
+                    </p>
+                    <p className="text-xl font-bold text-blue-500 tabular-nums">{inProgress}</p>
+                  </div>
+                  <div className="rounded-lg border border-emerald-100/80 bg-emerald-50/95 py-2 text-center dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                    <p className="text-[10px] font-semibold uppercase text-emerald-800 dark:text-emerald-200">
+                      Fin
+                    </p>
+                    <p className="text-xl font-bold text-green-500 tabular-nums">{completed}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {isAdmin && (
+              <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
+                <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 px-3 py-2 dark:border-slate-700">
+                  <span className="text-sm text-slate-400 dark:text-slate-500" aria-hidden>
+                    ⌕
+                  </span>
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    Filtros
+                  </h2>
+                </div>
+                <div className="flex min-h-0 flex-col gap-3 p-3">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-wrap items-end gap-3">
+                      <div className="flex w-[4.25rem] shrink-0 flex-col gap-0.5">
+                        <label
+                          htmlFor="dash-filter-code"
+                          className="text-[10px] font-medium text-slate-500 dark:text-slate-400"
+                        >
+                          Cód.
+                        </label>
+                        <input
+                          id="dash-filter-code"
+                          type="text"
+                          maxLength={8}
+                          value={taskCodeQuery}
+                          onChange={(e) => setTaskCodeQuery(e.target.value)}
+                          placeholder="0020"
+                          className="box-border w-full max-w-[4.25rem] rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-center text-xs tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                        />
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
+                        <div className="flex w-[9.5rem] shrink-0 flex-col gap-0.5">
+                          <label
+                            htmlFor="dash-filter-worker"
+                            className="text-[10px] font-medium text-slate-500 dark:text-slate-400"
+                          >
+                            Trabajador
+                          </label>
+                          <select
+                            id="dash-filter-worker"
+                            value={selectedWorkerId}
+                            onChange={(e) => setSelectedWorkerId(e.target.value)}
+                            className="w-full rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                          >
+                            <option value="all">Todos</option>
+                            {MOCK_WORKERS.map((w) => (
+                              <option key={w.id} value={w.id}>
+                                {w.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex min-w-[7rem] flex-1 flex-col gap-0.5 basis-[10rem]">
+                          <label
+                            htmlFor="dash-filter-worker-txt"
+                            className="text-[10px] font-medium text-slate-500 dark:text-slate-400"
+                          >
+                            Buscar trabajador
+                          </label>
+                          <input
+                            id="dash-filter-worker-txt"
+                            type="text"
+                            value={workerQuery}
+                            onChange={(e) => setWorkerQuery(e.target.value)}
+                            placeholder="Por nombre…"
+                            className="w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-3 border-t border-slate-100 pt-3 dark:border-slate-700/80">
+                      <div className="flex w-[9.5rem] shrink-0 flex-col gap-0.5">
+                        <label
+                          htmlFor="dash-filter-farm"
+                          className="text-[10px] font-medium text-slate-500 dark:text-slate-400"
+                        >
+                          Granja
+                        </label>
+                        <select
+                          id="dash-filter-farm"
+                          value={selectedFarmId}
+                          onChange={(e) => setSelectedFarmId(e.target.value)}
+                          className="w-full rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                        >
+                          <option value="all">Todas</option>
+                          {MOCK_FARMS.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              {f.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex min-w-[7rem] flex-1 flex-col gap-0.5 basis-[10rem]">
+                        <label
+                          htmlFor="dash-filter-farm-txt"
+                          className="text-[10px] font-medium text-slate-500 dark:text-slate-400"
+                        >
+                          Buscar granja
+                        </label>
+                        <input
+                          id="dash-filter-farm-txt"
+                          type="text"
+                          value={farmQuery}
+                          onChange={(e) => setFarmQuery(e.target.value)}
+                          placeholder="Nombre…"
+                          className="w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs shadow-sm dark:border-slate-600 dark:bg-slate-800/60">
+                    {taskCodeQuery.trim() ||
+                    selectedWorkerId !== "all" ||
+                    workerQuery.trim() ||
+                    selectedFarmId !== "all" ||
+                    farmQuery.trim() ? (
+                      <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
+                        <span className="font-medium text-slate-700 dark:text-slate-200">
+                          Filtros activos:{" "}
+                        </span>
+                        {taskCodeQuery.trim() && `código ${taskCodeQuery.trim()}`}
+                        {taskCodeQuery.trim() &&
+                          (selectedWorkerId !== "all" ||
+                            workerQuery.trim() ||
+                            selectedFarmId !== "all" ||
+                            farmQuery.trim()) &&
+                          " · "}
+                        {selectedWorkerId !== "all" &&
+                          (MOCK_WORKERS.find((w) => w.id === selectedWorkerId)?.name ?? "")}
+                        {workerQuery.trim() && ` "${workerQuery.trim()}"`}
+                        {selectedFarmId !== "all" &&
+                          ` · ${MOCK_FARMS.find((f) => f.id === selectedFarmId)?.name ?? ""}`}
+                        {farmQuery.trim() && ` · granja "${farmQuery.trim()}"`}
+                      </p>
+                    ) : (
+                      <p className="text-center text-[11px] text-slate-500 dark:text-slate-400">
+                        Sin filtros: todas las tareas de la fecha.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="min-h-[11rem] min-w-0">
+              <DashboardAvisos />
+            </div>
+          </aside>
+          <div className="flex min-w-0 flex-col gap-4">
           <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
-                Calendario
+                Semana operativa
               </p>
               <div className="flex items-center gap-1">
                 <button
@@ -756,10 +797,83 @@ export default function DashboardPage() {
               );
             })}
           </div>
-        </>
+          </div>
+        </div>
       ) : activeSection === "generalTasks" ? (
-        <>
-          {/* Calendario para filtrar opcionalmente las tareas generales */}
+        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(260px,300px)_1fr] lg:items-start lg:gap-5">
+          <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
+            <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Contexto
+              </p>
+              <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                {formatDateES(selectedDate)}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Tareas generales (listado global).
+              </p>
+              <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/90 p-2.5 dark:border-slate-700 dark:bg-slate-900/40">
+                <p className="text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Total{" "}
+                  <span className="text-2xl font-bold text-slate-900 tabular-nums dark:text-slate-100">
+                    {totalGeneralTasks}
+                  </span>
+                </p>
+                <div className="mt-2 grid grid-cols-3 gap-1.5">
+                  <div className="rounded-lg border border-amber-100/80 bg-amber-50/95 py-2 text-center dark:border-amber-900/40 dark:bg-amber-950/30">
+                    <p className="text-[10px] font-semibold uppercase text-amber-800 dark:text-amber-200">
+                      Inicio
+                    </p>
+                    <p className="text-xl font-bold text-amber-500 tabular-nums">{readyGeneral}</p>
+                  </div>
+                  <div className="rounded-lg border border-blue-100/80 bg-blue-50/95 py-2 text-center dark:border-blue-900/40 dark:bg-blue-950/30">
+                    <p className="text-[10px] font-semibold uppercase text-blue-800 dark:text-blue-200">
+                      Curso
+                    </p>
+                    <p className="text-xl font-bold text-blue-500 tabular-nums">{inProgressGeneral}</p>
+                  </div>
+                  <div className="rounded-lg border border-emerald-100/80 bg-emerald-50/95 py-2 text-center dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                    <p className="text-[10px] font-semibold uppercase text-emerald-800 dark:text-emerald-200">
+                      Fin
+                    </p>
+                    <p className="text-xl font-bold text-green-500 tabular-nums">{completedGeneral}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {isAdmin && (
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
+                <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2 dark:border-slate-700">
+                  <span className="text-sm text-slate-400" aria-hidden>
+                    ⌕
+                  </span>
+                  <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                    Filtros
+                  </h2>
+                </div>
+                <div className="p-3">
+                  <label
+                    htmlFor="dash-gen-filter-code"
+                    className="text-[10px] font-medium text-slate-500 dark:text-slate-400"
+                  >
+                    Código de tarea
+                  </label>
+                  <input
+                    id="dash-gen-filter-code"
+                    type="text"
+                    value={taskCodeQuery}
+                    onChange={(e) => setTaskCodeQuery(e.target.value)}
+                    placeholder="Ej. #0020"
+                    className="mt-0.5 w-full rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:bg-white focus:outline-none dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+            )}
+            <div className="min-h-[11rem] min-w-0">
+              <DashboardAvisos />
+            </div>
+          </aside>
+          <div className="flex min-w-0 flex-col gap-4">
           <div className="rounded-xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90">
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
@@ -841,7 +955,8 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-        </>
+          </div>
+        </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
           {INCIDENT_COLUMNS.map(({ status, label }) => {

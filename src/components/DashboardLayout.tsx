@@ -111,7 +111,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {QUICK_MENU_ITEMS.map(({ href, label, icon, adminOnly }) => {
-                  if (adminOnly && user?.role !== USER_ROLE.Admin && user?.role !== USER_ROLE.SuperAdmin) {
+                  const isAdminLike =
+                    user?.role === USER_ROLE.Admin ||
+                    user?.role === USER_ROLE.SuperAdmin ||
+                    user?.role === USER_ROLE.Manager;
+
+                  if (href === "/dashboard" && user?.role === USER_ROLE.Worker) {
+                    return null;
+                  }
+
+                  const resolvedHref = href === "/dashboard" ? "/dashboard/manager" : href;
+
+                  if (adminOnly && !isAdminLike) {
                     return null;
                   }
                   if (!enableTimeTracking && href === "/dashboard/time-tracking") {
@@ -125,8 +136,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   }
                   return (
                   <Link
-                    key={href}
-                    href={href}
+                    key={resolvedHref}
+                    href={resolvedHref}
                     onClick={() => setQuickMenuOpen(false)}
                     className="flex min-h-[80px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                   >
