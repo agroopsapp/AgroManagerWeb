@@ -1,19 +1,53 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
+import dynamic from "next/dynamic";
+
+// Recharts se carga en diferido: no bloquea el render inicial de la página de estadísticas.
+const ResponsiveContainer = dynamic(
+  () => import("recharts").then((m) => ({ default: m.ResponsiveContainer })),
+  { ssr: false, loading: () => <div className="h-full animate-pulse rounded-xl bg-slate-200 dark:bg-slate-700" /> }
+);
+const BarChart = dynamic(
+  () => import("recharts").then((m) => ({ default: m.BarChart })),
+  { ssr: false }
+);
+const Bar = dynamic(
+  () => import("recharts").then((m) => ({ default: m.Bar })),
+  { ssr: false }
+);
+const XAxis = dynamic(
+  () => import("recharts").then((m) => ({ default: m.XAxis })),
+  { ssr: false }
+);
+const YAxis = dynamic(
+  () => import("recharts").then((m) => ({ default: m.YAxis })),
+  { ssr: false }
+);
+const CartesianGrid = dynamic(
+  () => import("recharts").then((m) => ({ default: m.CartesianGrid })),
+  { ssr: false }
+);
+const Tooltip = dynamic(
+  () => import("recharts").then((m) => ({ default: m.Tooltip })),
+  { ssr: false }
+);
+const PieChart = dynamic(
+  () => import("recharts").then((m) => ({ default: m.PieChart })),
+  { ssr: false }
+);
+const Pie = dynamic(
+  () => import("recharts").then((m) => ({ default: m.Pie })),
+  { ssr: false }
+);
+const Cell = dynamic(
+  () => import("recharts").then((m) => ({ default: m.Cell })),
+  { ssr: false }
+);
+const Legend = dynamic(
+  () => import("recharts").then((m) => ({ default: m.Legend })),
+  { ssr: false }
+);
 import { MOCK_TASKS, MOCK_ANIMALS, MOCK_USERS, MOCK_FARMS, MOCK_ROLES, MOCK_ANIMAL_CASES } from "@/data/mock";
 import DatePicker from "@/components/DatePicker";
 

@@ -1,23 +1,48 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { MOCK_FARMS } from "@/data/mock";
+import { useEffect, useMemo, useState } from "react";
 import type { Farm as FarmType } from "@/types";
+import { ApiError } from "@/lib/api-client";
+import { farmsApi } from "@/services";
 
 type SortKey = "name" | "location";
 type SortDir = "asc" | "desc";
 
 export default function FarmsPage() {
-  const [farms, setFarms] = useState<FarmType[]>(MOCK_FARMS);
+  const [farms, setFarms] = useState<FarmType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingFarm, setEditingFarm] = useState<FarmType | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [filterSearch, setFilterSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [formName, setFormName] = useState("");
   const [formLocation, setFormLocation] = useState("");
+
+  useEffect(() => {
+    const ac = new AbortController();
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const list = await farmsApi.getAll({ signal: ac.signal });
+        if (ac.signal.aborted) return;
+        setFarms(list ?? []);
+      } catch (e) {
+        if (ac.signal.aborted) return;
+        const msg = e instanceof ApiError ? e.message : "No se pudieron cargar las granjas.";
+        setError(msg);
+      } finally {
+        if (!ac.signal.aborted) setLoading(false);
+      }
+    })();
+    return () => ac.abort();
+  }, []);
 
   const openCreate = () => {
     setEditingFarm(null);
@@ -62,32 +87,64 @@ export default function FarmsPage() {
     return list;
   }, [farms, sortKey, sortDir, filterSearch]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = formName.trim();
     const location = formLocation.trim();
     if (!name) return;
 
-    if (editingFarm) {
-      setFarms((prev) =>
-        prev.map((f) =>
-          f.id === editingFarm.id ? { ...f, name, location } : f
-        )
-      );
-    } else {
-      const newFarm: FarmType = {
-        id: `f${Date.now()}`,
-        name,
-        location: location || "",
-      };
-      setFarms((prev) => [...prev, newFarm]);
+    setSaving(true);
+    setError(null);
+    try {
+      if (editingFarm) {
+        const updated = await farmsApi.update(editingFarm.id, {
+          name,
+          location: location || "",
+        });
+        setFarms((prev) =>
+          prev.map((f) =>
+            f.id === editingFarm.id
+              ? {
+                  ...f,
+                  ...updated,
+                  // si el backend devuelve id vacío/incorrecto (p.ej. 204 NoContent),
+                  // conservamos el id original para que la tabla no "desaparezca"
+                  id: updated.id || f.id,
+                  name: updated.name || name,
+                  location: (updated.location ?? "") || (location || ""),
+                }
+              : f
+          )
+        );
+      } else {
+        const created = await farmsApi.create({
+          name,
+          location: location || "",
+        });
+        setFarms((prev) => [created, ...prev]);
+      }
+      closeModal();
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "No se pudo guardar la granja.";
+      setError(msg);
+    } finally {
+      setSaving(false);
     }
-    closeModal();
   };
 
-  const handleDelete = (id: string) => {
-    setFarms((prev) => prev.filter((f) => f.id !== id));
-    setDeleteConfirm(null);
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    setError(null);
+    try {
+      await farmsApi.delete(id);
+      setFarms((prev) => prev.filter((f) => f.id !== id));
+      setDeleteConfirm(null);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "No se pudo eliminar la granja.";
+      setError(msg);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -108,12 +165,19 @@ export default function FarmsPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500 dark:bg-red-900/30 dark:text-red-200">
+          {error}
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           type="search"
           placeholder="Buscar por nombre o ubicación..."
           value={filterSearch}
           onChange={(e) => setFilterSearch(e.target.value)}
+          disabled={loading}
           className="min-w-[180px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
       </div>
@@ -164,13 +228,15 @@ export default function FarmsPage() {
                         <button
                           type="button"
                           onClick={() => handleDelete(farm.id)}
+                          disabled={deletingId === farm.id}
                           className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-500 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
                         >
-                          Sí
+                          {deletingId === farm.id ? "Eliminando..." : "Sí"}
                         </button>
                         <button
                           type="button"
                           onClick={() => setDeleteConfirm(null)}
+                          disabled={deletingId === farm.id}
                           className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600"
                         >
                           No
@@ -200,7 +266,12 @@ export default function FarmsPage() {
             </tbody>
           </table>
         </div>
-        {filteredAndSortedFarms.length === 0 && (
+        {loading && (
+          <p className="py-8 text-center text-slate-500 dark:text-slate-400">
+            Cargando granjas...
+          </p>
+        )}
+        {!loading && filteredAndSortedFarms.length === 0 && (
           <p className="py-8 text-center text-slate-500 dark:text-slate-400">
             {farms.length === 0
               ? "No hay granjas. Pulsa \"Nueva granja\" para crear una."
@@ -236,6 +307,7 @@ export default function FarmsPage() {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   required
+                  disabled={saving}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Ej. Granja Norte"
                 />
@@ -249,6 +321,7 @@ export default function FarmsPage() {
                   type="text"
                   value={formLocation}
                   onChange={(e) => setFormLocation(e.target.value)}
+                  disabled={saving}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Ej. Carretera N-1 km 42, Burgos"
                 />
@@ -257,15 +330,17 @@ export default function FarmsPage() {
                 <button
                   type="button"
                   onClick={closeModal}
+                  disabled={saving}
                   className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-600"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
+                  disabled={saving}
                   className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
                 >
-                  {editingFarm ? "Guardar" : "Crear"}
+                  {saving ? "Guardando..." : editingFarm ? "Guardar" : "Crear"}
                 </button>
               </div>
             </form>

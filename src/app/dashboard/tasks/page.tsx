@@ -2,9 +2,8 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
-  DndContext,
-  DragOverlay,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -14,6 +13,17 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+
+// DndContext y DragOverlay son componentes pesados (no hooks): se cargan en diferido
+// para no bloquear el render inicial de la página de tareas.
+const DndContext = dynamic(
+  () => import("@dnd-kit/core").then((m) => ({ default: m.DndContext })),
+  { ssr: false }
+);
+const DragOverlay = dynamic(
+  () => import("@dnd-kit/core").then((m) => ({ default: m.DragOverlay })),
+  { ssr: false }
+);
 import { MOCK_WORKERS, MOCK_FARMS, TASK_TEMPLATES, MOCK_RECURRING_SCHEDULES } from "@/data/mock";
 import type { Task, TaskStatus, TaskPriority, RecurringTaskSchedule, DayOfWeek, UserRole } from "@/types";
 import { USER_ROLE, formatTaskId } from "@/types";

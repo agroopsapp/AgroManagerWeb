@@ -1,0 +1,244 @@
+---
+description: Formación React/Node; prioridad comprensión del usuario y cambios que no rompan la app (AgroManager Web).
+alwaysApply: true
+---
+
+# Formación: desarrollo estable y mantenible
+
+## Propósito
+
+Este proyecto es **formativo**: el código debe funcionar, pero también debe ser **entendible**. Prioridades:
+
+1. Que sepas **qué** cambia, **por qué**, **qué problema resuelve** y **cómo evitar efectos colaterales**.
+2. Mantener una base **ordenada**, **estable** y **fácil de evolver** — no solo “que compile”.
+
+---
+
+## 1. Estabilidad (regla principal)
+
+### Mentalidad
+
+- Antes de tocar código: entender **qué flujo** depende de él.
+- Después: comprobar que la funcionalidad principal **sigue funcionando**.
+- Un cambio pequeño **puede** romper otras partes: no darlo por supuesto.
+- Si algo se rompe en el mismo trabajo, **corregirlo** antes de dar por cerrado el cambio.
+- No dejar el proyecto **a medias** o roto.
+
+### Secuencia al cambiar código
+
+1. Entender el problema real.
+2. Identificar archivos y dependencias implicados.
+3. Cambio **mínimo** necesario (sin mezclar refactor grande + arreglo pequeño).
+4. Revisar impacto: imports, props, hooks, estado, rutas, tipos, llamadas API, contratos JSON.
+5. Verificar arranque y flujo afectado (frontend y, si aplica, backend).
+6. Explicar **qué** se cambió y **por qué**.
+
+### Comprobaciones mínimas tras un cambio
+
+| Ámbito | Comprobar |
+|--------|-----------|
+| Frontend | App arranca; ruta afectada carga; consola sin errores graves; formularios/datos relacionados; imports y hooks. |
+| Backend | Servidor arranca; endpoint afectado responde; validaciones y errores coherentes; contrato JSON. |
+| Integración | Frontend consume bien el backend; flujo extremo a extremo de la feature. |
+
+### Evitar regresiones por descuido
+
+Revisar en especial: **imports**, **props**, **hooks**, **estado**, **rutas de páginas y API**, **tipados**, **fetch/cliente HTTP**, **forma real de las respuestas del backend**, **dependencias cruzadas**.
+
+---
+
+## 2. Cómo debe trabajar el asistente
+
+### Al escribir o modificar código
+
+- Comentarios **breves** solo cuando aclaren decisión de arquitectura, estabilidad o comportamiento no obvio.
+- Soluciones **simples** y mantenibles; **sin overengineering**.
+- **No** tocar archivos ajenos al problema salvo necesidad clara.
+- **No** código mágico ni refactors cosméticos innecesarios mezclados con fixes.
+
+### Al explicar
+
+- Cuando ayude, estructura útil: **Qué hace** · **Por qué fallaba (si aplica)** · **Qué se cambió** · **Qué reforzar / aprender**.
+- Profundidad según bloqueo del usuario: más detalle si está atascado, más directo si ya va fluido.
+
+### Regla de oro
+
+- Nada de cambios **sin contexto** ni “porque sí”.
+- Decir claro si algo estaba mal, si una solución es **frágil** o si un cambio **puede romper** otras zonas.
+
+---
+
+## 3. React (frontend)
+
+### Organización
+
+Separar responsabilidades de forma clara:
+
+| Capa | Rol |
+|------|-----|
+| `app` / páginas | Pantallas y rutas |
+| `components` | UI reutilizable |
+| `hooks` | Lógica reutilizable |
+| `services` / cliente API | HTTP y adaptación al backend |
+| `types` | Tipos e interfaces compartidos |
+| `lib` / `utils` | Helpers y utilidades puras |
+
+- Lógica de negocio **pesada** fuera de componentes puramente visuales cuando sea razonable.
+- Evitar **componentes/archivos gigantes**; dividir con criterio.
+
+### Estado y efectos
+
+- No duplicar estado sin necesidad.
+- `useEffect` con dependencias correctas; evitar efectos frágiles.
+- Cambio de **props** o **forma de datos**: revisar consumidores, formularios, validaciones y peticiones.
+
+### Prácticas
+
+- Nombres claros y consistentes; JSX legible.
+- No romper comportamiento existente “limpiando” a ciegas.
+- Refactors **controlados** y verificables.
+
+---
+
+## 4. Node.js / backend (cuando aplique)
+
+### Organización
+
+- **Routes / controllers**: entrada HTTP.
+- **Services / casos de uso**: reglas de negocio.
+- **Repositories / DB**: persistencia.
+- **Middlewares**: cortafuegos transversal (auth, etc.).
+- **Schemas / validadores**: entrada explícita.
+
+Poca lógica de negocio en rutas; funciones **pequeñas** y legibles.
+
+### Robustez y API
+
+- Validar entrada; errores **entendibles**; no confiar en que el cliente envía datos buenos.
+- Consistencia en **URLs**, **JSON**, **códigos HTTP** y **mensajes de error**.
+- Cambio de endpoint o payload: revisar **consumidores** (frontend y tipos).
+
+---
+
+## 5. Frontend ↔ backend (contrato)
+
+Muchas roturas vienen de aquí.
+
+- Tras cambio en **backend**: ¿rompe el frontend?
+- Tras cambio en **frontend**: ¿las llamadas y tipos siguen alineados?
+- No asumir nombres de campos; alinear **URL**, **método**, **body**, **respuesta** y **errores**.
+- Cambio en JSON: actualizar **tipos**, **servicios** y **UI** afectados; evitar cambios “silenciosos”.
+
+---
+
+## 6. Entorno local (AgroManager Web)
+
+- **Frontend (Next.js):** `http://localhost:3000` (puerto habitual de desarrollo).
+- **Backend:** URL definida en **`NEXT_PUBLIC_API_URL`** (en este repo suele ser HTTPS del API, p. ej. `https://localhost:7099` — ver `.env.example`).
+- No improvisar puertos distintos en cada cambio sin actualizar `.env` y documentación del equipo.
+- Frontend y API como procesos separados: **no** mismo puerto para ambos.
+
+Objetivo: menos confusión, menos reinicios por configuración incoherente.
+
+---
+
+## 7. Arquitectura establecida en este proyecto
+
+Esta es la estructura real del proyecto. Cualquier código nuevo debe encajar en ella sin excepción.
+
+### Árbol de carpetas relevante
+
+```
+src/
+├── app/
+│   └── dashboard/          ← páginas Next.js (App Router); solo composición + JSX
+│       ├── time-tracking/page.tsx   ← 378 líneas: llama hooks, renderiza componentes
+│       ├── companies/
+│       ├── farms/
+│       └── ...
+├── features/
+│   └── time-tracking/      ← patrón a replicar en cada feature
+│       ├── types/index.ts          ← tipos e interfaces del dominio
+│       ├── utils/formatters.ts     ← funciones puras (sin hooks, sin efectos)
+│       ├── hooks/                  ← lógica de estado agrupada por dominio
+│       │   ├── useFichadorPanel.ts
+│       │   ├── useFichaje.ts
+│       │   ├── useBreakModal.ts
+│       │   ├── useForgotModal.ts
+│       │   ├── useAyerCompleta.ts
+│       │   ├── useEquipo.ts
+│       │   ├── useEquipoModal.ts
+│       │   └── useEquipoPart.ts
+│       └── components/             ← componentes visuales del feature
+│           ├── ClockPanel.tsx
+│           ├── HistorialPersonal.tsx
+│           ├── TeamPanel.tsx
+│           ├── AyerCompletaModal.tsx
+│           ├── BreakModal.tsx
+│           ├── ForgotModal.tsx
+│           ├── EquipoPartModal.tsx
+│           └── charts/
+├── components/             ← componentes globales reutilizables (no ligados a un feature)
+├── services/               ← llamadas HTTP al backend (una por dominio)
+├── mocks/                  ← datos de prueba; se reemplazan por servicios reales
+├── shared/
+│   └── utils/time.ts       ← utilidades puras de fecha/hora (sin dependencias React)
+├── types/                  ← tipos globales compartidos entre features
+└── lib/                    ← helpers de infraestructura (storage, PDF, mocks de API)
+```
+
+### Dónde va cada cosa (regla estricta)
+
+| Qué añadir | Dónde |
+|---|---|
+| Tipo o interface de un feature | `features/<feature>/types/index.ts` |
+| Tipo compartido entre features | `src/types/index.ts` |
+| Función pura (sin hooks) de un feature | `features/<feature>/utils/` |
+| Función pura de fecha/hora | `shared/utils/time.ts` |
+| Lógica de estado (useState/useEffect) | `features/<feature>/hooks/use<Nombre>.ts` |
+| Componente visual de un feature | `features/<feature>/components/<Nombre>.tsx` |
+| Componente visual reutilizable global | `components/<Nombre>.tsx` |
+| Llamada HTTP a la API | `services/<dominio>.service.ts` |
+| Datos de prueba (mock) | `mocks/<feature>.mock.ts` |
+| Página/ruta | `app/dashboard/<ruta>/page.tsx` — solo hooks + JSX, sin lógica inline |
+
+### Patrón obligatorio al añadir una feature nueva
+
+Seguir este orden; no saltarse pasos:
+
+1. **Tipos** — definir las interfaces en `features/<feature>/types/index.ts`
+2. **Servicio** — crear `services/<feature>.service.ts` con las llamadas al backend
+3. **Hook(s)** — crear `features/<feature>/hooks/use<Nombre>.ts` que llama al servicio y gestiona el estado
+4. **Componentes** — crear los componentes visuales en `features/<feature>/components/`
+5. **Página** — en `app/dashboard/<ruta>/page.tsx` llamar los hooks y renderizar los componentes
+
+### Patrón obligatorio al modificar código existente
+
+Antes de tocar un archivo, identificar su capa:
+
+- **`page.tsx`**: si hay lógica (useState, useEffect, fetch) que no sea orquestación pura → moverla al hook correspondiente, no dejarlo crecer.
+- **Hook**: si hay lógica de UI (JSX, clases CSS) → no pertenece aquí.
+- **Componente**: si hay llamadas fetch o estado complejo → extraer a hook.
+- **Servicio**: si tiene lógica de negocio → moverla al hook o util.
+
+### Reglas adicionales
+
+- Un hook por dominio lógico; si un hook supera ~200 líneas, valorar si se puede dividir.
+- Los hooks reciben dependencias externas como parámetros (no las importan directamente del contexto global salvo `useAuth`).
+- Un componente no llama directamente a `fetch`; usa los datos que le llegan por props desde el hook/página.
+- Los mocks en `mocks/` solo existen mientras no hay API real; cuando se conecta el backend, se eliminan del hook y se sustituyen por la llamada al servicio.
+- `npx tsc --noEmit` debe dar **0 errores** después de cualquier cambio. Si hay errores, corregirlos antes de continuar.
+
+---
+
+## 8. Pensamiento crítico
+
+- No asumir que la estructura actual es la ideal; señalar **deuda**, **fragilidad** o **archivos con demasiadas responsabilidades**.
+- Si una propuesta arriesga más de lo que aporta, sugerir **alternativa más segura**.
+- El objetivo es una base que **no se rompa** a cada toque, no solo complacer en el momento.
+
+---
+
+## 8. Objetivo final
+
+Que puedas **entender** lo implementado, **ordenar** el código React/Node, **reducir roturas** al iterar y **aprender** a mantener la aplicación de forma profesional: que siga funcionando **después** de varios cambios, no solo el día del commit.

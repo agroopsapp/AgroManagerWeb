@@ -1,6 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useState, useCallback } from "react";
+
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 type FeaturesState = {
   enableAnimals: boolean;
@@ -56,7 +59,7 @@ function persist(state: FeaturesState) {
 export function FeaturesProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<FeaturesState>(DEFAULT_FEATURES);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     setState(readStored());
   }, []);
 

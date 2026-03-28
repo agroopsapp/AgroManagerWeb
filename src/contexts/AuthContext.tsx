@@ -1,6 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useLayoutEffect,
+} from "react";
+import { authApi } from "@/services/auth.service";
 import type { UserRole } from "@/types";
 
 interface AuthUser {
@@ -26,42 +33,51 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const STORAGE_KEY = "agroops_auth";
 
+// useLayoutEffect se ejecuta de forma síncrona antes del primer paint del
+// navegador, eliminando el flash de "sin usuario" en la primera carga.
+// En SSR (servidor) no existe window, así que usamos useEffect como fallback
+// para evitar el warning de React en servidor.
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as StoredAuthState;
-        if (
-          parsed.token &&
-          parsed.user &&
-          typeof parsed.expiresAt === "number" &&
-          Number.isFinite(parsed.expiresAt)
-        ) {
-          if (parsed.expiresAt > Date.now()) {
-            setUser(parsed.user);
-            setToken(parsed.token);
+  useIsomorphicLayoutEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored) as StoredAuthState;
+          if (
+            parsed.token &&
+            parsed.user &&
+            typeof parsed.expiresAt === "number" &&
+            Number.isFinite(parsed.expiresAt)
+          ) {
+            if (parsed.expiresAt > Date.now()) {
+              setUser(parsed.user);
+              setToken(parsed.token);
+            } else {
+              localStorage.removeItem(STORAGE_KEY);
+            }
           } else {
             localStorage.removeItem(STORAGE_KEY);
           }
-        } else {
+        } catch {
           localStorage.removeItem(STORAGE_KEY);
         }
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
       }
+    } finally {
+      setIsReady(true);
     }
-    setIsReady(true);
   }, []);
 
   const login = async (email: string, password: string) => {
     let data: { token: string; expiresIn?: number; user: { id: string; email: string; role: string } };
     try {
-      const { authApi } = await import("@/services/auth.service");
       data = await authApi.login(email, password);
     } catch (err) {
       if (err instanceof Error) throw err;

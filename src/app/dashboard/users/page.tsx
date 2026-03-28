@@ -1,22 +1,64 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { MOCK_USERS, MOCK_ROLES } from "@/data/mock";
-import type { User as UserType } from "@/types";
+import { useEffect, useMemo, useState } from "react";
+import { ApiError } from "@/lib/api-client";
+import { rolesApi } from "@/services/roles.service";
+import { usersApi, type UpdateUserPayload } from "@/services/users.service";
+import type { Role, User as UserType } from "@/types";
+
+/** Misma compañía que en el backend de pruebas; luego puede venir de la sesión. */
+const COMPANY_ID = "356d0a75-654a-4d07-b65c-25f97f854178";
+
+/* Listado: GET /api/Users (igual que Postman). COMPANY_ID solo para crear usuario. */
 
 type SortKey = "name" | "email" | "role";
 type SortDir = "asc" | "desc";
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<UserType[]>(MOCK_USERS);
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [passwordUser, setPasswordUser] = useState<UserType | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  /** Solo se usa tras pulsar «Sí»; «Eliminar» solo muestra la confirmación, no llama al API. */
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [filterSearch, setFilterSearch] = useState("");
   const [filterRoleId, setFilterRoleId] = useState<string>("");
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  const loadUsers = async (signal?: AbortSignal) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await usersApi.getAll(undefined, { signal });
+      setUsers(data);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "No se pudieron cargar los trabajadores.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const ac = new AbortController();
+    void loadUsers(ac.signal);
+    void rolesApi.getAll({ signal: ac.signal }).then(setRoles).catch(() => setRoles([]));
+    return () => ac.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const copyPhone = (userId: string, phone: string) => {
     if (!phone) return;
@@ -30,7 +72,12 @@ export default function UsersPage() {
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formPassword, setFormPassword] = useState("");
-  const [formRoleId, setFormRoleId] = useState<string>(MOCK_ROLES[0]?.id ?? "");
+  const [formRoleId, setFormRoleId] = useState<string>("");
+
+  useEffect(() => {
+    if (!modalOpen || editingUser || !roles.length || formRoleId) return;
+    setFormRoleId(roles[0].id);
+  }, [modalOpen, editingUser, roles, formRoleId]);
 
   const openCreate = () => {
     setEditingUser(null);
@@ -38,7 +85,7 @@ export default function UsersPage() {
     setFormEmail("");
     setFormPhone("");
     setFormPassword("");
-    setFormRoleId(MOCK_ROLES[0]?.id ?? "");
+    setFormRoleId(roles[0]?.id ?? "");
     setModalOpen(true);
   };
 
@@ -59,10 +106,11 @@ export default function UsersPage() {
     setFormEmail("");
     setFormPhone("");
     setFormPassword("");
+    setError(null);
   };
 
-  const getRoleName = (roleId: string) =>
-    MOCK_ROLES.find((r) => r.id === roleId)?.name ?? roleId;
+  const roleLabel = (user: UserType) =>
+    user.roleName ?? roles.find((r) => r.id === user.roleId)?.name ?? user.roleId;
 
   const toggleSort = (key: SortKey) => {
     setSortKey(key);
@@ -83,43 +131,103 @@ export default function UsersPage() {
     list = [...list].sort((a, b) => {
       if (sortKey === "name") return dir * a.name.localeCompare(b.name);
       if (sortKey === "email") return dir * a.email.localeCompare(b.email);
-      if (sortKey === "role") return dir * getRoleName(a.roleId).localeCompare(getRoleName(b.roleId));
+      if (sortKey === "role") return dir * roleLabel(a).localeCompare(roleLabel(b));
       return 0;
     });
     return list;
-  }, [users, sortKey, sortDir, filterSearch, filterRoleId]);
+  }, [users, sortKey, sortDir, filterSearch, filterRoleId, roles]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = formName.trim();
     const email = formEmail.trim();
     const phone = formPhone.trim();
+    const password = formPassword.trim();
     if (!name || !email) return;
 
     if (editingUser) {
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === editingUser.id
-            ? { ...u, name, email, phone, roleId: formRoleId }
-            : u
-        )
-      );
-    } else {
-      const newUser: UserType = {
-        id: `u${Date.now()}`,
+      try {
+        setSaving(true);
+        setError(null);
+        const body: UpdateUserPayload = {
+          name,
+          email,
+          roleId: formRoleId,
+          telefono: phone || undefined,
+        };
+        await usersApi.update(editingUser.id, body);
+        closeModal();
+        await loadUsers();
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : "No se pudo guardar el usuario.");
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    if (!formRoleId || !password) {
+      setError("Para crear el usuario indica rol y contraseña.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+      await usersApi.create({
+        companyId: COMPANY_ID,
         name,
         email,
-        phone,
+        password,
         roleId: formRoleId,
-      };
-      setUsers((prev) => [...prev, newUser]);
+        telefono: phone || undefined,
+      });
+      closeModal();
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo crear el usuario.");
+    } finally {
+      setSaving(false);
     }
-    closeModal();
   };
 
-  const handleDelete = (id: string) => {
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-    setDeleteConfirm(null);
+  const closePasswordModal = () => {
+    setPasswordUser(null);
+    setNewPassword("");
+    setError(null);
+  };
+
+  const handlePasswordSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const pw = newPassword.trim();
+    if (!passwordUser || !pw) return;
+    try {
+      setPasswordSaving(true);
+      setError(null);
+      await usersApi.changePassword(passwordUser.id, { password: pw });
+      closePasswordModal();
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo cambiar la contraseña.");
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  /** Llama al DELETE solo cuando el usuario confirma con «Sí». */
+  const confirmDeleteUser = async (id: string) => {
+    try {
+      setDeletingId(id);
+      setError(null);
+      await usersApi.delete(id);
+      setDeleteConfirm(null);
+      await loadUsers();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "No se pudo eliminar el usuario.");
+      setDeleteConfirm(null);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -154,11 +262,23 @@ export default function UsersPage() {
           className="rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
         >
           <option value="">Todos los roles</option>
-          {MOCK_ROLES.map((r) => (
+          {roles.map((r) => (
             <option key={r.id} value={r.id}>{r.name}</option>
           ))}
         </select>
       </div>
+
+      {loading && (
+        <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          Cargando trabajadores...
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-sm dark:border-red-500/40 dark:bg-red-900/20 dark:text-red-300">
+          {error}
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
         <div className="overflow-x-auto">
@@ -199,7 +319,8 @@ export default function UsersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-600">
-              {filteredAndSortedUsers.map((user) => (
+              {!loading &&
+                filteredAndSortedUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
                     {user.name}
@@ -229,32 +350,34 @@ export default function UsersPage() {
                   </td>
                   <td className="px-4 py-3">
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-600 dark:text-slate-200">
-                      {getRoleName(user.roleId)}
+                      {roleLabel(user)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
                     {deleteConfirm === user.id ? (
                       <span className="flex items-center justify-end gap-2">
                         <span className="text-xs text-slate-500 dark:text-slate-400">
-                          ¿Eliminar?
+                          {deletingId === user.id ? "Eliminando…" : "¿Eliminar?"}
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleDelete(user.id)}
-                          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-500 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+                          disabled={deletingId === user.id}
+                          onClick={() => confirmDeleteUser(user.id)}
+                          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 dark:border-red-500 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
                         >
                           Sí
                         </button>
                         <button
                           type="button"
+                          disabled={deletingId === user.id}
                           onClick={() => setDeleteConfirm(null)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600"
+                          className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600"
                         >
                           No
                         </button>
                       </span>
                     ) : (
-                      <span className="flex items-center justify-end gap-2">
+                      <span className="flex flex-wrap items-center justify-end gap-2">
                         <button
                           type="button"
                           onClick={() => openEdit(user)}
@@ -264,7 +387,20 @@ export default function UsersPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setDeleteConfirm(user.id)}
+                          onClick={() => {
+                            setPasswordUser(user);
+                            setNewPassword("");
+                            setError(null);
+                          }}
+                          className="rounded border border-amber-200 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                        >
+                          Contraseña
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDeleteConfirm(user.id);
+                          }}
                           className="rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-900/40"
                         >
                           Eliminar
@@ -277,7 +413,7 @@ export default function UsersPage() {
             </tbody>
           </table>
         </div>
-        {filteredAndSortedUsers.length === 0 && (
+        {!loading && filteredAndSortedUsers.length === 0 && (
           <p className="py-8 text-center text-slate-500 dark:text-slate-400">
             {users.length === 0
               ? "No hay usuarios. Pulsa \"Nuevo usuario\" para crear uno."
@@ -344,20 +480,22 @@ export default function UsersPage() {
                   placeholder="Ej. +34 612 345 678"
                 />
               </div>
-              <div>
-                <label htmlFor="user-password" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Contraseña {editingUser && "(dejar en blanco para no cambiar)"}
-                </label>
-                <input
-                  id="user-password"
-                  type="password"
-                  value={formPassword}
-                  onChange={(e) => setFormPassword(e.target.value)}
-                  required={!editingUser}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
-                  placeholder="••••••••"
-                />
-              </div>
+              {!editingUser && (
+                <div>
+                  <label htmlFor="user-password" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Contraseña
+                  </label>
+                  <input
+                    id="user-password"
+                    type="password"
+                    value={formPassword}
+                    onChange={(e) => setFormPassword(e.target.value)}
+                    required
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                    placeholder="••••••••"
+                  />
+                </div>
+              )}
               <div>
                 <label htmlFor="user-role" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Rol
@@ -368,7 +506,7 @@ export default function UsersPage() {
                   onChange={(e) => setFormRoleId(e.target.value)}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
-                  {MOCK_ROLES.map((role) => (
+                  {roles.map((role) => (
                     <option key={role.id} value={role.id}>
                       {role.name}
                     </option>
@@ -385,9 +523,65 @@ export default function UsersPage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
+                  disabled={saving}
+                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700 disabled:opacity-60"
                 >
-                  {editingUser ? "Guardar" : "Crear"}
+                  {saving ? "Guardando..." : editingUser ? "Guardar" : "Crear"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {passwordUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closePasswordModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="password-dialog-title"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-800 dark:border dark:border-slate-600"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="password-dialog-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Cambiar contraseña
+            </h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+              {passwordUser.name} ({passwordUser.email})
+            </p>
+            <form onSubmit={handlePasswordSave} className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="new-password" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Nueva contraseña
+                </label>
+                <input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  placeholder="••••••••"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closePasswordModal}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-600"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordSaving}
+                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700 disabled:opacity-60"
+                >
+                  {passwordSaving ? "Guardando..." : "Actualizar contraseña"}
                 </button>
               </div>
             </form>

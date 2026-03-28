@@ -16,10 +16,13 @@ const QUICK_MENU_ITEMS = [
   // Fila 1
   { href: "/dashboard", label: "Panel", icon: "🏠" },
   { href: "/dashboard/tasks", label: "Tareas", icon: "📋" },
-  { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
   { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
   { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
-  // Fila 2
+  { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
+  { href: "/dashboard/manager", label: "Horas del equipo", icon: "👥", adminOnly: true },
+  { href: "/dashboard/companies", label: "Empresas", icon: "🏢", adminOnly: true },
+  { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
+  // Fila 2 (después de operativa)
   { href: "/dashboard/animals", label: "Animales", icon: "🐄" },
   { href: "/dashboard/users", label: "Trabajadores", icon: "👤" },
   { href: "/dashboard/farms", label: "Granjas", icon: "🌾" },
@@ -45,6 +48,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
     if (stored === "true") setSidebarCollapsed(true);
   }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (mobileSidebarOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [mobileSidebarOpen]);
 
   const toggleSidebar = () => {
     setSidebarCollapsed((prev) => {
@@ -128,6 +142,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   if (!enableTimeTracking && href === "/dashboard/time-tracking") {
                     return null;
                   }
+                  if (!enableTimeTracking && href === "/dashboard/manager") {
+                    return null;
+                  }
                   if (
                     !enableAnimals &&
                     (href === "/dashboard/incidents" || href === "/dashboard/animals")
@@ -155,18 +172,33 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
 
-        {/* Layout escritorio */}
-        <div className="hidden w-full md:flex md:flex-row">
-          <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
-          <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-6 dark:bg-slate-900">
+        {mobileSidebarOpen && (
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 z-40 bg-black/40 md:hidden"
+              aria-label="Cerrar menú de navegación"
+              onClick={() => setMobileSidebarOpen(false)}
+            />
+            <div className="fixed inset-y-0 left-0 z-50 w-[min(20rem,88vw)] shadow-2xl md:hidden">
+              <Sidebar
+                collapsed={false}
+                mobileDrawer
+                onToggle={() => setMobileSidebarOpen(false)}
+                onNavigate={() => setMobileSidebarOpen(false)}
+              />
+            </div>
+          </>
+        )}
+
+        <div className="flex w-full min-w-0 flex-1 flex-col md:flex-row">
+          <div className="hidden shrink-0 md:block">
+            <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+          </div>
+          <main className="min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 px-3 py-4 md:p-6 dark:bg-slate-900">
             {children}
           </main>
         </div>
-
-        {/* Contenido móvil (sin sidebar fijo) */}
-        <main className="min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 px-3 py-4 dark:bg-slate-900 md:hidden">
-          {children}
-        </main>
       </div>
     </div>
     </TasksProvider>

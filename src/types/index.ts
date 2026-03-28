@@ -67,6 +67,9 @@ export interface User {
   email: string;
   phone: string;
   roleId: string;
+  roleName?: string;
+  companyId?: string;
+  companyName?: string;
 }
 
 export interface Worker {
@@ -78,6 +81,75 @@ export interface Farm {
   id: string;
   name: string;
   location: string;
+}
+
+/** Área o zona operativa vinculada a una empresa (parcela, nave, etc.). */
+export interface CompanyArea {
+  id: string;
+  name: string;
+  observations: string;
+}
+
+/** Área en el cuerpo de POST `/api/ClientCompanies/with-areas`. */
+export interface ClientCompanyAreaInput {
+  name: string;
+  observations: string | null;
+}
+
+/** Cuerpo de POST `/api/ClientCompanies/with-areas` (`companyId` = empresa del tenant). */
+export interface ClientCompanyWithAreasCreateBody {
+  companyId: string;
+  name: string;
+  taxId: string;
+  address: string;
+  areas: ClientCompanyAreaInput[];
+}
+
+/** Fila devuelta por GET `/api/Companies` (datos de la empresa en el tenant). */
+export interface CompanyApiRow {
+  id: string;
+  name: string;
+  fiscalName: string;
+  taxId: string;
+  address: string;
+  email: string;
+  phone: string;
+  website: string;
+  logoUrl: string;
+  createdAt: string;
+}
+
+/** Cuerpo de PUT `/api/Companies/{id}`. */
+export interface CompanyApiPutBody {
+  name: string;
+  fiscalName: string;
+  taxId: string;
+  address: string;
+  email: string;
+  phone: string;
+  website: string;
+  logoUrl: string;
+}
+
+/** Empresa / sociedad (contrato típico laboral; CRUD vía `/api/CustomerCompany`). */
+export interface Company {
+  id: string;
+  name: string;
+  /** CIF, NIF u otro identificador fiscal (opcional). */
+  taxId: string;
+  /** Dirección social u oficina (opcional). */
+  address: string;
+  /** URL del logo (misma web `/ruta.png` o absoluta) para informes/PDF. */
+  logoUrl?: string;
+  /** Zonas que puede tener la empresa (mock / API). */
+  areas: CompanyArea[];
+}
+
+/** Servicio que una empresa puede ofrecer (campo / maquinaria). */
+export interface WorkService {
+  id: string;
+  name: string;
+  description: string;
 }
 
 export interface Species {
