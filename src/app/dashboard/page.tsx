@@ -212,13 +212,10 @@ export default function DashboardPage() {
     if (!user?.role) return;
     if (user.role === USER_ROLE.Worker) {
       router.replace("/dashboard/tasks");
-      return;
     }
-    // Para admin/manager/superadmin, el “Panel” se sirve desde /dashboard/manager.
-    router.replace("/dashboard/manager");
   }, [isReady, user?.role, router]);
 
-  const isRedirecting = isReady && !!user?.role;
+  const isRedirecting = isReady && user?.role === USER_ROLE.Worker;
 
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("all");

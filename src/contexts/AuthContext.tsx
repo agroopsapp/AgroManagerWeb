@@ -2,7 +2,9 @@
 
 import React, {
   createContext,
+  useCallback,
   useContext,
+  useMemo,
   useState,
   useEffect,
   useLayoutEffect,
@@ -75,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     let data: { token: string; expiresIn?: number; user: { id: string; email: string; role: string } };
     try {
       data = await authApi.login(email, password);
@@ -102,16 +104,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(authUser);
     setToken(data.token);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setToken(null);
     localStorage.removeItem(STORAGE_KEY);
-  };
+  }, []);
+
+  const value = useMemo<AuthContextType>(
+    () => ({ user, token, login, logout, isReady }),
+    [user, token, login, logout, isReady],
+  );
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isReady }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

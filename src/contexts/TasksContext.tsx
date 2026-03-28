@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { MOCK_TASKS, MOCK_GENERAL_TASKS } from "@/data/mock";
 import type { Task } from "@/types";
 
@@ -26,37 +26,42 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
   const [generalTasks, setGeneralTasks] = useState<Task[]>(MOCK_GENERAL_TASKS);
 
-  const assignUnassignedTask = (taskId: string, params: AssignParams) => {
+  const assignUnassignedTask = useCallback((taskId: string, params: AssignParams) => {
     const { workerId, farmName, date } = params;
-    const task = generalTasks.find((t) => t.id === taskId);
-    if (!task) return;
-    const assigned: Task = {
-      ...task,
-      workerId,
-      farmName: farmName || task.farmName,
-      date,
-    };
-    setTasks((t) => [...t, assigned]);
-    setGeneralTasks((prev) => prev.filter((t) => t.id !== taskId));
-  };
+    setGeneralTasks((prev) => {
+      const task = prev.find((t) => t.id === taskId);
+      if (!task) return prev;
+      const assigned: Task = {
+        ...task,
+        workerId,
+        farmName: farmName || task.farmName,
+        date,
+      };
+      setTasks((t) => [...t, assigned]);
+      return prev.filter((t) => t.id !== taskId);
+    });
+  }, []);
 
-  const getNextTaskNumber = () => {
+  const getNextTaskNumber = useCallback(() => {
     const maxTasks = Math.max(0, ...tasks.map((t) => t.taskNumber ?? 0));
     const maxGeneral = Math.max(0, ...generalTasks.map((t) => t.taskNumber ?? 0));
     return Math.max(maxTasks, maxGeneral) + 1;
-  };
+  }, [tasks, generalTasks]);
+
+  const ctxValue = useMemo<TasksContextType>(
+    () => ({
+      tasks,
+      setTasks,
+      generalTasks,
+      setGeneralTasks,
+      assignUnassignedTask,
+      getNextTaskNumber,
+    }),
+    [tasks, generalTasks, assignUnassignedTask, getNextTaskNumber],
+  );
 
   return (
-    <TasksContext.Provider
-      value={{
-        tasks,
-        setTasks,
-        generalTasks,
-        setGeneralTasks,
-        assignUnassignedTask,
-        getNextTaskNumber,
-      }}
-    >
+    <TasksContext.Provider value={ctxValue}>
       {children}
     </TasksContext.Provider>
   );

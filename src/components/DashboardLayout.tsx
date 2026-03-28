@@ -19,7 +19,7 @@ const QUICK_MENU_ITEMS = [
   { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
   { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
   { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
-  { href: "/dashboard/manager", label: "Horas del equipo", icon: "👥", adminOnly: true },
+  { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥", adminOnly: true },
   { href: "/dashboard/companies", label: "Empresas", icon: "🏢", adminOnly: true },
   { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
   // Fila 2 (después de operativa)
@@ -134,15 +134,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     return null;
                   }
 
-                  const resolvedHref = href === "/dashboard" ? "/dashboard/manager" : href;
-
                   if (adminOnly && !isAdminLike) {
                     return null;
                   }
                   if (!enableTimeTracking && href === "/dashboard/time-tracking") {
                     return null;
                   }
-                  if (!enableTimeTracking && href === "/dashboard/manager") {
+                  if (!enableTimeTracking && href === "/dashboard/team-hours") {
                     return null;
                   }
                   if (
@@ -153,8 +151,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   }
                   return (
                   <Link
-                    key={resolvedHref}
-                    href={resolvedHref}
+                    key={href}
+                    href={href}
                     onClick={() => setQuickMenuOpen(false)}
                     className="flex min-h-[80px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                   >

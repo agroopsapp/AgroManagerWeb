@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useLayoutEffect } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState, useEffect, useLayoutEffect } from "react";
 
 export type Theme = "light" | "dark";
 
@@ -37,14 +37,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(STORAGE_KEY, theme);
   }, [theme, mounted]);
 
-  const setTheme = (value: Theme) => {
+  const setTheme = useCallback((value: Theme) => {
     setThemeState(value);
     applyThemeToDOM(value);
     localStorage.setItem(STORAGE_KEY, value);
-  };
+  }, []);
+
+  const ctxValue = useMemo<ThemeContextType>(
+    () => ({ theme, setTheme }),
+    [theme, setTheme],
+  );
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={ctxValue}>
       <div
         className={`min-h-screen antialiased ${theme === "dark" ? "dark bg-slate-900 text-slate-100" : "bg-slate-50 text-slate-900"}`}
         suppressHydrationWarning

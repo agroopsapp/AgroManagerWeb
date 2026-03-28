@@ -32,7 +32,7 @@ const navSections: NavSection[] = [
     title: "Jornada",
     items: [
       { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
-      { href: "/dashboard/manager", label: "Horas del equipo", icon: "👥", adminOnly: true },
+      { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥", adminOnly: true },
       { href: "/dashboard/my-company", label: "Mi empresa", icon: "🏷️" },
       { href: "/dashboard/companies", label: "Empresas", icon: "🏢", adminOnly: true },
       { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
@@ -85,7 +85,7 @@ export default function Sidebar({ collapsed, onToggle, onNavigate, mobileDrawer 
     if (item.href === "/dashboard" && role === USER_ROLE.Worker) return false;
     if (item.adminOnly && !isAdminLike) return false;
     if (!enableTimeTracking && item.href === "/dashboard/time-tracking") return false;
-    if (!enableTimeTracking && item.href === "/dashboard/manager") return false;
+    if (!enableTimeTracking && item.href === "/dashboard/team-hours") return false;
     if (
       !canSeeAnimals &&
       (item.href === "/dashboard/incidents" || item.href === "/dashboard/animals")
@@ -94,10 +94,6 @@ export default function Sidebar({ collapsed, onToggle, onNavigate, mobileDrawer 
     }
     return true;
   };
-
-  // "/dashboard" panel link resolves to /dashboard/manager
-  const resolveHref = (href: string) =>
-    href === "/dashboard" ? "/dashboard/manager" : href;
 
   const showLabels = mobileDrawer || !collapsed;
 
@@ -116,12 +112,11 @@ export default function Sidebar({ collapsed, onToggle, onNavigate, mobileDrawer 
                 </p>
               )}
               {visibleItems.map(({ href, label, icon }) => {
-                const resolvedHref = resolveHref(href);
-                const isActive = pathname === resolvedHref;
+                const isActive = pathname === href;
                 return (
                   <Link
                     key={href}
-                    href={resolvedHref}
+                    href={href}
                     title={showLabels ? undefined : label}
                     onClick={() => onNavigate?.()}
                     className={`flex items-center rounded-lg px-3 py-3 text-sm font-medium transition md:py-2.5 ${

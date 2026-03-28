@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useLayoutEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, useCallback } from "react";
 
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -79,15 +79,18 @@ export function FeaturesProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const ctxValue = useMemo<FeaturesContextType>(
+    () => ({
+      enableAnimals: state.enableAnimals,
+      enableTimeTracking: state.enableTimeTracking,
+      setEnableAnimals,
+      setEnableTimeTracking,
+    }),
+    [state.enableAnimals, state.enableTimeTracking, setEnableAnimals, setEnableTimeTracking],
+  );
+
   return (
-    <FeaturesContext.Provider
-      value={{
-        enableAnimals: state.enableAnimals,
-        enableTimeTracking: state.enableTimeTracking,
-        setEnableAnimals,
-        setEnableTimeTracking,
-      }}
-    >
+    <FeaturesContext.Provider value={ctxValue}>
       {children}
     </FeaturesContext.Provider>
   );

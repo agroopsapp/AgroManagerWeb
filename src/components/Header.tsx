@@ -14,7 +14,7 @@ interface HeaderProps {
 export default function Header({ onToggleMobileSidebar, onToggleQuickMenu }: HeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
-  const panelHref = user?.role === USER_ROLE.Worker ? "/dashboard/tasks" : "/dashboard/manager";
+  const panelHref = user?.role === USER_ROLE.Worker ? "/dashboard/tasks" : "/dashboard";
 
   const handleLogout = () => {
     logout();
