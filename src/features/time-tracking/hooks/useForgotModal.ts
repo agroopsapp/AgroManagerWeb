@@ -169,7 +169,7 @@ export function useForgotModal({
     let createdEntry: Awaited<ReturnType<typeof timeTrackingApi.createManualClosedEntry>> | null =
       null;
     try {
-      createdEntry = await timeTrackingApi.createManualClosedEntry({
+      const newEntry = await timeTrackingApi.createManualClosedEntry({
         companyId,
         userId,
         workDate: forgotTargetDate,
@@ -178,31 +178,32 @@ export function useForgotModal({
         status: "Closed",
         breakMinutes: breakMin,
       });
+      createdEntry = newEntry;
       setEntries((prev) => [
         ...prev,
         {
-          id: createdEntry.id,
-          timeEntryId: createdEntry.timeEntryId ?? null,
-          companyId: createdEntry.companyId ?? companyId,
+          id: newEntry.id,
+          timeEntryId: newEntry.timeEntryId ?? null,
+          companyId: newEntry.companyId ?? companyId,
           workerId:
-            Number.isFinite(createdEntry.workerId) && createdEntry.workerId > 0
-              ? createdEntry.workerId
+            Number.isFinite(newEntry.workerId) && newEntry.workerId > 0
+              ? newEntry.workerId
               : miWorkerId,
-          userId: createdEntry.userId ?? userId,
-          workReportId: createdEntry.workReportId ?? null,
-          userName: createdEntry.userName ?? null,
-          userEmail: createdEntry.userEmail ?? null,
-          workDate: createdEntry.workDate,
-          checkInUtc: createdEntry.checkInUtc,
-          checkOutUtc: createdEntry.checkOutUtc,
-          isEdited: createdEntry.isEdited,
-          createdAtUtc: createdEntry.createdAtUtc,
-          createdBy: createdEntry.createdBy,
-          updatedAtUtc: createdEntry.updatedAtUtc,
-          updatedBy: createdEntry.updatedBy,
-          breakMinutes: createdEntry.breakMinutes ?? breakMin,
-          lastModifiedByEmail: createdEntry.lastModifiedByEmail ?? null,
-          lastModifiedByName: createdEntry.lastModifiedByName ?? null,
+          userId: newEntry.userId ?? userId,
+          workReportId: newEntry.workReportId ?? null,
+          userName: newEntry.userName ?? null,
+          userEmail: newEntry.userEmail ?? null,
+          workDate: newEntry.workDate,
+          checkInUtc: newEntry.checkInUtc,
+          checkOutUtc: newEntry.checkOutUtc,
+          isEdited: newEntry.isEdited,
+          createdAtUtc: newEntry.createdAtUtc,
+          createdBy: newEntry.createdBy,
+          updatedAtUtc: newEntry.updatedAtUtc,
+          updatedBy: newEntry.updatedBy,
+          breakMinutes: newEntry.breakMinutes ?? breakMin,
+          lastModifiedByEmail: newEntry.lastModifiedByEmail ?? null,
+          lastModifiedByName: newEntry.lastModifiedByName ?? null,
         },
       ]);
     } catch (e) {
@@ -211,15 +212,19 @@ export function useForgotModal({
       setForgotError(msg);
       return;
     }
+    if (!createdEntry) {
+      setForgotError("No se pudo registrar la jornada completa.");
+      return;
+    }
     setWorkPartOverrideEntry({
-      workDate: createdEntry?.workDate ?? forgotTargetDate,
+      workDate: createdEntry.workDate,
       workerId: miWorkerId,
-      companyId: createdEntry?.companyId ?? companyId,
-      timeEntryId: createdEntry?.timeEntryId ?? null,
-      userId: createdEntry?.userId ?? userId,
-      workReportId: createdEntry?.workReportId ?? null,
-      checkInUtc: createdEntry?.checkInUtc ?? checkInUtc,
-      checkOutUtc: createdEntry?.checkOutUtc ?? checkOutUtc,
+      companyId: createdEntry.companyId ?? companyId,
+      timeEntryId: createdEntry.timeEntryId ?? null,
+      userId: createdEntry.userId ?? userId,
+      workReportId: createdEntry.workReportId ?? null,
+      checkInUtc: createdEntry.checkInUtc,
+      checkOutUtc: createdEntry.checkOutUtc ?? checkOutUtc,
       breakMinutes: breakMin,
     });
     const lid =

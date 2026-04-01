@@ -116,9 +116,9 @@ export default function TimeTrackingPage() {
         breakModal.setWorkPartOverrideEntry({
           workDate: report.workDate || entry.workDate,
           workerId: entry.workerId,
-          companyId: report.companyId || entry.companyId ?? null,
-          timeEntryId: report.timeEntryId || entry.timeEntryId ?? null,
-          userId: report.userId || entry.userId ?? null,
+          companyId: (report.companyId || entry.companyId) ?? null,
+          timeEntryId: (report.timeEntryId || entry.timeEntryId) ?? null,
+          userId: (report.userId || entry.userId) ?? null,
           workReportId: entry.workReportId,
           checkInUtc: entry.checkInUtc,
           checkOutUtc: entry.checkOutUtc,
