@@ -2,7 +2,6 @@
 
 import type { TimeEntryMock } from "@/features/time-tracking/types";
 import {
-  formatLastModifiedByUser,
   historicoFilaSinImputarPasado,
   isAusenciaRazon,
   formatRazon,
@@ -12,7 +11,6 @@ import {
   MODIFICADO_POR_SISTEMA,
   type HistoricoPersonalFila,
 } from "@/features/time-tracking/utils/formatters";
-import { workerNameById } from "@/mocks/time-tracking.mock";
 import {
   diffDurationMinutes,
   formatDateES,
@@ -27,18 +25,16 @@ interface HistorialPersonalProps {
   loading: boolean;
   historicoPersonalFilas: HistoricoPersonalFila[];
   hasAnyEntries: boolean;
-  miWorkerId: number;
-  sessionEmail: string | null | undefined;
-  workPartSummaryByDate: Map<string, { has: boolean; tasks: number }>;
+  onOpenPartEditor: (entry: TimeEntryMock) => void | Promise<void>;
+  onOpenForgotForDate: (workDate: string) => void;
 }
 
 export function HistorialPersonal({
   loading,
   historicoPersonalFilas,
   hasAnyEntries,
-  miWorkerId,
-  sessionEmail,
-  workPartSummaryByDate,
+  onOpenPartEditor,
+  onOpenForgotForDate,
 }: HistorialPersonalProps) {
   return (
     <section className="min-w-0 space-y-3">
@@ -57,9 +53,6 @@ export function HistorialPersonal({
               gris y «Fin de semana (no laboral)».
             </p>
           </div>
-          <span className="shrink-0 self-start rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium text-slate-500 dark:bg-slate-700/60 dark:text-slate-300 sm:px-3 sm:text-[11px]">
-            Datos de demo (sin servidor)
-          </span>
         </div>
 
         {loading ? (
@@ -101,6 +94,7 @@ export function HistorialPersonal({
                     </th>
                     <th className="px-3 py-2">Descanso</th>
                     <th className="px-3 py-2">Parte</th>
+                    <th className="px-3 py-2">Acciones parte</th>
                     <th className="px-3 py-2">Razón</th>
                     <th className="min-w-[9rem] max-w-[14rem] px-3 py-2">Modificado por</th>
                     <th className="min-w-[7.5rem] whitespace-normal px-3 py-2 leading-tight">
@@ -141,6 +135,21 @@ export function HistorialPersonal({
                           {RAZON_SIN_IMPUTAR}
                         </span>
                       );
+                      const parteEstadoCell = (
+                        <span className="text-slate-400 dark:text-slate-500">No</span>
+                      );
+                      const parteDisabledCell = esFinDeSemana ? (
+                        <span className="text-slate-400 dark:text-slate-500">—</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onOpenForgotForDate(fila.workDate)}
+                          title="Regularizar fichaje de este día."
+                          className="rounded-lg border border-agro-200 px-2 py-1 text-[11px] font-semibold text-agro-700 hover:bg-agro-50 dark:border-agro-700 dark:text-agro-300 dark:hover:bg-agro-900/30"
+                        >
+                          Fichar
+                        </button>
+                      );
                       return (
                         <tr key={`sin-${fila.workDate}`} className={sinRowClass}>
                           <td
@@ -150,23 +159,14 @@ export function HistorialPersonal({
                           </td>
                           <td
                             className={`max-w-[13rem] px-3 py-2 text-xs leading-snug ${alerta ? "text-rose-900 dark:text-rose-100" : esFinDeSemana ? "text-slate-700 dark:text-slate-200" : "text-slate-700 dark:text-slate-200"}`}
-                          >
-                            <span className="font-medium">{workerNameById(miWorkerId)}</span>
-                            {sessionEmail?.trim() && (
-                              <span
-                                className="mt-0.5 block truncate text-[10px] font-normal text-slate-500 dark:text-slate-400"
-                                title={sessionEmail}
-                              >
-                                {sessionEmail}
-                              </span>
-                            )}
-                          </td>
+                          />
                           <td className={cellMuted}>{emDash}</td>
                           <td className={cellMuted}>{emDash}</td>
                           <td className={cellMuted}>{emDash}</td>
                           <td className={cellMuted}>{emDash}</td>
                           <td className={cellMuted}>{emDash}</td>
-                          <td className={cellMuted}>{emDash}</td>
+                          <td className="px-3 py-2 text-xs">{parteEstadoCell}</td>
+                          <td className="px-3 py-2 text-xs">{parteDisabledCell}</td>
                           <td className="max-w-[10rem] px-3 py-2 text-xs leading-snug">
                             {razonCell}
                           </td>
@@ -177,13 +177,22 @@ export function HistorialPersonal({
                       );
                     }
                     const e = fila.entry;
-                    const partInfo = workPartSummaryByDate.get(e.workDate) ?? null;
-                    const parteCell = partInfo?.has ? (
+                    const parteEstadoCell = e.workReportId ? (
                       <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">
-                        Sí{partInfo.tasks ? ` (${partInfo.tasks})` : ""}
+                        Sí
                       </span>
                     ) : (
                       <span className="text-slate-400 dark:text-slate-500">No</span>
+                    );
+                    const parteAccionCell = (
+                      <button
+                        type="button"
+                        onClick={() => onOpenPartEditor(e)}
+                        disabled={!e.checkOutUtc}
+                        className="rounded-lg border border-agro-200 px-2 py-1 text-[11px] font-semibold text-agro-700 hover:bg-agro-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-agro-700 dark:text-agro-300 dark:hover:bg-agro-900/30"
+                      >
+                        {e.workReportId ? "Editar parte" : "Añadir parte"}
+                      </button>
                     );
                     return (
                       <tr key={e.id} className={rowClass}>
@@ -193,13 +202,15 @@ export function HistorialPersonal({
                         <td
                           className={`max-w-[13rem] px-3 py-2 text-xs leading-snug ${alerta ? "text-rose-900 dark:text-rose-100" : "text-slate-700 dark:text-slate-200"}`}
                         >
-                          <span className="font-medium">{workerNameById(miWorkerId)}</span>
-                          {sessionEmail?.trim() && (
+                          {e.userName?.trim() && (
+                            <span className="font-medium">{e.userName.trim()}</span>
+                          )}
+                          {e.userEmail?.trim() && (
                             <span
                               className="mt-0.5 block truncate text-[10px] font-normal text-slate-500 dark:text-slate-400"
-                              title={sessionEmail}
+                              title={e.userEmail.trim()}
                             >
-                              {sessionEmail}
+                              {e.userEmail.trim()}
                             </span>
                           )}
                         </td>
@@ -218,7 +229,8 @@ export function HistorialPersonal({
                         <td className="px-3 py-2 text-xs">
                           {formatMinutesShort(e.breakMinutes ?? 0)}
                         </td>
-                        <td className="px-3 py-2 text-xs">{parteCell}</td>
+                        <td className="px-3 py-2 text-xs">{parteEstadoCell}</td>
+                        <td className="px-3 py-2 text-xs">{parteAccionCell}</td>
                         <td className="max-w-[10rem] px-3 py-2 text-xs leading-snug">
                           <span
                             className={
@@ -239,13 +251,21 @@ export function HistorialPersonal({
                           title={
                             e.cierreAutomaticoMedianoche
                               ? MODIFICADO_POR_SISTEMA
-                              : sessionEmail?.trim() || formatLastModifiedByUser(e)
+                              : e.lastModifiedByName?.trim() && e.lastModifiedByEmail?.trim()
+                                ? `${e.lastModifiedByName.trim()} · ${e.lastModifiedByEmail.trim()}`
+                                : e.lastModifiedByEmail?.trim() ||
+                                  e.lastModifiedByName?.trim() ||
+                                  "—"
                           }
                         >
                           <span className="line-clamp-2 break-all">
                             {e.cierreAutomaticoMedianoche
                               ? MODIFICADO_POR_SISTEMA
-                              : sessionEmail?.trim() || formatLastModifiedByUser(e)}
+                              : e.lastModifiedByName?.trim() && e.lastModifiedByEmail?.trim()
+                                ? `${e.lastModifiedByName.trim()} · ${e.lastModifiedByEmail.trim()}`
+                                : e.lastModifiedByEmail?.trim() ||
+                                  e.lastModifiedByName?.trim() ||
+                                  "—"}
                           </span>
                         </td>
                         <td

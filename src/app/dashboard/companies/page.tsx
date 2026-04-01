@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api-client";
-import { companiesApi, getCompaniesFromApi, postClientCompanyWithAreas } from "@/services";
+import {
+  companiesApi,
+  deleteWorkArea,
+  getClientCompanyWithAreas,
+  getCompaniesFromApi,
+  postClientCompanyWithAreas,
+} from "@/services";
 import { useAuth } from "@/contexts/AuthContext";
 import { USER_ROLE, type Company as CompanyType, type CompanyArea } from "@/types";
 
@@ -34,6 +40,7 @@ export default function CompaniesPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [filterSearch, setFilterSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   /** GUID de la empresa del tenant (GET `/api/Companies`); obligatorio para crear vía `ClientCompanies/with-areas`. */
   const [tenantCompanyId, setTenantCompanyId] = useState<string | null>(null);
@@ -53,7 +60,10 @@ export default function CompaniesPage() {
       try {
         const list = await companiesApi.getAll();
         if (ac.signal.aborted) return;
-        setCompanies(list ?? []);
+
+        const full = await Promise.all(list.map((c) => getClientCompanyWithAreas(c.id)));
+        if (ac.signal.aborted) return;
+        setCompanies(full);
       } catch (e) {
         if (ac.signal.aborted) return;
         const msg = e instanceof ApiError ? e.message : "No se pudieron cargar las empresas.";
@@ -94,13 +104,30 @@ export default function CompaniesPage() {
     setModalOpen(true);
   };
 
-  const openEdit = (company: CompanyType) => {
+  const openEdit = async (company: CompanyType) => {
     setEditingCompany(company);
     setFormName(company.name);
     setFormTaxId(company.taxId ?? "");
     setFormAddress(company.address ?? "");
-    setFormAreas((company.areas ?? []).map((a) => ({ ...a })));
+    setFormAreas([]);
     setModalOpen(true);
+    setLoadingDetail(true);
+    try {
+      const full = await getClientCompanyWithAreas(company.id);
+      setEditingCompany(full);
+      setFormName(full.name);
+      setFormTaxId(full.taxId ?? "");
+      setFormAddress(full.address ?? "");
+      setFormAreas((full.areas ?? []).map((a) => ({ ...a })));
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : "No se pudieron cargar las áreas de la empresa.";
+      setError(msg);
+    } finally {
+      setLoadingDetail(false);
+    }
   };
 
   const closeModal = () => {
@@ -116,7 +143,23 @@ export default function CompaniesPage() {
     setFormAreas((prev) => [...prev, { id: newAreaId(), name: "", observations: "" }]);
   };
 
-  const removeFormArea = (id: string) => {
+  const [deletingAreaId, setDeletingAreaId] = useState<string | null>(null);
+
+  const removeFormArea = async (id: string) => {
+    const isLocal = id.startsWith("ar-");
+    if (!isLocal) {
+      setDeletingAreaId(id);
+      try {
+        await deleteWorkArea(id);
+      } catch (e) {
+        const msg =
+          e instanceof ApiError ? e.message : "No se pudo eliminar el área.";
+        setError(msg);
+        setDeletingAreaId(null);
+        return;
+      }
+      setDeletingAreaId(null);
+    }
     setFormAreas((prev) => prev.filter((a) => a.id !== id));
   };
 
@@ -126,19 +169,21 @@ export default function CompaniesPage() {
     );
   };
 
-  const sanitizeAreasForSave = (): CompanyArea[] =>
+  /** Áreas para PUT with-areas: áreas locales (id empieza por "ar-") → id null; existentes conservan su GUID. */
+  const areasForUpdate = () =>
     formAreas
+      .filter((a) => a.name.trim().length > 0)
       .map((a) => ({
-        id: a.id,
+        id: a.id.startsWith("ar-") ? null : a.id,
         name: a.name.trim(),
-        observations: a.observations.trim(),
-      }))
-      .filter((a) => a.name.length > 0 || a.observations.length > 0);
+        observations: a.observations.trim() || null,
+      }));
 
-  /** Áreas para POST with-areas: solo nombre obligatorio; observaciones vacías → null. */
+  /** Áreas para POST with-areas: id siempre null en alta; observaciones vacías → null. */
   const areasForClientCompanyApi = () =>
     formAreas
       .map((a) => ({
+        id: null as null,
         name: a.name.trim(),
         observations: a.observations.trim() ? a.observations.trim() : null,
       }))
@@ -177,14 +222,13 @@ export default function CompaniesPage() {
 
     setSaving(true);
     setError(null);
-    const areasPayload = sanitizeAreasForSave();
     try {
       if (editingCompany) {
         const updated = await companiesApi.update(editingCompany.id, {
           name,
           taxId: taxId || "",
           address: address || "",
-          areas: areasPayload,
+          areas: areasForUpdate(),
         });
         setCompanies((prev) =>
           prev.map((c) =>
@@ -196,7 +240,6 @@ export default function CompaniesPage() {
                   name: updated.name || name,
                   taxId: (updated.taxId ?? "") || taxId,
                   address: (updated.address ?? "") || address,
-                  areas: updated.areas ?? areasPayload,
                 }
               : c
           )
@@ -335,6 +378,9 @@ export default function CompaniesPage() {
                     Dirección {sortKey === "address" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
                 </th>
+                <th className="px-4 py-3 text-center font-semibold text-slate-800 dark:text-slate-200">
+                  Áreas
+                </th>
                 <th className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">
                   Acciones
                 </th>
@@ -351,6 +397,9 @@ export default function CompaniesPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {company.address || "—"}
+                  </td>
+                  <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-300">
+                    {company.areas?.length ?? 0}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {deleteConfirm === company.id ? (
@@ -427,6 +476,11 @@ export default function CompaniesPage() {
             >
               {editingCompany ? "Editar empresa" : "Nueva empresa"}
             </h2>
+            {error && (
+              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500 dark:bg-red-900/30 dark:text-red-200">
+                {error}
+              </div>
+            )}
             <form onSubmit={handleSave} className="mt-4 space-y-4">
               {!editingCompany && tenantIdError && (
                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100">
@@ -497,14 +551,19 @@ export default function CompaniesPage() {
                   <button
                     type="button"
                     onClick={addFormArea}
-                    disabled={saving}
+                    disabled={saving || loadingDetail}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-agro-600 text-lg font-semibold text-agro-700 transition hover:bg-agro-50 dark:border-agro-500 dark:text-agro-300 dark:hover:bg-agro-900/30"
                     aria-label="Añadir área"
                   >
                     +
                   </button>
                 </div>
-                {formAreas.length === 0 ? (
+                {loadingDetail ? (
+                  <div className="flex items-center justify-center gap-2 py-6">
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Cargando áreas…</span>
+                  </div>
+                ) : formAreas.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/80 px-3 py-4 text-center text-xs text-slate-500 dark:border-slate-600 dark:bg-slate-900/40 dark:text-slate-400">
                     Pulsa «+» para añadir la primera área.
                   </p>
@@ -522,10 +581,10 @@ export default function CompaniesPage() {
                           <button
                             type="button"
                             onClick={() => removeFormArea(area.id)}
-                            disabled={saving}
-                            className="text-xs font-medium text-red-600 hover:underline dark:text-red-400"
+                            disabled={saving || deletingAreaId === area.id}
+                            className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50 dark:text-red-400"
                           >
-                            Quitar
+                            {deletingAreaId === area.id ? "Eliminando…" : "Quitar"}
                           </button>
                         </div>
                         <div className="space-y-2">
@@ -583,7 +642,7 @@ export default function CompaniesPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving || (!editingCompany && !tenantCompanyId)}
+                  disabled={saving || loadingDetail || (!editingCompany && !tenantCompanyId)}
                   className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700 disabled:opacity-50"
                 >
                   {saving ? "Guardando…" : editingCompany ? "Guardar" : "Crear"}

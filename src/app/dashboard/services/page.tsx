@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { workServicesMock } from "@/lib/workServicesMock";
+import { ApiError } from "@/lib/api-client";
+import { getCompaniesFromApi, workServicesApi } from "@/services";
 import type { WorkService } from "@/types";
 
-type SortKey = "name" | "description";
+type SortKey = "name";
 type SortDir = "asc" | "desc";
 
 export default function ServicesPage() {
@@ -19,42 +20,64 @@ export default function ServicesPage() {
   const [filterSearch, setFilterSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [tenantCompanyId, setTenantCompanyId] = useState<string | null>(null);
+  const [tenantIdError, setTenantIdError] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
-  const [formDescription, setFormDescription] = useState("");
 
   useEffect(() => {
-    let alive = true;
+    const ac = new AbortController();
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const list = await workServicesMock.getAll();
-        if (!alive) return;
+        const list = await workServicesApi.getAll({ signal: ac.signal });
+        if (ac.signal.aborted) return;
         setRows(list ?? []);
       } catch (e) {
-        if (!alive) return;
-        setError(e instanceof Error ? e.message : "No se pudieron cargar los servicios.");
+        if (ac.signal.aborted) return;
+        setError(e instanceof ApiError ? e.message : "No se pudieron cargar los servicios.");
       } finally {
-        if (!alive) return;
+        if (ac.signal.aborted) return;
         setLoading(false);
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => ac.abort();
+  }, []);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    setTenantIdError(null);
+    getCompaniesFromApi({ signal: ac.signal })
+      .then((list) => {
+        if (ac.signal.aborted) return;
+        const id = list[0]?.id?.trim() ?? "";
+        setTenantCompanyId(id || null);
+        if (!id) {
+          setTenantIdError(
+            "No hay empresa en /api/Companies; no se puede crear servicio sin companyId.",
+          );
+        }
+      })
+      .catch((e) => {
+        if (ac.signal.aborted) return;
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setTenantCompanyId(null);
+        setTenantIdError(
+          "No se pudo obtener la empresa del tenant (GET /api/Companies).",
+        );
+      });
+    return () => ac.abort();
   }, []);
 
   const openCreate = () => {
     setEditing(null);
     setFormName("");
-    setFormDescription("");
     setModalOpen(true);
   };
 
   const openEdit = (row: WorkService) => {
     setEditing(row);
     setFormName(row.name);
-    setFormDescription(row.description ?? "");
     setModalOpen(true);
   };
 
@@ -62,7 +85,6 @@ export default function ServicesPage() {
     setModalOpen(false);
     setEditing(null);
     setFormName("");
-    setFormDescription("");
   };
 
   const toggleSort = (key: SortKey) => {
@@ -74,39 +96,39 @@ export default function ServicesPage() {
     let list = rows.filter((r) => {
       if (!filterSearch.trim()) return true;
       const q = filterSearch.toLowerCase();
-      return (
-        r.name.toLowerCase().includes(q) ||
-        (r.description ?? "").toLowerCase().includes(q)
-      );
+      return r.name.toLowerCase().includes(q);
     });
     const dir = sortDir === "asc" ? 1 : -1;
-    list = [...list].sort((a, b) => {
-      if (sortKey === "name") return dir * a.name.localeCompare(b.name);
-      return dir * (a.description || "").localeCompare(b.description || "");
-    });
+    list = [...list].sort((a, b) => dir * a.name.localeCompare(b.name));
     return list;
   }, [rows, sortKey, sortDir, filterSearch]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = formName.trim();
-    const description = formDescription.trim();
     if (!name) return;
     setSaving(true);
     setError(null);
     try {
       if (editing) {
-        const updated = await workServicesMock.update(editing.id, { name, description });
+        await workServicesApi.update(editing.id, { name });
         setRows((prev) =>
-          prev.map((r) => (r.id === editing.id ? { ...r, ...updated } : r))
+          prev.map((r) => (r.id === editing.id ? { ...r, name } : r))
         );
       } else {
-        const created = await workServicesMock.create({ name, description });
+        if (!tenantCompanyId) {
+          setError(
+            "Falta el GUID de tu empresa (tenant). Debe existir al menos una fila en GET /api/Companies.",
+          );
+          setSaving(false);
+          return;
+        }
+        const created = await workServicesApi.create({ companyId: tenantCompanyId, name });
         setRows((prev) => [created, ...prev]);
       }
       closeModal();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar.");
+      setError(err instanceof ApiError ? err.message : "No se pudo guardar.");
     } finally {
       setSaving(false);
     }
@@ -116,11 +138,11 @@ export default function ServicesPage() {
     setDeletingId(id);
     setError(null);
     try {
-      await workServicesMock.delete(id);
+      await workServicesApi.delete(id);
       setRows((prev) => prev.filter((r) => r.id !== id));
       setDeleteConfirm(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo eliminar.");
+      setError(err instanceof ApiError ? err.message : "No se pudo eliminar.");
     } finally {
       setDeletingId(null);
     }
@@ -132,8 +154,7 @@ export default function ServicesPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Servicios</h1>
           <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Servicios que puede ofrecer una empresa (mock en este navegador). Cuando exista API, se
-            enlazará al backend.
+            Servicios que puede ofrecer una empresa.
           </p>
         </div>
         <button
@@ -154,7 +175,7 @@ export default function ServicesPage() {
       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800">
         <input
           type="search"
-          placeholder="Buscar por nombre o descripción…"
+          placeholder="Buscar por nombre…"
           value={filterSearch}
           onChange={(e) => setFilterSearch(e.target.value)}
           disabled={loading}
@@ -176,15 +197,6 @@ export default function ServicesPage() {
                     Servicio {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
                 </th>
-                <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("description")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
-                  >
-                    Descripción {sortKey === "description" && (sortDir === "asc" ? "↑" : "↓")}
-                  </button>
-                </th>
                 <th className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">
                   Acciones
                 </th>
@@ -195,9 +207,6 @@ export default function ServicesPage() {
                 <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
                     {row.name}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {row.description || "—"}
                   </td>
                   <td className="px-4 py-3 text-right">
                     {deleteConfirm === row.id ? (
@@ -275,6 +284,11 @@ export default function ServicesPage() {
               {editing ? "Editar servicio" : "Nuevo servicio"}
             </h2>
             <form onSubmit={handleSave} className="mt-4 space-y-4">
+              {!editing && tenantIdError && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100">
+                  {tenantIdError}
+                </p>
+              )}
               <div>
                 <label htmlFor="svc-name" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Nombre
@@ -290,23 +304,6 @@ export default function ServicesPage() {
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
-              <div>
-                <label
-                  htmlFor="svc-desc"
-                  className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
-                >
-                  Descripción
-                </label>
-                <textarea
-                  id="svc-desc"
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  disabled={saving}
-                  rows={3}
-                  placeholder="Detalle breve del servicio…"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
-                />
-              </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -318,7 +315,7 @@ export default function ServicesPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || (!editing && !tenantCompanyId)}
                   className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
                 >
                   {saving ? "Guardando…" : editing ? "Guardar" : "Crear"}

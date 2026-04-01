@@ -231,7 +231,68 @@ Antes de tocar un archivo, identificar su capa:
 
 ---
 
-## 8. Pensamiento crítico
+## 8. Rendimiento (reglas para no romper la fluidez)
+
+### Context Providers: siempre memorizar `value`
+
+Cada Context Provider **debe** memorizar su objeto `value` con `useMemo` y sus funciones con `useCallback`. Si no, cada render del provider crea un objeto nuevo → **todos** los consumidores se re-renderizan en cascada.
+
+```tsx
+// MAL — objeto nuevo en cada render, cascada de re-renders
+<AuthContext.Provider value={{ user, token, login, logout, isReady }}>
+
+// BIEN — solo re-renderiza consumidores cuando los datos cambian de verdad
+const login = useCallback(async (...) => { ... }, []);
+const logout = useCallback(() => { ... }, []);
+const value = useMemo(() => ({ user, token, login, logout, isReady }), [user, token, login, logout, isReady]);
+<AuthContext.Provider value={value}>
+```
+
+### Peticiones HTTP: cancelar al desmontar
+
+Toda petición `fetch` en un `useEffect` debe usar `AbortController` y abortar en la limpieza. Si no, al navegar rápido las peticiones anteriores se acumulan y el navegador se ahoga.
+
+```tsx
+useEffect(() => {
+  const ac = new AbortController();
+  fetchData({ signal: ac.signal }).catch((e) => {
+    if (e instanceof DOMException && e.name === "AbortError") return;
+    // manejar error real
+  });
+  return () => ac.abort();
+}, [deps]);
+```
+
+### Lazy-load de componentes pesados que empiezan ocultos
+
+Modales, paneles colapsados o secciones below-the-fold que no se ven al cargar la página **no deben importarse estáticamente**. Usar `next/dynamic` (o `React.lazy`) para que su código se descargue solo cuando se necesite.
+
+```tsx
+import dynamic from "next/dynamic";
+
+const BreakModal = dynamic(
+  () => import("@/features/.../BreakModal").then((m) => m.BreakModal),
+  { ssr: false },
+);
+
+// El código del modal solo se descarga cuando forgotStep !== "closed"
+{forgotStep !== "closed" && <ForgotModal ... />}
+```
+
+**Regla práctica:** si un componente empieza oculto (`step === "closed"`, `isOpen === false`, etc.) y pesa más de ~100 líneas → lazy-load.
+
+### Timeouts en el cliente HTTP
+
+El `apiClient` tiene un timeout de 8 s (`DEFAULT_TIMEOUT_MS`). Si el backend no responde, la petición falla rápido en vez de colgar el navegador. No eliminarlo ni subirlo sin razón clara.
+
+### Turbopack / HMR en desarrollo
+
+- Si el dev server se comporta raro (módulos que "no existen", errores de HMR), **parar el servidor, borrar `.next`, y reiniciar**.
+- La **primera visita** a cada página tarda unos segundos por compilación — es normal. La **segunda visita** debe ser rápida; si no lo es, hay un problema de re-renders o carga excesiva.
+
+---
+
+## 9. Pensamiento crítico
 
 - No asumir que la estructura actual es la ideal; señalar **deuda**, **fragilidad** o **archivos con demasiadas responsabilidades**.
 - Si una propuesta arriesga más de lo que aporta, sugerir **alternativa más segura**.
@@ -239,6 +300,6 @@ Antes de tocar un archivo, identificar su capa:
 
 ---
 
-## 8. Objetivo final
+## 10. Objetivo final
 
 Que puedas **entender** lo implementado, **ordenar** el código React/Node, **reducir roturas** al iterar y **aprender** a mantener la aplicación de forma profesional: que siga funcionando **después** de varios cambios, no solo el día del commit.

@@ -90,8 +90,9 @@ export interface CompanyArea {
   observations: string;
 }
 
-/** Área en el cuerpo de POST `/api/ClientCompanies/with-areas`. */
+/** Área en el cuerpo de POST `/api/ClientCompanies/with-areas`. El backend exige `id: null` en alta. */
 export interface ClientCompanyAreaInput {
+  id: null;
   name: string;
   observations: string | null;
 }

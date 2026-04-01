@@ -1,7 +1,9 @@
 "use client";
 
+import { memo } from "react";
+
 /** Dona: imputado (verde), falta (gris), extra (coral). Estilo tipo gráfico circular con leyenda. */
-export function HorasMensualesDonut({
+export const HorasMensualesDonut = memo(function HorasMensualesDonut({
   horasImputadoHastaTope,
   horasFalta,
   horasExtra,
@@ -131,4 +133,4 @@ export function HorasMensualesDonut({
       </div>
     </div>
   );
-}
+});

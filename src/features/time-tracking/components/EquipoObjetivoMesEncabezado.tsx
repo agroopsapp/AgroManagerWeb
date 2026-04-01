@@ -1,7 +1,9 @@
 "use client";
 
+import { memo } from "react";
+
 /** Encabezado: cómo se calcula el objetivo del mes (el detalle vs imputado va en las donas). */
-export function EquipoObjetivoMesEncabezado({
+export const EquipoObjetivoMesEncabezado = memo(function EquipoObjetivoMesEncabezado({
   diasLaborables,
   personasEnObjetivo,
   horasObjetivo,
@@ -33,4 +35,4 @@ export function EquipoObjetivoMesEncabezado({
       </p>
     </div>
   );
-}
+});

@@ -35,7 +35,7 @@ export function isAusenciaRazon(r: TimeEntryRazon | undefined): boolean {
 
 export function formatRazon(razon: TimeEntryRazon | undefined): string {
   if (razon && razon in RAZON_LABELS) return RAZON_LABELS[razon as TimeEntryRazon];
-  return RAZON_LABELS.imputacion_normal;
+  return "—";
 }
 
 // ---------------------------------------------------------------------------

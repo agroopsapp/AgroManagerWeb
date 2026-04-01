@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { FICHADOR_STORAGE_KEY } from "@/lib/fichadorStorage";
-import { workerIdForLoggedUser } from "@/lib/fichajeWorker";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ApiError } from "@/lib/api-client";
 import { getTasksFromRecord, getWorkPartsForWorker } from "@/lib/workPartsStorage";
+import { timeTrackingApi, type TimeEntryDto } from "@/services/time-tracking.service";
 import {
   localCalendarISO,
   localTodayISO,
@@ -12,35 +12,7 @@ import {
   historicoFilaSinImputarPasado,
   type HistoricoPersonalFila,
 } from "@/features/time-tracking/utils/formatters";
-import {
-  createInitialMockEntries,
-  MOCK_WORKERS_FICHA,
-} from "@/mocks/time-tracking.mock";
-import type { TimeEntryMock } from "@/features/time-tracking/types";
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const FICHADOR_PERSISTIR_DATOS = false;
-
-function parseStoredTimeEntries(raw: string | null): TimeEntryMock[] | null {
-  if (!raw || typeof raw !== "string") return null;
-  try {
-    const p = JSON.parse(raw) as unknown;
-    if (!Array.isArray(p)) return null;
-    const ok = p.every(
-      (e: unknown) =>
-        e !== null &&
-        typeof e === "object" &&
-        typeof (e as TimeEntryMock).id === "number" &&
-        typeof (e as TimeEntryMock).workDate === "string" &&
-        typeof (e as TimeEntryMock).checkInUtc === "string" &&
-        ((e as TimeEntryMock).checkOutUtc === null ||
-          typeof (e as TimeEntryMock).checkOutUtc === "string")
-    );
-    return ok ? (p as TimeEntryMock[]) : null;
-  } catch {
-    return null;
-  }
-}
+import type { TimeEntryMock, TimeEntryRazon } from "@/features/time-tracking/types";
 
 type AuthUser = { id?: string; email?: string | null; role?: string } | null | undefined;
 
@@ -50,9 +22,40 @@ interface Params {
   miWorkerId: number;
 }
 
+function normalizeRazon(input: string | null | undefined): TimeEntryRazon | undefined {
+  if (
+    input === "imputacion_normal" ||
+    input === "imputacion_manual_error" ||
+    input === "ausencia_vacaciones" ||
+    input === "ausencia_baja"
+  ) {
+    return input;
+  }
+  return undefined;
+}
+
+function dtoToEntry(
+  dto: TimeEntryDto,
+  fallbackWorkerId: number,
+): TimeEntryMock {
+  const workerId =
+    Number.isFinite(dto.workerId) && dto.workerId > 0 ? dto.workerId : fallbackWorkerId;
+  return {
+    ...dto,
+    timeEntryId: dto.timeEntryId ?? null,
+    companyId: dto.companyId ?? null,
+    workerId,
+    breakMinutes: dto.breakMinutes ?? 0,
+    razon: normalizeRazon(dto.razon),
+    userName: dto.userName ?? null,
+    userEmail: dto.userEmail ?? null,
+    lastModifiedByEmail: dto.lastModifiedByEmail ?? null,
+    lastModifiedByName: dto.lastModifiedByName ?? null,
+  };
+}
+
 export function useFichaje({ user, isReady, miWorkerId }: Params) {
   const [entries, setEntries] = useState<TimeEntryMock[]>([]);
-  const [entriesHydrated, setEntriesHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<"checkin" | "checkout" | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -69,36 +72,33 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
     return () => window.removeEventListener("agromanager-workparts-changed", refresh);
   }, [miWorkerId]);
 
-  // Hydrate entries from localStorage or mock
+  // Hydrate entries from backend (últimos 7 días).
   useEffect(() => {
     if (!isReady) return;
-    const wid = workerIdForLoggedUser(user as Parameters<typeof workerIdForLoggedUser>[0]);
-    const email = (user?.email?.trim()) || "usuario@empresa.demo";
-    if (FICHADOR_PERSISTIR_DATOS && typeof window !== "undefined") {
-      const stored = parseStoredTimeEntries(localStorage.getItem(FICHADOR_STORAGE_KEY));
-      if (stored !== null) {
-        const mine = stored.filter((e) => e.workerId === wid);
-        setEntries(mine.length > 0 ? mine : createInitialMockEntries(wid, email));
-      } else {
-        setEntries(createInitialMockEntries(wid, email));
+    const ac = new AbortController();
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const list = await timeTrackingApi.getMyEntries({ signal: ac.signal });
+        if (ac.signal.aborted) return;
+        const entriesMapped = list.map((e) => dtoToEntry(e, miWorkerId));
+        const filteredLast7 = entriesMapped.filter((e) =>
+          workDateWithinLastNDays(e.workDate, 7),
+        );
+        setEntries(filteredLast7);
+      } catch (e) {
+        if (ac.signal.aborted) return;
+        const msg =
+          e instanceof ApiError ? e.message : "No se pudieron cargar tus fichajes.";
+        setError(msg);
+        setEntries([]);
+      } finally {
+        if (!ac.signal.aborted) setLoading(false);
       }
-    } else {
-      setEntries(createInitialMockEntries(wid, email));
-    }
-    setEntriesHydrated(true);
-    setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    })();
+    return () => ac.abort();
   }, [isReady, user?.id, user?.email]);
-
-  // Persist to localStorage
-  useEffect(() => {
-    if (!FICHADOR_PERSISTIR_DATOS || !entriesHydrated || typeof window === "undefined") return;
-    try {
-      localStorage.setItem(FICHADOR_STORAGE_KEY, JSON.stringify(entries));
-    } catch {
-      /* quota / privado */
-    }
-  }, [entries, entriesHydrated]);
 
   // ----- Derived -----
 
@@ -142,7 +142,6 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
   }, [myWorkParts]);
 
   const historicoPersonalFilas = useMemo((): HistoricoPersonalFila[] => {
-    const todayLocal = localTodayISO();
     const wid = miWorkerId;
     const filas: HistoricoPersonalFila[] = [];
     for (let delta = 0; delta < 7; delta++) {
@@ -157,12 +156,8 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
           : [...dayEntries].sort(
               (a, b) => new Date(b.checkInUtc).getTime() - new Date(a.checkInUtc).getTime()
             )[0];
-      if (wd < todayLocal) {
-        if (!e) filas.push({ kind: "sinRegistro", workDate: wd });
-        else filas.push({ kind: "entry", entry: e });
-      } else if (e) {
-        filas.push({ kind: "entry", entry: e });
-      }
+      if (!e) filas.push({ kind: "sinRegistro", workDate: wd });
+      else filas.push({ kind: "entry", entry: e });
     }
     filas.sort((a, b) => {
       const da = a.kind === "entry" ? a.entry.workDate : a.workDate;
@@ -172,12 +167,15 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
     return filas;
   }, [entries, miWorkerId]);
 
-  const hasEntryForDate = (workDate: string) =>
-    entries.some((e) => e.workDate === workDate && e.workerId === miWorkerId);
+  const hasEntryForDate = useCallback(
+    (workDate: string) =>
+      entries.some((e) => e.workDate === workDate && e.workerId === miWorkerId),
+    [entries, miWorkerId],
+  );
 
   // ----- Handlers -----
 
-  const handleCheckIn = async () => {
+  const handleCheckIn = useCallback(async () => {
     setError(null);
     const workDate = localTodayISO();
     const yaHayFichajeHoy = entries.some(
@@ -191,31 +189,20 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
     }
     setActionLoading("checkin");
     try {
+      const created = await timeTrackingApi.checkIn();
       setEntries((prev) => {
-        const now = new Date();
-        const wd = localTodayISO();
-        if (prev.some((e) => e.workDate === wd && e.workerId === miWorkerId)) return prev;
-        const maxId = prev.reduce((max, e) => (e.id > max ? e.id : max), 0);
-        const newEntry: TimeEntryMock = {
-          id: maxId + 1,
-          workerId: miWorkerId,
-          workDate: wd,
-          checkInUtc: now.toISOString(),
-          checkOutUtc: null,
-          isEdited: false,
-          createdAtUtc: now.toISOString(),
-          createdBy: miWorkerId,
-          updatedAtUtc: null,
-          updatedBy: null,
-          razon: "imputacion_normal",
-          lastModifiedByEmail: user?.email ?? null,
-        };
-        return [...prev, newEntry];
+        const next = dtoToEntry(created, miWorkerId);
+        const withoutSameId = prev.filter((e) => e.id !== next.id);
+        return [...withoutSameId, next];
       });
+    } catch (e) {
+      const msg =
+        e instanceof ApiError ? e.message : "No se pudo registrar la entrada.";
+      setError(msg);
     } finally {
       setActionLoading(null);
     }
-  };
+  }, [entries, miWorkerId, user?.email]);
 
   return {
     entries,
@@ -238,6 +225,3 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
     handleCheckIn,
   };
 }
-
-// Re-export type for use in MOCK_WORKERS_FICHA reference
-export { MOCK_WORKERS_FICHA };

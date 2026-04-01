@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   checkoutLocalIsoAfterCheckin,
   dateTimeLocalToUtcIso,
@@ -7,6 +7,8 @@ import {
   parseForgotBreakCustom,
 } from "@/shared/utils/time";
 import type { ForgotMode, ForgotStep, TimeEntryMock } from "@/features/time-tracking/types";
+import { ApiError } from "@/lib/api-client";
+import { timeTrackingApi } from "@/services/time-tracking.service";
 
 type AuthUser = { id?: string; email?: string | null; role?: string } | null | undefined;
 
@@ -19,6 +21,10 @@ interface Params {
     React.SetStateAction<null | {
       workDate: string;
       workerId: number;
+      companyId?: string | null;
+      timeEntryId?: string | null;
+      userId?: string | null;
+      workReportId?: string | null;
       checkInUtc: string;
       checkOutUtc: string;
       breakMinutes: number;
@@ -58,7 +64,7 @@ export function useForgotModal({
   const hasEntryForDate = (workDate: string) =>
     entries.some((e) => e.workDate === workDate && e.workerId === miWorkerId);
 
-  const resetForgotModal = () => {
+  const resetForgotModal = useCallback(() => {
     setForgotStep("closed");
     setForgotTargetDate(null);
     setForgotSoloTime("09:00");
@@ -70,13 +76,20 @@ export function useForgotModal({
     setForgotBreakOtro(false);
     setForgotError(null);
     setForgotMode(null);
-  };
+  }, []);
 
-  const openForgotModal = () => {
+  const openForgotModal = useCallback(() => {
     setForgotError(null);
     setForgotTargetDate(null);
     setForgotStep("pick_day");
-  };
+  }, []);
+
+  const openForgotForDate = useCallback((workDate: string) => {
+    setForgotError(null);
+    setForgotTargetDate(workDate);
+    setForgotMode(workDate === localTodayISO() ? "full_hoy" : "full_ayer");
+    setForgotStep("full_start");
+  }, []);
 
   const submitForgotSoloEntrada = () => {
     const today = localTodayISO();
@@ -116,7 +129,7 @@ export function useForgotModal({
     resetForgotModal();
   };
 
-  const submitForgotJornadaCompleta = (forcedBreakMinutes?: number) => {
+  const submitForgotJornadaCompleta = async (forcedBreakMinutes?: number) => {
     if (!forgotTargetDate) return;
     if (hasEntryForDate(forgotTargetDate)) {
       setForgotError("Ya existe un fichaje para ese día.");
@@ -127,7 +140,7 @@ export function useForgotModal({
     let breakMin = 0;
     if (typeof forcedBreakMinutes === "number") {
       breakMin = forcedBreakMinutes;
-    } else if (forgotFullHadBreak === true) {
+    } else {
       breakMin = forgotBreakOtro
         ? parseForgotBreakCustom(forgotFullBreakCustom)
         : forgotFullBreakMins;
@@ -140,34 +153,73 @@ export function useForgotModal({
         return;
       }
     }
-    setEntries((prev) => {
-      const maxId = prev.reduce((max, e) => (e.id > max ? e.id : max), 0);
-      const nowIso = new Date().toISOString();
-      return [
+    const companyId =
+      entries.find((e) => typeof e.companyId === "string" && e.companyId.trim().length > 0)
+        ?.companyId ?? null;
+    const userId = typeof user?.id === "string" && user.id.trim().length > 0 ? user.id : null;
+    if (!companyId) {
+      setForgotError("No se pudo resolver companyId para registrar el fichaje.");
+      return;
+    }
+    if (!userId) {
+      setForgotError("No se pudo resolver userId para registrar el fichaje.");
+      return;
+    }
+
+    let createdEntry: Awaited<ReturnType<typeof timeTrackingApi.createManualClosedEntry>> | null =
+      null;
+    try {
+      createdEntry = await timeTrackingApi.createManualClosedEntry({
+        companyId,
+        userId,
+        workDate: forgotTargetDate,
+        startAt: checkInUtc,
+        endAt: checkOutUtc,
+        status: "Closed",
+        breakMinutes: breakMin,
+      });
+      setEntries((prev) => [
         ...prev,
         {
-          id: maxId + 1,
-          workerId: miWorkerId,
-          workDate: forgotTargetDate,
-          checkInUtc,
-          checkOutUtc,
-          isEdited: true,
-          createdAtUtc: nowIso,
-          createdBy: miWorkerId,
-          updatedAtUtc: nowIso,
-          updatedBy: miWorkerId,
-          razon: "imputacion_manual_error",
-          entradaManual: false,
-          breakMinutes: breakMin,
-          lastModifiedByEmail: user?.email ?? null,
+          id: createdEntry.id,
+          timeEntryId: createdEntry.timeEntryId ?? null,
+          companyId: createdEntry.companyId ?? companyId,
+          workerId:
+            Number.isFinite(createdEntry.workerId) && createdEntry.workerId > 0
+              ? createdEntry.workerId
+              : miWorkerId,
+          userId: createdEntry.userId ?? userId,
+          workReportId: createdEntry.workReportId ?? null,
+          userName: createdEntry.userName ?? null,
+          userEmail: createdEntry.userEmail ?? null,
+          workDate: createdEntry.workDate,
+          checkInUtc: createdEntry.checkInUtc,
+          checkOutUtc: createdEntry.checkOutUtc,
+          isEdited: createdEntry.isEdited,
+          createdAtUtc: createdEntry.createdAtUtc,
+          createdBy: createdEntry.createdBy,
+          updatedAtUtc: createdEntry.updatedAtUtc,
+          updatedBy: createdEntry.updatedBy,
+          breakMinutes: createdEntry.breakMinutes ?? breakMin,
+          lastModifiedByEmail: createdEntry.lastModifiedByEmail ?? null,
+          lastModifiedByName: createdEntry.lastModifiedByName ?? null,
         },
-      ];
-    });
+      ]);
+    } catch (e) {
+      const msg =
+        e instanceof ApiError ? e.message : "No se pudo registrar la jornada completa.";
+      setForgotError(msg);
+      return;
+    }
     setWorkPartOverrideEntry({
-      workDate: forgotTargetDate,
+      workDate: createdEntry?.workDate ?? forgotTargetDate,
       workerId: miWorkerId,
-      checkInUtc,
-      checkOutUtc,
+      companyId: createdEntry?.companyId ?? companyId,
+      timeEntryId: createdEntry?.timeEntryId ?? null,
+      userId: createdEntry?.userId ?? userId,
+      workReportId: createdEntry?.workReportId ?? null,
+      checkInUtc: createdEntry?.checkInUtc ?? checkInUtc,
+      checkOutUtc: createdEntry?.checkOutUtc ?? checkOutUtc,
       breakMinutes: breakMin,
     });
     const lid =
@@ -204,6 +256,7 @@ export function useForgotModal({
     setForgotMode,
     resetForgotModal,
     openForgotModal,
+    openForgotForDate,
     submitForgotSoloEntrada,
     submitForgotJornadaCompleta,
   };

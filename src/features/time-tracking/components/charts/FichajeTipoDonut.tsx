@@ -1,7 +1,9 @@
 "use client";
 
+import { memo } from "react";
+
 /** Dona: fichaje correcto vs manual vs hueco laboral sin imputar (8 h por día). */
-export function FichajeTipoDonut({
+export const FichajeTipoDonut = memo(function FichajeTipoDonut({
   horasNormal,
   horasManual,
   horasSinImputar,
@@ -151,4 +153,4 @@ export function FichajeTipoDonut({
       </div>
     </div>
   );
-}
+});

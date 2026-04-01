@@ -1,6 +1,5 @@
-import { apiClient, ApiError, getApiBaseUrl } from "@/lib/api-client";
+import { apiClient, getApiBaseUrl } from "@/lib/api-client";
 import type { MyCompanyProfile } from "@/lib/myCompanyProfile";
-import { customerCompanyMock } from "@/lib/customerCompanyMock";
 import type {
   ClientCompanyWithAreasCreateBody,
   Company,
@@ -9,14 +8,9 @@ import type {
   CompanyArea,
 } from "@/types";
 
-const BASE = "/api/CustomerCompany";
 const COMPANIES = "/api/Companies";
 const CLIENT_COMPANIES = "/api/ClientCompanies";
-
-/** En `false` (por defecto) se usan datos mock en localStorage. Para API real: `NEXT_PUBLIC_CUSTOMER_COMPANY_USE_API=true` */
-const useRealCustomerCompanyApi =
-  typeof process !== "undefined" &&
-  process.env.NEXT_PUBLIC_CUSTOMER_COMPANY_USE_API === "true";
+const WORK_AREAS = "/api/WorkAreas";
 
 /** Algunos controladores devuelven `{ value: [...] }` o `{ data: [...] }`. */
 function unwrapList(raw: unknown): unknown[] {
@@ -37,7 +31,8 @@ function normalizeCompanyArea(input: unknown): CompanyArea | null {
   if (id == null || String(id).trim() === "") return null;
   const name = o.name ?? o.Name ?? "";
   const observations =
-    o.observations ?? o.Observations ?? o.observaciones ?? o.Observaciones ?? "";
+    o.observations ?? o.Observations ?? o.observaciones ?? o.Observaciones ??
+    o.description ?? o.Description ?? "";
   return {
     id: String(id),
     name: name == null ? "" : String(name),
@@ -134,22 +129,22 @@ export function putCompanyOnApi(id: string, body: CompanyApiPutBody): Promise<Co
 /**
  * Crea empresa cliente con áreas (POST `/api/ClientCompanies/with-areas`).
  * `body.companyId` debe ser el GUID de la empresa del tenant (p. ej. primer elemento de GET `/api/Companies`).
+ *
+ * La respuesta viene envuelta: `{ clientCompany: {...}, workAreas: [...] }`.
+ * Extraemos la empresa y mapeamos las áreas (el backend devuelve `description`, no `observations`).
  */
 export function postClientCompanyWithAreas(body: ClientCompanyWithAreasCreateBody): Promise<Company> {
   return apiClient.post<unknown>(`${CLIENT_COMPANIES}/with-areas`, body).then((raw) => {
-    const c = normalizeCompany(raw);
+    const o = (raw ?? {}) as Record<string, unknown>;
+    const companyPayload = o.clientCompany ?? o.ClientCompany ?? raw;
+    const areasPayload = o.workAreas ?? o.WorkAreas;
+
+    const c = normalizeCompany(companyPayload);
+    if (Array.isArray(areasPayload) && areasPayload.length > 0) {
+      c.areas = normalizeCompanyAreas(areasPayload);
+    }
     if (c.id) return c;
-    return normalizeCompany({
-      id: `client-${Date.now()}`,
-      name: body.name,
-      taxId: body.taxId,
-      address: body.address,
-      areas: body.areas.map((a, i) => ({
-        id: `area-${i}`,
-        name: a.name,
-        observations: a.observations ?? "",
-      })),
-    });
+    throw new Error("Respuesta invalida del backend al crear empresa.");
   });
 }
 
@@ -185,49 +180,79 @@ function normalizeCompany(input: unknown): Company {
   };
 }
 
+/**
+ * GET /api/ClientCompanies/{id}/with-areas → ClientCompanyWithWorkAreasDto.
+ * Devuelve la empresa con todas sus áreas de trabajo; útil para el formulario de edición.
+ */
+export function getClientCompanyWithAreas(id: string): Promise<Company> {
+  return apiClient
+    .get<unknown>(`${CLIENT_COMPANIES}/${encodeURIComponent(id)}/with-areas`)
+    .then((raw) => {
+      const o = (raw ?? {}) as Record<string, unknown>;
+      const companyPayload = o.clientCompany ?? o.ClientCompany ?? raw;
+      const areasPayload = o.workAreas ?? o.WorkAreas;
+
+      const c = normalizeCompany(companyPayload);
+      if (Array.isArray(areasPayload) && areasPayload.length > 0) {
+        c.areas = normalizeCompanyAreas(areasPayload);
+      }
+      return c;
+    });
+}
+
+/** DELETE /api/WorkAreas/{id} — elimina un área de trabajo existente. */
+export function deleteWorkArea(id: string): Promise<void> {
+  return apiClient.delete<void>(`${WORK_AREAS}/${encodeURIComponent(id)}`);
+}
+
 export const companiesApi = {
-  getAll() {
-    if (!useRealCustomerCompanyApi) {
-      return customerCompanyMock.getAll();
-    }
+  /** GET /api/ClientCompanies — lista de empresas cliente. */
+  getAll(): Promise<Company[]> {
     return apiClient
-      .get<unknown>(BASE)
-      .then((raw) => unwrapList(raw).map(normalizeCompany))
-      .catch((e) => {
-        if (e instanceof ApiError && e.status === 404) {
-          return customerCompanyMock.getAll();
+      .get<unknown>(CLIENT_COMPANIES)
+      .then((raw) => unwrapList(raw).map(normalizeCompany));
+  },
+
+  /** GET /api/ClientCompanies/{id} */
+  getById(id: string): Promise<Company> {
+    return apiClient
+      .get<unknown>(`${CLIENT_COMPANIES}/${encodeURIComponent(id)}`)
+      .then(normalizeCompany);
+  },
+
+  /** PUT /api/ClientCompanies/{id}/with-areas */
+  update(
+    id: string,
+    body: {
+      name: string;
+      taxId: string;
+      address: string;
+      areas: { id: string | null; name: string; observations: string | null }[];
+    },
+  ): Promise<Company> {
+    return apiClient
+      .put<unknown>(
+        `${CLIENT_COMPANIES}/${encodeURIComponent(id)}/with-areas`,
+        body,
+      )
+      .then((raw) => {
+        const o = (raw ?? {}) as Record<string, unknown>;
+        const companyPayload = o.clientCompany ?? o.ClientCompany ?? raw;
+        const areasPayload = o.workAreas ?? o.WorkAreas;
+
+        const c = normalizeCompany(companyPayload);
+        if (Array.isArray(areasPayload) && areasPayload.length > 0) {
+          c.areas = normalizeCompanyAreas(areasPayload);
         }
-        throw e;
+        if (c.id) return c;
+        throw new Error("Respuesta invalida del backend al actualizar empresa.");
       });
   },
 
-  getById(id: string) {
-    if (!useRealCustomerCompanyApi) {
-      return customerCompanyMock.getById(id);
-    }
-    return apiClient.get<unknown>(`${BASE}/${id}`).then(normalizeCompany);
-  },
-
-  create(body: Omit<Company, "id">) {
-    if (!useRealCustomerCompanyApi) {
-      return customerCompanyMock.create(body);
-    }
-    return apiClient.post<unknown>(BASE, body).then(normalizeCompany);
-  },
-
-  update(id: string, body: Partial<Company>) {
-    if (!useRealCustomerCompanyApi) {
-      return customerCompanyMock.update(id, body);
-    }
-    return apiClient
-      .patch<unknown>(`${BASE}/${id}`, { id, ...body })
-      .then((res) => (res == null ? normalizeCompany({ id, ...body }) : normalizeCompany(res)));
-  },
-
-  delete(id: string) {
-    if (!useRealCustomerCompanyApi) {
-      return customerCompanyMock.delete(id);
-    }
-    return apiClient.delete<void>(`${BASE}/${id}`);
+  /** DELETE /api/ClientCompanies/{id} */
+  delete(id: string): Promise<void> {
+    return apiClient.delete<void>(
+      `${CLIENT_COMPANIES}/${encodeURIComponent(id)}`,
+    );
   },
 };

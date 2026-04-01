@@ -1,12 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import { parseHHMM, toHHMM } from "@/shared/utils/time";
 
 const HOURS_24 = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES_60 = Array.from({ length: 60 }, (_, i) => i);
 
 /** Hora en 24 h: dos combos (horas + minutos), sin AM/PM. */
-export function TimeSelect24h({
+export const TimeSelect24h = memo(function TimeSelect24h({
   value,
   onChange,
   idPrefix,
@@ -75,4 +76,4 @@ export function TimeSelect24h({
       </p>
     </div>
   );
-}
+});

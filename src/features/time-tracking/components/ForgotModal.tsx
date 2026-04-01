@@ -1,6 +1,7 @@
 "use client";
 
 import type { ForgotStep, ForgotMode } from "@/features/time-tracking/types";
+import { parseHHMM, toHHMM } from "@/shared/utils/time";
 import { TimeSelect24h } from "./TimeSelect24h";
 
 interface ForgotModalProps {
@@ -39,8 +40,6 @@ export function ForgotModal({
   fullEnd,
   forgotMode,
   fullBreakMins,
-  fullBreakCustom,
-  breakOtro,
   error,
   onClose,
   onSetStep,
@@ -100,20 +99,12 @@ export function ForgotModal({
         {step === "pick_type" && targetDate === today && (
           <>
             <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-              ¿Qué olvidaste?
+              Corrección disponible
             </h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              En esta modalidad solo puedes registrar la <strong>jornada completa</strong>.
+            </p>
             <div className="mt-4 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  onSetError(null);
-                  onSetForgotMode("solo_hoy");
-                  onSetStep("solo_time");
-                }}
-                className="w-full rounded-xl bg-agro-600 px-4 py-3 text-sm font-semibold text-white shadow-sm"
-              >
-                Solo la entrada
-              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -121,7 +112,7 @@ export function ForgotModal({
                   onSetForgotMode("full_hoy");
                   onSetStep("full_start");
                 }}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-50"
+                className="w-full rounded-xl bg-agro-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-agro-700 dark:hover:bg-agro-500"
               >
                 Toda la jornada
               </button>
@@ -317,41 +308,19 @@ export function ForgotModal({
             <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
               ¿Cuánto tiempo?
             </h2>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {([30, 60, 120] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => {
-                    onSetBreakOtro(false);
-                    onSetFullBreakMins(m);
-                  }}
-                  className={`rounded-xl px-2 py-2 text-xs font-semibold ${
-                    !breakOtro && fullBreakMins === m
-                      ? "bg-agro-600 text-white"
-                      : "border border-slate-200 dark:border-slate-600"
-                  }`}
-                >
-                  {m === 30 ? "30 min" : m === 60 ? "1 h" : "2 h"}
-                </button>
-              ))}
-            </div>
-            <div
-              className={`mt-2 rounded-xl border p-2 ${
-                breakOtro ? "border-agro-500 bg-agro-50/50 dark:bg-agro-900/20" : "border-slate-200 dark:border-slate-600"
-              }`}
-            >
-              <span className="text-[10px] font-semibold uppercase text-slate-500">Otro</span>
-              <input
-                type="text"
-                placeholder="Ej. 45 min, 1h30…"
-                value={fullBreakCustom}
-                onChange={(e) => {
-                  onSetBreakOtro(true);
-                  onSetFullBreakCustom(e.target.value);
+            <div className="mt-3">
+              <TimeSelect24h
+                idPrefix="forgot-break"
+                value={toHHMM(
+                  Math.floor(Math.max(0, fullBreakMins) / 60),
+                  Math.max(0, fullBreakMins) % 60
+                )}
+                onChange={(hm) => {
+                  const { h, m } = parseHHMM(hm);
+                  onSetBreakOtro(false);
+                  onSetFullBreakCustom("");
+                  onSetFullBreakMins(h * 60 + m);
                 }}
-                onFocus={() => onSetBreakOtro(true)}
-                className="mt-1 w-full bg-transparent text-sm outline-none dark:text-slate-100"
               />
             </div>
             {error && (

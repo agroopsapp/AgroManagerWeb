@@ -128,6 +128,7 @@ export function formatTimeLocal(utcIso: string | null): string {
   return d.toLocaleTimeString("es-ES", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "Europe/Madrid",
   });
 }
 

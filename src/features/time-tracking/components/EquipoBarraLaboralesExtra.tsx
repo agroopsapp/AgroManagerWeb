@@ -1,10 +1,12 @@
 "use client";
 
+import { memo } from "react";
+
 /**
  * Barra: tramo principal = tope laboral (verde imputado + gris falta);
  * tramo aparte en naranja = horas extra sobre el objetivo teórico.
  */
-export function EquipoBarraLaboralesExtra({
+export const EquipoBarraLaboralesExtra = memo(function EquipoBarraLaboralesExtra({
   horasObjetivo,
   horasImputadasLabor,
   horasFalta,
@@ -109,4 +111,4 @@ export function EquipoBarraLaboralesExtra({
       </p>
     </div>
   );
-}
+});

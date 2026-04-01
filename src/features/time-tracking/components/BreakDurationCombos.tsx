@@ -1,12 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import { formatMinutesShort } from "@/shared/utils/time";
 
 const MINUTES_60 = Array.from({ length: 60 }, (_, i) => i);
 const BREAK_DURATION_HOURS = Array.from({ length: 9 }, (_, i) => i);
 
 /** Duración de descanso: horas (0–8) + minutos (0–59). */
-export function BreakDurationCombos({
+export const BreakDurationCombos = memo(function BreakDurationCombos({
   hours,
   minutes,
   onHoursChange,
@@ -80,4 +81,4 @@ export function BreakDurationCombos({
       </p>
     </div>
   );
-}
+});

@@ -1,16 +1,8 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useFeatures } from "@/contexts/FeaturesContext";
-
-function TimeTrackingSuspenseFallback() {
-  return (
-    <div className="flex min-h-[40vh] items-center justify-center">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
-    </div>
-  );
-}
 
 export default function TimeTrackingLayout({ children }: { children: React.ReactNode }) {
   const { enableTimeTracking } = useFeatures();
@@ -31,9 +23,5 @@ export default function TimeTrackingLayout({ children }: { children: React.React
     );
   }
 
-  return (
-    <Suspense fallback={<TimeTrackingSuspenseFallback />}>
-      {children}
-    </Suspense>
-  );
+  return children;
 }

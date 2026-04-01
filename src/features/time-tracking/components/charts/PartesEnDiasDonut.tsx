@@ -1,7 +1,9 @@
 "use client";
 
+import { memo } from "react";
+
 /** Dona: días imputados con parte vs sin parte. */
-export function PartesEnDiasDonut({
+export const PartesEnDiasDonut = memo(function PartesEnDiasDonut({
   diasImputados,
   diasConParte,
 }: {
@@ -96,4 +98,4 @@ export function PartesEnDiasDonut({
       </div>
     </div>
   );
-}
+});

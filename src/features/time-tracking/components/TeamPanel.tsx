@@ -34,7 +34,7 @@ import {
 // Prop types
 // ---------------------------------------------------------------------------
 
-type Period = "dia" | "mes" | "trimestre" | "anio";
+type Period = "dia" | "semana" | "mes" | "trimestre" | "anio";
 type FilterOption = { value: string; label: string };
 type CalendarDay = { workDate: string; isWeekend: boolean };
 

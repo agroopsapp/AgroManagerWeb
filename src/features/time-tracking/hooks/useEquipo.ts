@@ -1,6 +1,7 @@
 "use client";
 import {
   startTransition,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -17,6 +18,7 @@ import {
   currentYearLocal,
   formatDateES,
   listDaysInRange,
+  localCalendarISO,
   monthSelectOptions,
   parseMonthYm,
   quarterOptions,
@@ -210,8 +212,9 @@ function sortEquipoFilas(
 
 export function useEquipo() {
   const [filtroPersonaEquipo, setFiltroPersonaEquipo] = useState<number | "todas">("todas");
-  const [equipoPeriodo, setEquipoPeriodo] = useState<"dia" | "mes" | "trimestre" | "anio">("mes");
+  const [equipoPeriodo, setEquipoPeriodo] = useState<"dia" | "semana" | "mes" | "trimestre" | "anio">("mes");
   const [equipoDia, setEquipoDia] = useState(localTodayISO());
+  const [equipoSemana, setEquipoSemana] = useState(localTodayISO());
   const [mesEquipo, setMesEquipo] = useState(currentMonthLocalISO);
   const [trimestreEquipo, setTrimestreEquipo] = useState(() => {
     const now = new Date();
@@ -289,6 +292,22 @@ export function useEquipo() {
       const d = equipoDia;
       return { label: formatDateES(d), start: d, end: d };
     }
+    if (equipoPeriodo === "semana") {
+      const [sy, sm, sd] = equipoSemana.split("-").map(Number);
+      if (!sy || !sm || !sd) return null;
+      const ref = new Date(sy, sm - 1, sd, 12, 0, 0, 0);
+      const dow = ref.getDay();
+      const diffToMon = dow === 0 ? -6 : 1 - dow;
+      const mon = new Date(ref);
+      mon.setDate(mon.getDate() + diffToMon);
+      const sun = new Date(mon);
+      sun.setDate(sun.getDate() + 6);
+      const start = localCalendarISO(mon);
+      const end = localCalendarISO(sun);
+      const clamped = clampRangeToToday({ start, end });
+      if (!clamped) return null;
+      return { label: `Semana del ${formatDateES(start)}`, ...clamped };
+    }
     if (equipoPeriodo === "mes") {
       const ym = parseMonthYm(mesEquipo);
       if (!ym) return null;
@@ -312,7 +331,7 @@ export function useEquipo() {
     const clamped = clampRangeToToday(r);
     if (!clamped) return null;
     return { label: `Año ${anioEquipo}`, ...clamped };
-  }, [equipoPeriodo, equipoDia, mesEquipo, trimestreEquipo, anioEquipo]);
+  }, [equipoPeriodo, equipoDia, equipoSemana, mesEquipo, trimestreEquipo, anioEquipo]);
 
   const equipoRowsFiltradas = useMemo(() => {
     if (!equipoRange) return [];
@@ -381,13 +400,13 @@ export function useEquipo() {
     return sortEquipoFilas(filasEquipoCalendario, equipoSort.key, equipoSort.dir);
   }, [filasEquipoCalendario, equipoSort.key, equipoSort.dir]);
 
-  const setEquipoSortColumn = (key: EquipoSortKey) => {
+  const setEquipoSortColumn = useCallback((key: EquipoSortKey) => {
     setEquipoSort((s) => {
       if (s.key !== key) return { key, dir: "desc" };
       if (s.dir === "desc") return { key, dir: "asc" };
       return { key: null, dir: null };
     });
-  };
+  }, []);
 
   const totalMinutosImputadosMes = useMemo(
     () => equipoRowsFiltradas.reduce((acc, e) => acc + effectiveWorkMinutesEntry(e), 0),
@@ -471,6 +490,8 @@ export function useEquipo() {
     setEquipoPeriodo,
     equipoDia,
     setEquipoDia,
+    equipoSemana,
+    setEquipoSemana,
     mesEquipo,
     setMesEquipo,
     trimestreEquipo,

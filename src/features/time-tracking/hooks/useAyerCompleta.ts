@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   checkoutLocalIsoAfterCheckin,
   dateTimeLocalToUtcIso,
@@ -102,7 +102,7 @@ export function useAyerCompleta({ miWorkerId, user, entries, setEntries }: Param
 
   // ----- Handlers -----
 
-  const resetAyerCompletaModal = () => {
+  const resetAyerCompletaModal = useCallback(() => {
     setAyerCompStep("closed");
     setAyerManStart("09:00");
     setAyerManEnd("18:00");
@@ -110,7 +110,7 @@ export function useAyerCompleta({ miWorkerId, user, entries, setEntries }: Param
     setAyerCompOtroH(0);
     setAyerCompOtroM(30);
     setAyerCompError(null);
-  };
+  }, []);
 
   const abrirCompletarAyer = () => {
     setAyerCompError(null);

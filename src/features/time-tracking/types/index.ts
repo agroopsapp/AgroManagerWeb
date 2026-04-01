@@ -10,7 +10,14 @@ export type TimeEntryRazon =
 
 export interface TimeEntryMock {
   id: number;
+  /** GUID real del fichaje en backend (`TimeEntries.Id`). */
+  timeEntryId?: string | null;
+  companyId?: string | null;
   workerId: number;
+  userId?: string | null;
+  workReportId?: string | null;
+  userName?: string | null;
+  userEmail?: string | null;
   workDate: string; // YYYY-MM-DD
   checkInUtc: string;
   checkOutUtc: string | null;
