@@ -8,7 +8,7 @@ import { USER_ROLE } from "@/types";
 import { useEquipo } from "@/features/time-tracking/hooks/useEquipo";
 import { useEquipoModal } from "@/features/time-tracking/hooks/useEquipoModal";
 import { useEquipoPart } from "@/features/time-tracking/hooks/useEquipoPart";
-import { MOCK_WORKERS_FICHA, workerNameById } from "@/mocks/time-tracking.mock";
+import { workerNameById } from "@/mocks/time-tracking.mock";
 import {
   formatDateES,
   formatFechaModificacionUtc,
@@ -22,9 +22,10 @@ import {
   effectiveWorkMinutesEntry,
   formatLastModifiedByUser,
   formatRazon,
-  isAusenciaRazon,
+  isSinJornadaImputableRazon,
   RAZON_NO_LABORAL,
   RAZON_SIN_IMPUTAR,
+  workReportParteApiSummary,
 } from "@/features/time-tracking/utils/formatters";
 import { getWorkPartsForWorker } from "@/lib/workPartsStorage";
 import type { EquipoSortKey } from "@/features/time-tracking/types";
@@ -71,7 +72,12 @@ export default function TeamHoursPage() {
     if (user?.role === USER_ROLE.Worker) router.replace("/dashboard/tasks");
   }, [user, isReady, router]);
 
-  const eq = useEquipo();
+  const eq = useEquipo({
+    enableEquipoCompanyFilter:
+      user?.role === USER_ROLE.SuperAdmin ||
+      user?.role === USER_ROLE.Manager ||
+      user?.role === USER_ROLE.Admin,
+  });
 
   const modal = useEquipoModal({
     user,
@@ -102,9 +108,9 @@ export default function TeamHoursPage() {
           mes completo. Todos los días (lun–dom): fin de semana = no laboral.{" "}
           <span className="font-semibold text-red-700 dark:text-red-400">
             Laborable sin fichaje = rojo
-          </span>{" "}
-          (~10 % demo). Dona izquierda: objetivo vs imputado. Dona derecha: incluye días laborables
-          sin imputar (rojo).
+          </span>
+          . Dona izquierda: objetivo vs imputado. Dona derecha: incluye días laborables sin imputar
+          (rojo). Sin datos de demo locales: histórico y lista de personas vendrán del API.
         </p>
       </div>
 
@@ -249,30 +255,155 @@ export default function TeamHoursPage() {
                 </div>
               )}
 
-              {/* Persona */}
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <label
-                  htmlFor="persona-team-hours"
-                  className="text-xs font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  Persona
-                </label>
-                <select
-                  id="persona-team-hours"
-                  value={eq.filtroPersonaEquipo === "todas" ? "" : String(eq.filtroPersonaEquipo)}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    eq.setFiltroPersonaEquipo(v === "" ? "todas" : parseInt(v, 10));
-                  }}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-                >
-                  <option value="">Todas las personas</option>
-                  {MOCK_WORKERS_FICHA.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
+              <div
+                className={`grid grid-cols-1 gap-3 sm:items-end ${
+                  user.role === USER_ROLE.SuperAdmin ||
+                  user.role === USER_ROLE.Manager ||
+                  user.role === USER_ROLE.Admin
+                    ? "sm:grid-cols-2 xl:grid-cols-3"
+                    : "sm:grid-cols-2"
+                }`}
+              >
+                {user.role === USER_ROLE.SuperAdmin ||
+                user.role === USER_ROLE.Manager ||
+                user.role === USER_ROLE.Admin ? (
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <label
+                      htmlFor="empresa-team-hours-filtro"
+                      className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                    >
+                      Empresas
+                    </label>
+                    <select
+                      id="empresa-team-hours-filtro"
+                      value={eq.equipoSuperAdminCompanyId ?? ""}
+                      onChange={(e) =>
+                        eq.setEquipoSuperAdminCompanyId(
+                          e.target.value.trim() ? e.target.value : null,
+                        )
+                      }
+                      disabled={eq.equipoCompaniesLoading}
+                      className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    >
+                      <option value="">Todas las empresas</option>
+                      {eq.equipoCompaniesCatalog.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    {eq.equipoCompaniesError ? (
+                      <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                        {eq.equipoCompaniesError}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <label
+                    htmlFor="persona-team-hours"
+                    className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  >
+                    Persona
+                  </label>
+                  <select
+                    id="persona-team-hours"
+                    value={eq.filtroPersonaEquipo === "todas" ? "" : String(eq.filtroPersonaEquipo)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      eq.setFiltroPersonaEquipo(v === "" ? "todas" : v);
+                    }}
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                  >
+                    <option value="">Todas las personas</option>
+                    {eq.equipoWorkersOpciones.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {user.role === USER_ROLE.SuperAdmin ||
+                user.role === USER_ROLE.Manager ||
+                user.role === USER_ROLE.Admin ? (
+                  <div className="flex min-w-0 flex-col gap-1.5">
+                    <label
+                      htmlFor="servicio-team-hours-filtro"
+                      className="text-xs font-semibold text-slate-700 dark:text-slate-300"
+                    >
+                      Servicio
+                    </label>
+                    <select
+                      id="servicio-team-hours-filtro"
+                      value={eq.equipoServiceId ?? ""}
+                      onChange={(e) =>
+                        eq.setEquipoServiceId(e.target.value.trim() ? e.target.value : null)
+                      }
+                      disabled={eq.equipoServicesLoading}
+                      className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    >
+                      <option value="">Todos los servicios</option>
+                      {eq.equipoServicesCatalog.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    {eq.equipoServicesError ? (
+                      <p className="text-[11px] text-rose-600 dark:text-rose-400">
+                        {eq.equipoServicesError}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 dark:border-slate-600 dark:bg-slate-900/40">
+                  <input
+                    id="filtro-solo-sin-imputar-team-hours"
+                    type="checkbox"
+                    checked={eq.equipoTablaFiltroExtra === "soloSinImputar"}
+                    onChange={(e) => eq.setEquipoSoloSinImputar(e.target.checked)}
+                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-agro-600 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-800"
+                  />
+                  <label
+                    htmlFor="filtro-solo-sin-imputar-team-hours"
+                    className="cursor-pointer text-xs font-medium leading-snug text-slate-700 dark:text-slate-300"
+                  >
+                    Mostrar solo días laborables sin fichaje
+                  </label>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 dark:border-slate-600 dark:bg-slate-900/40">
+                  <input
+                    id="filtro-solo-sin-parte-servidor-team-hours"
+                    type="checkbox"
+                    checked={eq.equipoTablaFiltroExtra === "soloSinParteServidor"}
+                    onChange={(e) => eq.setEquipoSoloSinParteServidor(e.target.checked)}
+                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-agro-600 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-800"
+                  />
+                  <label
+                    htmlFor="filtro-solo-sin-parte-servidor-team-hours"
+                    className="cursor-pointer text-xs font-medium leading-snug text-slate-700 dark:text-slate-300"
+                  >
+                    Mostrar solo fichados y sin parte
+                  </label>
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 dark:border-slate-600 dark:bg-slate-900/40">
+                  <input
+                    id="filtro-solo-con-parte-servidor-team-hours"
+                    type="checkbox"
+                    checked={eq.equipoTablaFiltroExtra === "soloConParteServidor"}
+                    onChange={(e) => eq.setEquipoSoloConParteServidor(e.target.checked)}
+                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-agro-600 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-800"
+                  />
+                  <label
+                    htmlFor="filtro-solo-con-parte-servidor-team-hours"
+                    className="cursor-pointer text-xs font-medium leading-snug text-slate-700 dark:text-slate-300"
+                  >
+                    Mostrar solo fichados y con parte
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -301,7 +432,8 @@ export default function TeamHoursPage() {
                 <>
                   {" · "}
                   <span className="font-medium text-slate-700 dark:text-slate-300">
-                    {workerNameById(eq.filtroPersonaEquipo as number)}
+                    {eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
+                      eq.filtroPersonaEquipo}
                   </span>
                 </>
               )}
@@ -352,11 +484,6 @@ export default function TeamHoursPage() {
         </div>
       </div>
 
-      {/* ── Badge ──────────────────────────────────────────────── */}
-      <span className="inline-block rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-medium text-slate-500 dark:bg-slate-700/60 dark:text-slate-300">
-        Vista administrador · datos de demo
-      </span>
-
       {/* ── Tabla de registros ─────────────────────────────────── */}
       {eq.diasCalendarioMesEquipo.length === 0 ? (
         <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -365,6 +492,25 @@ export default function TeamHoursPage() {
         </p>
       ) : (
         <div className="space-y-3">
+          {eq.equipoRowsLoading ? (
+            <p className="text-xs font-medium text-agro-700 dark:text-agro-300">
+              Cargando fichajes del periodo…
+            </p>
+          ) : null}
+          {eq.equipoRowsError ? (
+            <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
+              {eq.equipoRowsError}
+            </p>
+          ) : null}
+          {!eq.equipoRowsLoading && !eq.equipoRowsError ? (
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              {eq.equipoRowsTotalCount}{" "}
+              {eq.equipoRowsTotalCount === 1
+                ? "fichaje devuelto por el API"
+                : "fichajes devueltos por el API"}{" "}
+              en el periodo (el grid completa días sin registro en cliente).
+            </p>
+          ) : null}
           {/* Controles: info de orden + CSV */}
           <div className="flex flex-col items-end gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
             <p className="order-2 max-w-md text-right text-[10px] leading-snug text-slate-500 dark:text-slate-400 sm:order-1 sm:mr-auto sm:text-left">
@@ -379,7 +525,10 @@ export default function TeamHoursPage() {
             <button
               type="button"
               onClick={() => {
-                const csv = buildEquipoTableCsvFilas(eq.equipoFilasOrdenadas);
+                const csv = buildEquipoTableCsvFilas(
+                  eq.equipoFilasVista,
+                  eq.equipoNombrePorClave
+                );
                 const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -396,6 +545,14 @@ export default function TeamHoursPage() {
                           : `anio-${eq.anioEquipo}`;
                 a.download = `horas-equipo-${periodoLabel}-${
                   eq.filtroPersonaEquipo === "todas" ? "todas" : `persona-${eq.filtroPersonaEquipo}`
+                }${
+                  eq.equipoTablaFiltroExtra === "soloSinImputar"
+                    ? "-solo-sin-fichar"
+                    : eq.equipoTablaFiltroExtra === "soloSinParteServidor"
+                      ? "-sin-parte-servidor"
+                      : eq.equipoTablaFiltroExtra === "soloConParteServidor"
+                        ? "-con-parte-servidor"
+                        : ""
                 }.csv`;
                 a.rel = "noopener";
                 document.body.appendChild(a);
@@ -517,6 +674,12 @@ export default function TeamHoursPage() {
                       <SortArrow sortKey="duracion" activeKey={eq.equipoSort.key} dir={eq.equipoSort.dir} />
                     </button>
                   </th>
+                  <th
+                    className="px-3 py-2.5"
+                    title="Según el API (workReportId, workReportStatus, workReportLineCount)"
+                  >
+                    Parte en servidor
+                  </th>
                   <th className="sticky right-0 z-[5] bg-slate-50 px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)] dark:bg-slate-700 dark:text-slate-300">
                     Acciones
                   </th>
@@ -524,16 +687,32 @@ export default function TeamHoursPage() {
               </thead>
 
               <tbody>
-                {eq.equipoFilasOrdenadas.map((fila) => {
+                {eq.equipoFilasVista.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={13}
+                      className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400"
+                    >
+                      {eq.equipoTablaFiltroExtra === "soloSinImputar"
+                        ? "No hay días laborables sin fichaje en el periodo y filtros actuales."
+                        : eq.equipoTablaFiltroExtra === "soloSinParteServidor"
+                          ? "No hay fichados sin parte en el periodo y filtros actuales."
+                          : eq.equipoTablaFiltroExtra === "soloConParteServidor"
+                            ? "No hay fichados con parte en el periodo y filtros actuales."
+                            : "No hay filas que mostrar."}
+                    </td>
+                  </tr>
+                ) : (
+                  eq.equipoFilasVista.map((fila) => {
                   /* ── Fin de semana (no laboral) ── */
                   if (fila.kind === "noLaboral") {
                     return (
                       <tr
-                        key={`nl-${fila.workerId}-${fila.workDate}`}
+                        key={`nl-${fila.userId}-${fila.workDate}`}
                         className="border-t border-slate-200 bg-slate-100/95 text-slate-600 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300"
                       >
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                          {workerNameById(fila.workerId)}
+                          {eq.resolveEquipoPersonaNombre(fila)}
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
                           {formatDateES(fila.workDate)}
@@ -549,6 +728,7 @@ export default function TeamHoursPage() {
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-3 py-2 text-right text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="sticky right-0 z-[1] border-l border-slate-200/80 bg-slate-100 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-600 dark:bg-slate-800/55">
                           <button
                             type="button"
@@ -558,6 +738,7 @@ export default function TeamHoursPage() {
                                 workDate: fila.workDate,
                                 existing: null,
                                 isWeekendFila: true,
+                                personaLabel: eq.resolveEquipoPersonaNombre(fila),
                               })
                             }
                             className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
@@ -573,11 +754,11 @@ export default function TeamHoursPage() {
                   if (fila.kind === "sinImputar") {
                     return (
                       <tr
-                        key={`si-${fila.workerId}-${fila.workDate}`}
+                        key={`si-${fila.userId}-${fila.workDate}`}
                         className="border-t border-rose-200 bg-rose-50/95 text-rose-950 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-50"
                       >
                         <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-rose-900 dark:text-rose-100">
-                          {workerNameById(fila.workerId)}
+                          {eq.resolveEquipoPersonaNombre(fila)}
                         </td>
                         <td className="px-3 py-2 text-xs font-semibold text-rose-900 dark:text-rose-100">
                           {formatDateES(fila.workDate)}
@@ -593,6 +774,7 @@ export default function TeamHoursPage() {
                         <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
                         <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
                         <td className="px-3 py-2 text-right text-xs font-semibold text-rose-800 dark:text-rose-200">—</td>
+                        <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
                         <td className="sticky right-0 z-[1] border-l border-rose-200/80 bg-rose-50 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-rose-800 dark:bg-rose-950/45">
                           <button
                             type="button"
@@ -602,6 +784,7 @@ export default function TeamHoursPage() {
                                 workDate: fila.workDate,
                                 existing: null,
                                 isWeekendFila: false,
+                                personaLabel: eq.resolveEquipoPersonaNombre(fila),
                               })
                             }
                             className="rounded-lg border border-rose-400 bg-white px-2 py-1 text-[10px] font-semibold text-rose-900 hover:bg-rose-100 dark:border-rose-600 dark:bg-rose-900/50 dark:text-rose-100 dark:hover:bg-rose-900/80"
@@ -615,30 +798,40 @@ export default function TeamHoursPage() {
 
                   /* ── Registro normal ── */
                   const e = fila.e;
-                  const aus = isAusenciaRazon(e.razon);
+                  const sinJornada = isSinJornadaImputableRazon(e.razon);
+                  const apiParte = workReportParteApiSummary(e);
                   const hasPart =
-                    !aus && getWorkPartsForWorker(e.workerId).some((p) => p.workDate === e.workDate);
+                    !sinJornada &&
+                    getWorkPartsForWorker(e.workerId).some((p) => p.workDate === e.workDate);
                   const rowVac =
                     e.razon === "ausencia_vacaciones"
                       ? "border-t border-sky-200 bg-sky-50/95 text-sky-950 dark:border-sky-800 dark:bg-sky-950/45 dark:text-sky-50"
                       : e.razon === "ausencia_baja"
                         ? "border-t border-violet-200 bg-violet-50/95 text-violet-950 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-50"
-                        : "border-t border-slate-100 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80";
+                        : e.razon === "dia_no_laboral"
+                          ? "border-t border-stone-200 bg-stone-50/95 text-stone-950 dark:border-stone-600 dark:bg-stone-900/35 dark:text-stone-100"
+                          : "border-t border-slate-100 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80";
                   const stickyBg =
                     e.razon === "ausencia_vacaciones"
                       ? "bg-sky-50/98 dark:bg-sky-950/50"
                       : e.razon === "ausencia_baja"
                         ? "bg-violet-50/98 dark:bg-violet-950/45"
-                        : "bg-white/95 dark:bg-slate-800/95";
+                        : e.razon === "dia_no_laboral"
+                          ? "bg-stone-50/98 dark:bg-stone-900/45"
+                          : "bg-white/95 dark:bg-slate-800/95";
 
                   return (
                     <tr key={`${e.id}-${e.workerId}-${e.workDate}`} className={rowVac}>
                       <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
-                        {workerNameById(e.workerId)}
+                        {eq.resolveEquipoPersonaNombre(fila)}
                       </td>
                       <td className="px-3 py-2 text-xs">{formatDateES(e.workDate)}</td>
-                      <td className="px-3 py-2 text-xs">{aus ? "—" : formatTimeLocal(e.checkInUtc)}</td>
-                      <td className="px-3 py-2 text-xs">{aus ? "—" : formatTimeLocal(e.checkOutUtc)}</td>
+                      <td className="px-3 py-2 text-xs">
+                        {sinJornada ? "—" : formatTimeLocal(e.checkInUtc)}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {sinJornada ? "—" : formatTimeLocal(e.checkOutUtc)}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
                         {formatTiempoAnterior(e.previousCheckInUtc)}
                       </td>
@@ -646,7 +839,7 @@ export default function TeamHoursPage() {
                         {formatTiempoAnterior(e.previousCheckOutUtc)}
                       </td>
                       <td className="px-3 py-2 text-xs">
-                        {aus ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
+                        {sinJornada ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
                       </td>
                       <td className="max-w-[10rem] px-3 py-2 text-xs leading-snug">
                         <span
@@ -657,7 +850,9 @@ export default function TeamHoursPage() {
                                 ? "rounded-md bg-sky-200/80 px-1.5 py-0.5 font-semibold text-sky-950 dark:bg-sky-800/60 dark:text-sky-100"
                                 : e.razon === "ausencia_baja"
                                   ? "rounded-md bg-violet-200/80 px-1.5 py-0.5 font-semibold text-violet-950 dark:bg-violet-300/30 dark:text-violet-100"
-                                  : "text-slate-700 dark:text-slate-200"
+                                  : e.razon === "dia_no_laboral"
+                                    ? "rounded-md bg-stone-200/80 px-1.5 py-0.5 font-semibold text-stone-900 dark:bg-stone-600/50 dark:text-stone-100"
+                                    : "text-slate-700 dark:text-slate-200"
                           }
                         >
                           {formatRazon(e.razon)}
@@ -683,7 +878,29 @@ export default function TeamHoursPage() {
                         {formatFechaModificacionUtc(e.updatedAtUtc)}
                       </td>
                       <td className="px-3 py-2 text-right text-xs font-semibold">
-                        {aus ? "—" : formatMinutesShort(effectiveWorkMinutesEntry(e))}
+                        {sinJornada ? "—" : formatMinutesShort(effectiveWorkMinutesEntry(e))}
+                      </td>
+                      <td className="max-w-[9rem] px-3 py-2 text-xs leading-tight">
+                        {sinJornada ? (
+                          "—"
+                        ) : (
+                          <div className="leading-tight">
+                            <span
+                              className={
+                                apiParte.tieneParte
+                                  ? "font-semibold text-teal-800 dark:text-teal-200"
+                                  : "text-slate-400 dark:text-slate-500"
+                              }
+                            >
+                              {apiParte.tieneParte ? "Sí" : "No"}
+                            </span>
+                            {apiParte.tieneParte && apiParte.detalle ? (
+                              <span className="mt-0.5 block text-[10px] font-normal text-slate-500 dark:text-slate-400">
+                                {apiParte.detalle}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
                       </td>
                       <td
                         className={`sticky right-0 z-[1] px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] ${stickyBg}`}
@@ -697,6 +914,7 @@ export default function TeamHoursPage() {
                                 workDate: e.workDate,
                                 existing: e,
                                 isWeekendFila: workDateIsWeekend(e.workDate),
+                                personaLabel: eq.resolveEquipoPersonaNombre(fila),
                               })
                             }
                             className="rounded-lg border border-agro-500/60 bg-agro-50 px-2 py-1 text-[10px] font-semibold text-agro-800 hover:bg-agro-100 dark:border-agro-600 dark:bg-agro-950/50 dark:text-agro-100 dark:hover:bg-agro-900/60"
@@ -705,7 +923,7 @@ export default function TeamHoursPage() {
                           </button>
                           <button
                             type="button"
-                            disabled={aus || !e.checkOutUtc}
+                            disabled={sinJornada || !e.checkOutUtc}
                             onClick={() => part.openEquipoPartEditor(e)}
                             className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                           >
@@ -715,7 +933,8 @@ export default function TeamHoursPage() {
                       </td>
                     </tr>
                   );
-                })}
+                })
+                )}
               </tbody>
             </table>
           </div>
@@ -748,7 +967,8 @@ export default function TeamHoursPage() {
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
               <span className="font-semibold text-slate-800 dark:text-slate-100">
-                {workerNameById(modal.equipoModal.workerId)}
+                {modal.equipoModal.personaLabel?.trim() ||
+                  workerNameById(modal.equipoModal.workerId)}
               </span>
               {" · "}
               {formatDateES(modal.equipoModal.workDate)}
@@ -779,9 +999,17 @@ export default function TeamHoursPage() {
                       Añadir baja / ausencia
                     </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => modal.guardarEquipoVacacionesOBaja("dia_no_laboral")}
+                    className="mt-2 w-full rounded-xl border-2 border-stone-400 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-900 shadow-sm transition hover:bg-stone-100 dark:border-stone-500 dark:bg-stone-900/40 dark:text-stone-100 dark:hover:bg-stone-800/50"
+                  >
+                    Marcar día no laboral
+                  </button>
                   <p className="mt-2 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
-                    Si ya había horario imputado, se guardará en <strong>Entrada/Salida (antes)</strong>.
-                    La fila quedará marcada y se registrará quién modificó.
+                    Vacaciones, baja o día no laboral: si ya había horario imputado, se guardará en{" "}
+                    <strong>Entrada/Salida (antes)</strong>. La fila quedará marcada y se registrará quién
+                    modificó.
                   </p>
                 </div>
                 <div className="border-t border-slate-200 pt-4 dark:border-slate-600">

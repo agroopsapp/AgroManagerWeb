@@ -6,6 +6,12 @@
  */
 
 export { authApi } from "./auth.service";
+export {
+  timeTrackingApi,
+  type TimeEntryDto,
+  type TimeEntryRowsPageDto,
+  type TimeEntryRowsQuery,
+} from "./time-tracking.service";
 export { tasksApi } from "./tasks.service";
 export { farmsApi } from "./farms.service";
 export { usersApi } from "./users.service";

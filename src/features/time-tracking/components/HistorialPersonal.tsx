@@ -3,8 +3,9 @@
 import type { TimeEntryMock } from "@/features/time-tracking/types";
 import {
   historicoFilaSinImputarPasado,
-  isAusenciaRazon,
+  isSinJornadaImputableRazon,
   formatRazon,
+  effectiveWorkMinutesEntry,
   RAZON_NO_LABORAL,
   RAZON_SIN_IMPUTAR,
   RAZON_IMPUTACION_AUTOMATICA,
@@ -12,7 +13,6 @@ import {
   type HistoricoPersonalFila,
 } from "@/features/time-tracking/utils/formatters";
 import {
-  diffDurationMinutes,
   formatDateES,
   formatFechaModificacionUtc,
   formatMinutesShort,
@@ -177,6 +177,7 @@ export function HistorialPersonal({
                       );
                     }
                     const e = fila.entry;
+                    const sinJornada = isSinJornadaImputableRazon(e.razon);
                     const parteEstadoCell = e.workReportId ? (
                       <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">
                         Sí
@@ -188,7 +189,7 @@ export function HistorialPersonal({
                       <button
                         type="button"
                         onClick={() => onOpenPartEditor(e)}
-                        disabled={!e.checkOutUtc}
+                        disabled={sinJornada || !e.checkOutUtc}
                         className="rounded-lg border border-agro-200 px-2 py-1 text-[11px] font-semibold text-agro-700 hover:bg-agro-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-agro-700 dark:text-agro-300 dark:hover:bg-agro-900/30"
                       >
                         {e.workReportId ? "Editar parte" : "Añadir parte"}
@@ -215,10 +216,10 @@ export function HistorialPersonal({
                           )}
                         </td>
                         <td className="px-3 py-2 text-xs">
-                          {formatTimeLocal(e.checkInUtc)}
+                          {sinJornada ? "—" : formatTimeLocal(e.checkInUtc)}
                         </td>
                         <td className="px-3 py-2 text-xs">
-                          {formatTimeLocal(e.checkOutUtc)}
+                          {sinJornada ? "—" : formatTimeLocal(e.checkOutUtc)}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
                           {formatTiempoAnterior(e.previousCheckInUtc)}
@@ -227,7 +228,7 @@ export function HistorialPersonal({
                           {formatTiempoAnterior(e.previousCheckOutUtc)}
                         </td>
                         <td className="px-3 py-2 text-xs">
-                          {formatMinutesShort(e.breakMinutes ?? 0)}
+                          {sinJornada ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
                         </td>
                         <td className="px-3 py-2 text-xs">{parteEstadoCell}</td>
                         <td className="px-3 py-2 text-xs">{parteAccionCell}</td>
@@ -236,9 +237,11 @@ export function HistorialPersonal({
                             className={
                               e.razon === "imputacion_manual_error"
                                 ? "rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-100"
-                                : alerta
-                                  ? "text-rose-900 dark:text-rose-100"
-                                  : "text-slate-700 dark:text-slate-200"
+                                : e.razon === "dia_no_laboral"
+                                  ? "rounded-md bg-stone-200/80 px-1.5 py-0.5 font-semibold text-stone-900 dark:bg-stone-600/50 dark:text-stone-100"
+                                  : alerta
+                                    ? "text-rose-900 dark:text-rose-100"
+                                    : "text-slate-700 dark:text-slate-200"
                             }
                           >
                             {e.cierreAutomaticoMedianoche
@@ -282,18 +285,9 @@ export function HistorialPersonal({
                               : undefined
                           }
                         >
-                          {e.cierreAutomaticoMedianoche
+                          {sinJornada || e.cierreAutomaticoMedianoche
                             ? "—"
-                            : formatMinutesShort(
-                                (() => {
-                                  const total = diffDurationMinutes(
-                                    e.checkInUtc,
-                                    e.checkOutUtc
-                                  );
-                                  if (total === null) return null;
-                                  return Math.max(0, total - (e.breakMinutes ?? 0));
-                                })()
-                              )}
+                            : formatMinutesShort(effectiveWorkMinutesEntry(e))}
                         </td>
                       </tr>
                     );

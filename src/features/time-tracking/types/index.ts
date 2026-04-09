@@ -6,16 +6,23 @@ export type TimeEntryRazon =
   | "imputacion_normal"
   | "imputacion_manual_error"
   | "ausencia_vacaciones"
-  | "ausencia_baja";
+  | "ausencia_baja"
+  | "dia_no_laboral";
 
 export interface TimeEntryMock {
   id: number;
   /** GUID real del fichaje en backend (`TimeEntries.Id`). */
   timeEntryId?: string | null;
   companyId?: string | null;
+  /** Ids de empresa cliente en el parte (`clientCompanyIdsInReport` en TimeEntries/rows). */
+  clientCompanyIdsInReport?: string[] | null;
   workerId: number;
   userId?: string | null;
   workReportId?: string | null;
+  /** Estado del parte en servidor (p. ej. GET /TimeEntries/rows). */
+  workReportStatus?: string | null;
+  /** Número de líneas del parte en servidor. */
+  workReportLineCount?: number | null;
   userName?: string | null;
   userEmail?: string | null;
   workDate: string; // YYYY-MM-DD
@@ -28,6 +35,8 @@ export interface TimeEntryMock {
   updatedBy: number | null;
   /** Minutos de descanso declarados por el trabajador al cerrar la jornada. */
   breakMinutes?: number;
+  /** Minutos netos trabajados según API (p. ej. GET /TimeEntries/rows); prioridad en stats si viene informado. */
+  workedMinutes?: number | null;
   /** Cómo se ha imputado la jornada (fichaje normal vs corrección manual). */
   razon?: TimeEntryRazon;
   /** Entrada registrada vía "Olvidé fichar" (solo entrada); pendiente de salida normal. */
@@ -53,8 +62,35 @@ export interface TimeEntryMock {
 
 export type EquipoTablaFila =
   | { kind: "registro"; e: TimeEntryMock }
-  | { kind: "noLaboral"; workerId: number; workDate: string }
-  | { kind: "sinImputar"; workerId: number; workDate: string };
+  | {
+      kind: "noLaboral";
+      /** userId de aplicación (GUID) o clave `legacy:{workerId}` si el fichaje no trae userId. */
+      userId: string;
+      workerId: number;
+      workDate: string;
+      displayName?: string;
+    }
+  | {
+      kind: "sinImputar";
+      userId: string;
+      workerId: number;
+      workDate: string;
+      displayName?: string;
+    };
+
+/** Usuario en el filtro «Persona» (GET /api/Users → `id` = userId GUID). */
+export interface EquipoWorkerOption {
+  id: string;
+  name: string;
+  companyId?: string | null;
+}
+
+/** Filtro extra de la tabla equipo: solo uno activo (comportamiento tipo radio). */
+export type EquipoTablaFiltroExtra =
+  | "ninguno"
+  | "soloSinImputar"
+  | "soloSinParteServidor"
+  | "soloConParteServidor";
 
 export type EquipoSortKey =
   | "persona"

@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 
-/** Dona: fichaje correcto vs manual vs hueco laboral sin imputar (8 h por día). */
+/** Dona: fichaje correcto vs manual vs falta al tope mensual (misma magnitud que la dona «objetivo»). */
 export const FichajeTipoDonut = memo(function FichajeTipoDonut({
   horasNormal,
   horasManual,
@@ -123,15 +123,22 @@ export const FichajeTipoDonut = memo(function FichajeTipoDonut({
                 aria-hidden
               />
               <span className="text-[13px] leading-snug text-slate-600 dark:text-slate-700">
-                Laborables sin imputar (8 h/día)
+                Falta vs objetivo (días sin fichar)
               </span>
             </span>
             <span className="shrink-0 text-right">
               <span className="block text-base font-bold tabular-nums leading-tight text-red-700 dark:text-red-400">
                 {horasSinImputar.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
               </span>
-              <span className="mt-0.5 block min-h-[14px] text-[10px] text-slate-500">
-                {diasSinImputar} día{diasSinImputar !== 1 ? "s" : ""}
+              <span
+                className="mt-0.5 block min-h-[14px] text-[10px] text-slate-500"
+                title="Mismas horas que «Falta para objetivo» en la dona de la izquierda (tope del mes menos imputado total). Los días sin registro en el grid son informativos."
+              >
+                {diasSinImputar > 0
+                  ? `${diasSinImputar} día${diasSinImputar !== 1 ? "s" : ""} sin registro`
+                  : horasSinImputar > 0.01
+                    ? "Imputación por debajo del tope"
+                    : "—"}
               </span>
             </span>
           </li>

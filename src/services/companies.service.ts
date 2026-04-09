@@ -151,13 +151,23 @@ export function postClientCompanyWithAreas(body: ClientCompanyWithAreasCreateBod
 function normalizeCompany(input: unknown): Company {
   const o = (input ?? {}) as Record<string, unknown>;
 
+  const idField = o.id ?? o.Id;
+  const companyIdField = o.companyId ?? o.CompanyId;
+  const idStr =
+    idField != null && String(idField).trim() ? String(idField).trim() : null;
+  const companyIdStr =
+    companyIdField != null && String(companyIdField).trim()
+      ? String(companyIdField).trim()
+      : null;
+
   const rawId =
-    o.id ??
-    o.Id ??
-    o.companyId ??
-    o.CompanyId ??
+    idStr ??
+    companyIdStr ??
     o.customerCompanyId ??
     o.CustomerCompanyId;
+  const organizationCompanyId =
+    idStr && companyIdStr && idStr !== companyIdStr ? companyIdStr : null;
+
   const rawName = o.name ?? o.Name;
   const rawTax =
     o.taxId ??
@@ -173,6 +183,7 @@ function normalizeCompany(input: unknown): Company {
 
   return {
     id: rawId == null ? "" : String(rawId),
+    organizationCompanyId,
     name: rawName == null ? "" : String(rawName),
     taxId: rawTax == null ? "" : String(rawTax),
     address: rawAddress == null ? "" : String(rawAddress),

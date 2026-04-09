@@ -321,9 +321,14 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
     }
 
     setWorkPartError(null);
-    const reportCompanyId = target.companyId ?? null;
+    // El API a veces devuelve el fichaje sin companyId (p. ej. primera jornada).
+    // Las líneas del parte sí obligan a elegir empresa: usamos la primera como respaldo.
+    const reportCompanyId =
+      typeof target.companyId === "string" && target.companyId.trim().length > 0
+        ? target.companyId.trim()
+        : tasks[0]?.companyId ?? null;
     if (!reportCompanyId) {
-      setWorkPartError("Falta companyId del fichaje. No se puede crear el parte.");
+      setWorkPartError("Falta empresa en el parte. Elige empresa (y área) en cada tarea.");
       return;
     }
     const saveWorkReport = async (

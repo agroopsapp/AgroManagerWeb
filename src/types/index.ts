@@ -135,6 +135,11 @@ export interface CompanyApiPutBody {
 /** Empresa / sociedad (contrato típico laboral; CRUD vía `/api/CustomerCompany`). */
 export interface Company {
   id: string;
+  /**
+   * Empresa matriz / tenant (`companyId` en ClientCompany cuando difiere de `id`).
+   * GET /api/Users/company/{id} y `User.companyId` suelen usar este GUID, no el id de fila cliente.
+   */
+  organizationCompanyId?: string | null;
   name: string;
   /** CIF, NIF u otro identificador fiscal (opcional). */
   taxId: string;

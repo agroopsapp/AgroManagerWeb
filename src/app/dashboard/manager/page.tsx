@@ -20,7 +20,12 @@ export default function ManagerPage() {
     if (user.role === USER_ROLE.Worker) { router.replace("/dashboard/tasks"); return; }
   }, [user, isReady, router]);
 
-  const equipo = useEquipo();
+  const equipo = useEquipo({
+    enableEquipoCompanyFilter:
+      user?.role === USER_ROLE.SuperAdmin ||
+      user?.role === USER_ROLE.Manager ||
+      user?.role === USER_ROLE.Admin,
+  });
 
   const equipoModal = useEquipoModal({
     user,
@@ -45,6 +50,41 @@ export default function ManagerPage() {
         trimestre={equipo.trimestreEquipo}
         anio={equipo.anioEquipo}
         persona={equipo.filtroPersonaEquipo}
+        workersOpciones={equipo.equipoWorkersOpciones}
+        resolvePersonaNombre={equipo.resolveEquipoPersonaNombre}
+        equipoNombrePorClave={equipo.equipoNombrePorClave}
+        rowsApi={{
+          loading: equipo.equipoRowsLoading,
+          error: equipo.equipoRowsError,
+          totalCount: equipo.equipoRowsTotalCount,
+        }}
+        equipoCompanyFilter={
+          user.role === USER_ROLE.SuperAdmin ||
+          user.role === USER_ROLE.Manager ||
+          user.role === USER_ROLE.Admin
+            ? {
+                companyId: equipo.equipoSuperAdminCompanyId,
+                onCompanyIdChange: equipo.setEquipoSuperAdminCompanyId,
+                companies: equipo.equipoCompaniesCatalog,
+                loading: equipo.equipoCompaniesLoading,
+                error: equipo.equipoCompaniesError,
+              }
+            : undefined
+        }
+        equipoServiceFilter={
+          user.role === USER_ROLE.SuperAdmin ||
+          user.role === USER_ROLE.Manager ||
+          user.role === USER_ROLE.Admin
+            ? {
+                serviceId: equipo.equipoServiceId,
+                onServiceIdChange: equipo.setEquipoServiceId,
+                services: equipo.equipoServicesCatalog,
+                loading: equipo.equipoServicesLoading,
+                error: equipo.equipoServicesError,
+              }
+            : undefined
+        }
+        tablaFiltroExtra={equipo.equipoTablaFiltroExtra}
         opcionesMes={equipo.opcionesMesEquipo}
         opcionesTrimestre={equipo.opcionesTrimestre}
         opcionesAnio={equipo.opcionesAnio}
@@ -64,7 +104,7 @@ export default function ManagerPage() {
         diasSinImputarEquipo={equipo.diasSinImputarEquipo}
         partesEquipoStats={equipo.partesEquipoStats}
         diasCalendario={equipo.diasCalendarioMesEquipo}
-        filasOrdenadas={equipo.equipoFilasOrdenadas}
+        filasOrdenadas={equipo.equipoFilasVista}
         sort={equipo.equipoSort}
         tablaScrollRef={equipo.equipoTablaScrollRef}
         editModalState={equipoModal.equipoModal}
@@ -80,6 +120,9 @@ export default function ManagerPage() {
         onSetTrimestre={equipo.setTrimestreEquipo}
         onSetAnio={equipo.setAnioEquipo}
         onSetPersona={equipo.setFiltroPersonaEquipo}
+        onSetSoloSinImputar={equipo.setEquipoSoloSinImputar}
+        onSetSoloSinParteServidor={equipo.setEquipoSoloSinParteServidor}
+        onSetSoloConParteServidor={equipo.setEquipoSoloConParteServidor}
         onSetSortColumn={equipo.setEquipoSortColumn}
         onOpenEditModal={equipoModal.openEquipoEditModal}
         onCloseEditModal={equipoModal.cerrarEquipoModal}

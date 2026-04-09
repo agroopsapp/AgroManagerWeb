@@ -139,6 +139,86 @@ function buildQuery(params: Record<string, string | undefined>): string {
   return qs ? `?${qs}` : "";
 }
 
+/** Query para GET /api/TimeEntries/rows (page, pageSize numéricos, booleans solo si true). */
+function buildRowsQuery(
+  params: Record<string, string | number | boolean | undefined | null>
+): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === "") continue;
+    if (value === false) continue;
+    search.append(key, String(value));
+  }
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+}
+
+/** Respuesta paginada de filas de grid (camelCase / PascalCase). */
+export type TimeEntryRowsPageDto = {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  filtersApplied: Record<string, unknown>;
+  items: unknown[];
+};
+
+function parseTimeEntryRowsPage(raw: unknown): TimeEntryRowsPageDto {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const itemsRaw = o.items ?? o.Items;
+  return {
+    page: Number(o.page ?? o.Page ?? 1) || 1,
+    pageSize: Number(o.pageSize ?? o.PageSize ?? 0) || 0,
+    totalCount: Number(o.totalCount ?? o.TotalCount ?? 0) || 0,
+    filtersApplied: (o.filtersApplied ?? o.FiltersApplied ?? {}) as Record<string, unknown>,
+    items: Array.isArray(itemsRaw) ? itemsRaw : [],
+  };
+}
+
+const TIME_ENTRY_ROWS_TIMEOUT_MS = 30_000;
+const TIME_ENTRY_ROWS_MAX_PAGE_SIZE = 200;
+const TIME_ENTRY_ROWS_MAX_PAGES = 100;
+
+async function fetchTimeEntryRowsPageImpl(
+  opts: TimeEntryRowsQuery & { signal?: AbortSignal }
+): Promise<TimeEntryRowsPageDto> {
+  const pageSize = Math.min(
+    TIME_ENTRY_ROWS_MAX_PAGE_SIZE,
+    Math.max(1, opts.pageSize ?? 50)
+  );
+  const page = Math.max(1, opts.page ?? 1);
+  const query = buildRowsQuery({
+    from: opts.from,
+    to: opts.to,
+    userId: opts.userId?.trim() ? opts.userId.trim() : undefined,
+    page,
+    pageSize,
+    onlyWorkingDaysWithoutWorkReport:
+      opts.onlyWorkingDaysWithoutWorkReport === true ? true : undefined,
+    clientCompanyId: opts.clientCompanyId?.trim() || undefined,
+    serviceId: opts.serviceId?.trim() || undefined,
+    workAreaId: opts.workAreaId?.trim() || undefined,
+  });
+  const raw = await apiClient.get<unknown>(`/api/TimeEntries/rows${query}`, {
+    signal: opts.signal,
+    timeoutMs: TIME_ENTRY_ROWS_TIMEOUT_MS,
+  });
+  return parseTimeEntryRowsPage(raw);
+}
+
+export type TimeEntryRowsQuery = {
+  from: string;
+  to: string;
+  /** Si se omite, el backend aplica reglas por rol (todas las personas visibles). */
+  userId?: string;
+  page?: number;
+  /** Entre 1 y 200 en backend. */
+  pageSize?: number;
+  onlyWorkingDaysWithoutWorkReport?: boolean;
+  clientCompanyId?: string;
+  serviceId?: string;
+  workAreaId?: string;
+};
+
 export const timeTrackingApi = {
   /**
    * Devuelve fichajes según permisos del backend.
@@ -189,6 +269,54 @@ export const timeTrackingApi = {
   }): Promise<TimeEntryDto> {
     const raw = await apiClient.post<unknown>("/api/TimeEntries", body);
     return normalizeTimeEntryDto(raw);
+  },
+
+  /**
+   * Una página de GET /api/TimeEntries/rows (grid equipo / informes).
+   */
+  async getTimeEntryRowsPage(
+    opts: TimeEntryRowsQuery & { signal?: AbortSignal }
+  ): Promise<TimeEntryRowsPageDto> {
+    return fetchTimeEntryRowsPageImpl(opts);
+  },
+
+  /**
+   * Descarga todas las páginas del rango [from, to] para rellenar el grid denso en cliente.
+   * El API solo devuelve días con datos; el cruce con calendario hace `useEquipo`.
+   */
+  async getTimeEntryRowsAllItems(
+    opts: Omit<TimeEntryRowsQuery, "page" | "pageSize"> & {
+      signal?: AbortSignal;
+      pageSize?: number;
+      maxPages?: number;
+    }
+  ): Promise<{ items: unknown[]; totalCount: number; filtersApplied: Record<string, unknown> }> {
+    const pageSize = Math.min(
+      TIME_ENTRY_ROWS_MAX_PAGE_SIZE,
+      Math.max(1, opts.pageSize ?? TIME_ENTRY_ROWS_MAX_PAGE_SIZE)
+    );
+    const maxPages = opts.maxPages ?? TIME_ENTRY_ROWS_MAX_PAGES;
+    const all: unknown[] = [];
+    let totalCount = 0;
+    let filtersApplied: Record<string, unknown> = {};
+
+    for (let page = 1; page <= maxPages; page++) {
+      const parsed = await fetchTimeEntryRowsPageImpl({
+        ...opts,
+        page,
+        pageSize,
+      });
+      if (page === 1) {
+        totalCount = parsed.totalCount;
+        filtersApplied = parsed.filtersApplied;
+      }
+      all.push(...parsed.items);
+      if (parsed.items.length === 0) break;
+      if (parsed.items.length < pageSize) break;
+      if (totalCount > 0 && all.length >= totalCount) break;
+    }
+
+    return { items: all, totalCount, filtersApplied };
   },
 };
 

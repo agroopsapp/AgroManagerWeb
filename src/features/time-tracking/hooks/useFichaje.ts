@@ -27,7 +27,8 @@ function normalizeRazon(input: string | null | undefined): TimeEntryRazon | unde
     input === "imputacion_normal" ||
     input === "imputacion_manual_error" ||
     input === "ausencia_vacaciones" ||
-    input === "ausencia_baja"
+    input === "ausencia_baja" ||
+    input === "dia_no_laboral"
   ) {
     return input;
   }

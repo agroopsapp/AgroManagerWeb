@@ -155,12 +155,8 @@ export function useForgotModal({
     }
     const companyId =
       entries.find((e) => typeof e.companyId === "string" && e.companyId.trim().length > 0)
-        ?.companyId ?? null;
+        ?.companyId ?? "";
     const userId = typeof user?.id === "string" && user.id.trim().length > 0 ? user.id : null;
-    if (!companyId) {
-      setForgotError("No se pudo resolver companyId para registrar el fichaje.");
-      return;
-    }
     if (!userId) {
       setForgotError("No se pudo resolver userId para registrar el fichaje.");
       return;

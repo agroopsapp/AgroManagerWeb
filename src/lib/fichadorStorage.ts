@@ -30,7 +30,11 @@ function formatHoraLocalEs(iso: string): string {
 }
 
 function esAusenciaRazon(razon: string | undefined): boolean {
-  return razon === "ausencia_vacaciones" || razon === "ausencia_baja";
+  return (
+    razon === "ausencia_vacaciones" ||
+    razon === "ausencia_baja" ||
+    razon === "dia_no_laboral"
+  );
 }
 
 /** Duración en minutos entre dos ISO UTC; null si inválido. */

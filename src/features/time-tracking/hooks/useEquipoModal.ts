@@ -6,7 +6,7 @@ import {
   minutesGrossWorkDay,
   utcToLocalHHMM,
 } from "@/shared/utils/time";
-import { isAusenciaRazon } from "@/features/time-tracking/utils/formatters";
+import { isSinJornadaImputableRazon } from "@/features/time-tracking/utils/formatters";
 import { MOCK_RRHH_LAST_MODIFIER } from "@/mocks/time-tracking.mock";
 import type { TimeEntryMock } from "@/features/time-tracking/types";
 
@@ -32,6 +32,8 @@ export function useEquipoModal({
     workDate: string;
     existing: TimeEntryMock | null;
     isWeekendFila: boolean;
+    /** Nombre mostrado en cabecera (p. ej. usuario API); si falta se usa mock por workerId. */
+    personaLabel?: string | null;
   }>(null);
   const [equipoModalVista, setEquipoModalVista] = useState<"menu" | "horario">("menu");
   const [equipoFormIn, setEquipoFormIn] = useState("08:00");
@@ -70,11 +72,12 @@ export function useEquipoModal({
     workDate: string;
     existing: TimeEntryMock | null;
     isWeekendFila: boolean;
+    personaLabel?: string | null;
   }) => {
     setEquipoModalVista("menu");
     setEquipoFormError(null);
     const ex = opts.existing;
-    if (ex && !isAusenciaRazon(ex.razon) && ex.checkOutUtc) {
+    if (ex && !isSinJornadaImputableRazon(ex.razon) && ex.checkOutUtc) {
       setEquipoFormIn(utcToLocalHHMM(ex.checkInUtc));
       setEquipoFormOut(utcToLocalHHMM(ex.checkOutUtc));
       setEquipoFormBreak(ex.breakMinutes ?? 30);
@@ -92,7 +95,7 @@ export function useEquipoModal({
     setEquipoFormError(null);
   };
 
-  const guardarEquipoVacacionesOBaja = (tipo: "vacaciones" | "baja") => {
+  const guardarEquipoVacacionesOBaja = (tipo: "vacaciones" | "baja" | "dia_no_laboral") => {
     if (!equipoModal) return;
     const { workerId, workDate, existing } = equipoModal;
     const email = user?.email ?? MOCK_RRHH_LAST_MODIFIER;
@@ -100,7 +103,7 @@ export function useEquipoModal({
     const now = new Date().toISOString();
     let previousCheckInUtc: string | null = null;
     let previousCheckOutUtc: string | null = null;
-    if (existing && !isAusenciaRazon(existing.razon)) {
+    if (existing && !isSinJornadaImputableRazon(existing.razon)) {
       previousCheckInUtc = existing.checkInUtc;
       previousCheckOutUtc = existing.checkOutUtc;
     } else if (existing?.previousCheckInUtc || existing?.previousCheckOutUtc) {
@@ -128,7 +131,12 @@ export function useEquipoModal({
           updatedAtUtc: now,
           updatedBy: 1,
           breakMinutes: 0,
-          razon: tipo === "vacaciones" ? "ausencia_vacaciones" : "ausencia_baja",
+          razon:
+            tipo === "vacaciones"
+              ? "ausencia_vacaciones"
+              : tipo === "baja"
+                ? "ausencia_baja"
+                : "dia_no_laboral",
           lastModifiedByEmail: email,
           lastModifiedByName: name,
           previousCheckInUtc,
@@ -161,13 +169,13 @@ export function useEquipoModal({
     const now = new Date().toISOString();
     const checkInUtc = dateTimeLocalToUtcIso(workDate, equipoFormIn);
     const checkOutUtc = checkoutLocalIsoAfterCheckin(workDate, checkInUtc, equipoFormOut);
-    const hadJornadaReal = Boolean(existing && !isAusenciaRazon(existing.razon));
+    const hadJornadaReal = Boolean(existing && !isSinJornadaImputableRazon(existing.razon));
     let previousCheckInUtc: string | null = null;
     let previousCheckOutUtc: string | null = null;
     if (hadJornadaReal && existing) {
       previousCheckInUtc = existing.checkInUtc;
       previousCheckOutUtc = existing.checkOutUtc;
-    } else if (existing && isAusenciaRazon(existing.razon)) {
+    } else if (existing && isSinJornadaImputableRazon(existing.razon)) {
       previousCheckInUtc = existing.previousCheckInUtc ?? null;
       previousCheckOutUtc = existing.previousCheckOutUtc ?? null;
     }
