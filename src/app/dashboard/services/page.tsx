@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { ApiError } from "@/lib/api-client";
 import { getCompaniesFromApi, workServicesApi } from "@/services";
 import type { WorkService } from "@/types";
@@ -188,6 +189,12 @@ export default function ServicesPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700">
               <tr>
+                <th
+                  scope="col"
+                  className="w-12 px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400"
+                >
+                  N.º
+                </th>
                 <th className="px-4 py-3">
                   <button
                     type="button"
@@ -203,8 +210,11 @@ export default function ServicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-600">
-              {filteredSorted.map((row) => (
+              {filteredSorted.map((row, lineIndex) => (
                 <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
+                  <td className="px-2 py-3 text-center tabular-nums text-slate-500 dark:text-slate-400">
+                    {lineIndex + 1}
+                  </td>
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
                     {row.name}
                   </td>
@@ -267,14 +277,14 @@ export default function ServicesPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
           onClick={closeModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="svc-form-title"
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:border dark:border-slate-600 dark:bg-slate-800"
+            className={modalScrollablePanel("md")}
             onClick={(e) => e.stopPropagation()}
           >
             <h2

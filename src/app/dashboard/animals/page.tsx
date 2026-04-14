@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { MOCK_ANIMALS, MOCK_FARMS, MOCK_SPECIES } from "@/data/mock";
 import type { Animal as AnimalType, AnimalSex } from "@/types";
 
@@ -335,14 +336,14 @@ export default function AnimalsPage() {
       {/* Modal crear/editar */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
           onClick={closeModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="animal-form-title"
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-800 dark:border dark:border-slate-600"
+            className={modalScrollablePanel("md")}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="animal-form-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">

@@ -54,30 +54,56 @@ export function ClockPanel({
   todayEntriesPersonal,
   sessionEmail,
 }: ClockPanelProps) {
+  const estadoEtiqueta = hasOpenEntry
+    ? "En curso"
+    : jornadaCompletadaHoy
+      ? "Completada"
+      : "Sin iniciar";
+  const estadoPillClass = hasOpenEntry
+    ? "bg-emerald-100 text-emerald-900 ring-emerald-500/20 dark:bg-emerald-950/60 dark:text-emerald-200 dark:ring-emerald-500/30"
+    : jornadaCompletadaHoy
+      ? "bg-slate-200/90 text-slate-800 ring-slate-400/25 dark:bg-slate-700 dark:text-slate-100 dark:ring-slate-500/30"
+      : "bg-slate-100 text-slate-700 ring-slate-400/20 dark:bg-slate-800 dark:text-slate-200 dark:ring-slate-500/25";
+
+  /** Misma “caja” que el bloque de tabla del histórico (dentro del marco común de la página). */
+  const panelBox =
+    "rounded-2xl border border-slate-200/70 bg-white/95 p-4 dark:border-slate-700/80 dark:bg-slate-900/70 sm:p-5";
+
   return (
-    <section className="min-w-0 space-y-3">
-      {/* Tarjeta: Estado de hoy */}
-      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90 sm:p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Estado de hoy
-        </p>
+    <section className="min-w-0 space-y-4">
+      {/* Estado de hoy */}
+      <div className={`min-w-0 ${panelBox}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-agro-600 dark:text-agro-400">
+            Estado de hoy
+          </p>
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${estadoPillClass}`}
+          >
+            {estadoEtiqueta}
+          </span>
+        </div>
         {hasOpenEntry && openEntry?.entradaManual && (
           <div
-            className="mt-2 flex items-center gap-2 rounded-lg border border-amber-600 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 dark:border-amber-500 dark:bg-amber-950/50 dark:text-amber-100"
+            className="mt-3 flex items-start gap-2.5 rounded-2xl border border-amber-200/90 bg-amber-50/90 px-3 py-2.5 text-xs font-medium leading-snug text-amber-950 dark:border-amber-700/50 dark:bg-amber-950/35 dark:text-amber-100"
             role="status"
           >
-            <span aria-hidden>⚠️</span>
-            Entrada registrada manualmente — cuando termines, fichá la salida con normalidad.
+            <span className="shrink-0 text-base" aria-hidden>
+              ⚠️
+            </span>
+            <span>
+              Entrada registrada manualmente — cuando termines, fichá la salida con normalidad.
+            </span>
           </div>
         )}
-        <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">
+        <h2 className="mt-3 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">
           {hasOpenEntry
             ? "Jornada en curso"
             : jornadaCompletadaHoy
               ? "Jornada completada"
               : "Fuera de jornada"}
         </h2>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
           {hasOpenEntry ? (
             <>
               Has fichado la entrada a las{" "}
@@ -107,16 +133,16 @@ export function ClockPanel({
           )}
         </p>
 
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-5 flex flex-col gap-3">
           {!jornadaCompletadaHoy && (
             <button
               type="button"
               onClick={hasOpenEntry ? onCheckOut : onCheckIn}
               disabled={actionLoading !== null || forgotStep !== "closed"}
-              className={`inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              className={`inline-flex min-h-[3rem] items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
                 hasOpenEntry
-                  ? "bg-rose-600 hover:bg-rose-700 focus:ring-rose-500"
-                  : "bg-agro-600 hover:bg-agro-700 focus:ring-agro-500"
+                  ? "bg-rose-600 shadow-rose-600/20 hover:bg-rose-700 focus-visible:ring-rose-500"
+                  : "bg-agro-600 shadow-agro-600/25 hover:bg-agro-700 focus-visible:ring-agro-500"
               } disabled:cursor-not-allowed disabled:opacity-70`}
             >
               {actionLoading === "checkin" && "Registrando entrada…"}
@@ -130,12 +156,12 @@ export function ClockPanel({
             disabled={
               !olvideFicharBotonActivo || actionLoading !== null || forgotStep !== "closed"
             }
-            className="inline-flex items-center justify-center rounded-xl border-2 border-dashed border-amber-600/70 bg-amber-50/80 px-4 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
+            className="inline-flex min-h-[2.75rem] items-center justify-center rounded-2xl border border-amber-300/90 bg-amber-50/70 px-4 py-2.5 text-sm font-semibold text-amber-950 transition hover:bg-amber-100/90 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-600/50 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:bg-amber-950/50"
           >
             Olvidé fichar
           </button>
           {hayDiasSinCuadrarEnHistorico && (
-            <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+            <div className="space-y-2 rounded-2xl bg-slate-50 px-3 py-2.5 text-[11px] leading-relaxed text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
               <p>
                 Puedes fichar con normalidad; la regularización de días pasados la coordina
                 administración.
@@ -151,7 +177,7 @@ export function ClockPanel({
               )}
             </div>
           )}
-          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+          <p className="rounded-xl bg-slate-50/90 px-3 py-2 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
             {jornadaCompletadaHoy
               ? "Normativa: un solo registro de entrada y salida por día natural."
               : "Los horarios se guardan en hora UTC en el servidor para asegurar un registro coherente en todos los dispositivos."}
@@ -159,27 +185,27 @@ export function ClockPanel({
         </div>
 
         {error && (
-          <p className="mt-3 rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-900/30 dark:text-rose-200">
+          <p className="mt-4 rounded-2xl border border-rose-200/80 bg-rose-50 px-3.5 py-2.5 text-xs font-medium leading-snug text-rose-900 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-100">
             {error}
           </p>
         )}
       </div>
 
-      {/* Tarjeta: Resumen de hoy */}
-      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur dark:border-slate-600 dark:bg-slate-800/90 sm:p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      {/* Resumen de hoy */}
+      <div className={`min-w-0 ${panelBox}`}>
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-agro-600 dark:text-agro-400">
           Resumen de hoy
         </p>
         {loading ? (
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
             Cargando registros…
           </p>
         ) : todayEntriesPersonal.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          <p className="mt-3 rounded-2xl border border-dashed border-slate-200/90 bg-white/60 py-6 text-center text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-900/30 dark:text-slate-400">
             Hoy todavía no hay fichajes registrados.
           </p>
         ) : (
-          <ul className="mt-3 space-y-2 text-sm text-slate-700 dark:text-slate-200">
+          <ul className="mt-3 space-y-2.5 text-sm text-slate-700 dark:text-slate-200">
             {todayEntriesPersonal
               .slice()
               .sort(
@@ -189,7 +215,7 @@ export function ClockPanel({
               .map((e) => (
                 <li
                   key={e.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 dark:border-slate-600 dark:bg-slate-700/60"
+                  className="rounded-2xl border border-slate-200/60 bg-white px-3.5 py-2.5 shadow-sm dark:border-slate-600/60 dark:bg-slate-900/50"
                 >
                   <div className="flex flex-col">
                     <p className="text-xs font-medium text-slate-500 dark:text-slate-400">

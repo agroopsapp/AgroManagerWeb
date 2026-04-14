@@ -8,9 +8,16 @@ import {
 } from "@/shared/utils/time";
 import type { ForgotMode, ForgotStep, TimeEntryMock } from "@/features/time-tracking/types";
 import { ApiError } from "@/lib/api-client";
-import { timeTrackingApi } from "@/services/time-tracking.service";
+import { getMyCompanyProfile } from "@/lib/myCompanyProfile";
+import { usersApi } from "@/services/users.service";
+import { breakSummaryFromMinutes, timeTrackingApi } from "@/services/time-tracking.service";
 
-type AuthUser = { id?: string; email?: string | null; role?: string } | null | undefined;
+type AuthUser = {
+  id?: string;
+  email?: string | null;
+  role?: string;
+  companyId?: string | null;
+} | null | undefined;
 
 interface Params {
   miWorkerId: number;
@@ -91,6 +98,37 @@ export function useForgotModal({
     setForgotStep("full_start");
   }, []);
 
+  /**
+   * POST /api/TimeEntries exige `companyId` GUID; `""` provoca 400 en ASP.NET.
+   * Orden: sesión (login) → fichajes cargados → GET Users → perfil «Mi empresa» (local).
+   */
+  const resolveCompanyIdForManualClosed = async (): Promise<string | null> => {
+    const fromSession =
+      typeof user?.companyId === "string" && user.companyId.trim().length > 0
+        ? user.companyId.trim()
+        : null;
+    if (fromSession) return fromSession;
+
+    const fromEntries = entries.find(
+      (e) => typeof e.companyId === "string" && e.companyId.trim().length > 0,
+    )?.companyId?.trim();
+    if (fromEntries) return fromEntries;
+
+    if (typeof user?.id === "string" && user.id.trim().length > 0) {
+      try {
+        const u = await usersApi.getById(user.id.trim());
+        const c = u.companyId?.trim();
+        if (c) return c;
+      } catch {
+        /* seguir con perfil local */
+      }
+    }
+
+    const profile = getMyCompanyProfile();
+    const fromProfile = profile?.companyId?.trim();
+    return fromProfile && fromProfile.length > 0 ? fromProfile : null;
+  };
+
   const submitForgotSoloEntrada = () => {
     const today = localTodayISO();
     if (!forgotTargetDate) return;
@@ -153,12 +191,19 @@ export function useForgotModal({
         return;
       }
     }
-    const companyId =
-      entries.find((e) => typeof e.companyId === "string" && e.companyId.trim().length > 0)
-        ?.companyId ?? "";
     const userId = typeof user?.id === "string" && user.id.trim().length > 0 ? user.id : null;
     if (!userId) {
       setForgotError("No se pudo resolver userId para registrar el fichaje.");
+      return;
+    }
+
+    const companyId = await resolveCompanyIdForManualClosed();
+    if (!companyId) {
+      setForgotError(
+        "Falta la empresa (companyId) para registrar la jornada. El servidor no acepta un GUID vacío. " +
+          "Debería venir en el login; si acaban de asignarte empresa, cierra sesión y vuelve a entrar. " +
+          "Si sigue fallando, revisa «Mi empresa» o contacta con administración.",
+      );
       return;
     }
 
@@ -171,8 +216,8 @@ export function useForgotModal({
         workDate: forgotTargetDate,
         startAt: checkInUtc,
         endAt: checkOutUtc,
-        status: "Closed",
         breakMinutes: breakMin,
+        breakSummary: breakSummaryFromMinutes(breakMin),
       });
       createdEntry = newEntry;
       setEntries((prev) => [
@@ -227,7 +272,7 @@ export function useForgotModal({
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
         : `ln-${Date.now()}`;
-    setWorkPartLines([{ lineId: lid, companyId: "", serviceId: "", areaId: "" }]);
+    setWorkPartLines([{ lineId: lid, companyId, serviceId: "", areaId: "" }]);
     resetForgotModal();
     setRestModalStep("workPart");
   };

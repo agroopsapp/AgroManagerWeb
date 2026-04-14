@@ -9,11 +9,17 @@ type FeaturesState = {
   enableAnimals: boolean;
   /** Fichador / registro de jornada (premium); lo activa solo SuperAdmin en Ajustes. */
   enableTimeTracking: boolean;
+  /**
+   * Tareas, incidencias, animales, granjas y estadísticas en menú. Si false, solo quedan Panel,
+   * Jornada (si aplica), datos administrativos y Ajustes.
+   */
+  enableOperativaYAnalisisMenu: boolean;
 };
 
 interface FeaturesContextType extends FeaturesState {
   setEnableAnimals: (value: boolean) => void;
   setEnableTimeTracking: (value: boolean) => void;
+  setEnableOperativaYAnalisisMenu: (value: boolean) => void;
 }
 
 const STORAGE_KEY = "agromanager_features";
@@ -21,6 +27,7 @@ const STORAGE_KEY = "agromanager_features";
 const DEFAULT_FEATURES: FeaturesState = {
   enableAnimals: true,
   enableTimeTracking: true,
+  enableOperativaYAnalisisMenu: true,
 };
 
 const FeaturesContext = createContext<FeaturesContextType | undefined>(undefined);
@@ -41,6 +48,10 @@ function readStored(): FeaturesState {
         typeof parsed.enableTimeTracking === "boolean"
           ? parsed.enableTimeTracking
           : DEFAULT_FEATURES.enableTimeTracking,
+      enableOperativaYAnalisisMenu:
+        typeof parsed.enableOperativaYAnalisisMenu === "boolean"
+          ? parsed.enableOperativaYAnalisisMenu
+          : DEFAULT_FEATURES.enableOperativaYAnalisisMenu,
     };
   } catch {
     return DEFAULT_FEATURES;
@@ -79,14 +90,31 @@ export function FeaturesProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const setEnableOperativaYAnalisisMenu = useCallback((value: boolean) => {
+    setState((s) => {
+      const next = { ...s, enableOperativaYAnalisisMenu: value };
+      persist(next);
+      return next;
+    });
+  }, []);
+
   const ctxValue = useMemo<FeaturesContextType>(
     () => ({
       enableAnimals: state.enableAnimals,
       enableTimeTracking: state.enableTimeTracking,
+      enableOperativaYAnalisisMenu: state.enableOperativaYAnalisisMenu,
       setEnableAnimals,
       setEnableTimeTracking,
+      setEnableOperativaYAnalisisMenu,
     }),
-    [state.enableAnimals, state.enableTimeTracking, setEnableAnimals, setEnableTimeTracking],
+    [
+      state.enableAnimals,
+      state.enableTimeTracking,
+      state.enableOperativaYAnalisisMenu,
+      setEnableAnimals,
+      setEnableTimeTracking,
+      setEnableOperativaYAnalisisMenu,
+    ],
   );
 
   return (

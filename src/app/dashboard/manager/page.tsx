@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { USER_ROLE } from "@/types";
+import { useFeatures } from "@/contexts/FeaturesContext";
+import { workerHomePath } from "@/lib/dashboardNavGating";
 import { useEquipo } from "@/features/time-tracking/hooks/useEquipo";
 import { useEquipoModal } from "@/features/time-tracking/hooks/useEquipoModal";
 import { useEquipoPart } from "@/features/time-tracking/hooks/useEquipoPart";
@@ -12,13 +14,17 @@ import { EquipoPartModal } from "@/features/time-tracking/components/EquipoPartM
 
 export default function ManagerPage() {
   const { user, isReady } = useAuth();
+  const { enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const router = useRouter();
 
   useEffect(() => {
     if (!isReady) return;
     if (!user) { router.replace("/login"); return; }
-    if (user.role === USER_ROLE.Worker) { router.replace("/dashboard/tasks"); return; }
-  }, [user, isReady, router]);
+    if (user.role === USER_ROLE.Worker) {
+      router.replace(workerHomePath(enableTimeTracking, enableOperativaYAnalisisMenu));
+      return;
+    }
+  }, [user, isReady, router, enableOperativaYAnalisisMenu, enableTimeTracking]);
 
   const equipo = useEquipo({
     enableEquipoCompanyFilter:
@@ -29,10 +35,12 @@ export default function ManagerPage() {
 
   const equipoModal = useEquipoModal({
     user,
-    setTeamHistorialEntries: equipo.setTeamHistorialEntries,
     equipoTablaScrollRef: equipo.equipoTablaScrollRef,
     equipoRestaurarScroll: equipo.equipoRestaurarScroll,
     equipoMarcarRestaurarScroll: equipo.equipoMarcarRestaurarScroll,
+    refetchEquipoRows: equipo.refetchEquipoRows,
+    equipoWorkersCatalog: equipo.equipoWorkersOpciones,
+    equipoSuperAdminCompanyId: equipo.equipoSuperAdminCompanyId,
   });
 
   const equipoPart = useEquipoPart({
@@ -88,9 +96,19 @@ export default function ManagerPage() {
         opcionesMes={equipo.opcionesMesEquipo}
         opcionesTrimestre={equipo.opcionesTrimestre}
         opcionesAnio={equipo.opcionesAnio}
+        gridMesDetalleEnAnio={
+          equipo.equipoPeriodo === "anio"
+            ? {
+                mesPagina: equipo.equipoAnioMesPagina,
+                opcionesMes: equipo.opcionesMesDentroAnioEquipo,
+                onMesPaginaChange: equipo.setEquipoAnioMesPagina,
+              }
+            : undefined
+        }
         totalMinutos={equipo.totalMinutosImputadosMes}
         totalHorasDecimal={equipo.totalHorasDecimalMes}
         rowsFiltradas={equipo.equipoRowsFiltradas}
+        kpiRegistrosEnPeriodo={equipo.equipoRegistrosPeriodoKpi}
         diasLaborables={equipo.diasLaborablesMesEquipo}
         personasEnObjetivo={equipo.personasEnObjetivo}
         horasObjetivo={equipo.horasObjetivoMesTeorico}
@@ -105,15 +123,38 @@ export default function ManagerPage() {
         partesEquipoStats={equipo.partesEquipoStats}
         diasCalendario={equipo.diasCalendarioMesEquipo}
         filasOrdenadas={equipo.equipoFilasVista}
+        equipoCapTrabajoDiarioMinutos={equipo.equipoCapTrabajoDiarioMinutos}
         sort={equipo.equipoSort}
         tablaScrollRef={equipo.equipoTablaScrollRef}
         editModalState={equipoModal.equipoModal}
         editModalVista={equipoModal.equipoModalVista}
-        editFormIn={equipoModal.equipoFormIn}
-        editFormOut={equipoModal.equipoFormOut}
-        editFormBreak={equipoModal.equipoFormBreak}
-        editFormNota={equipoModal.equipoFormNota}
         editFormError={equipoModal.equipoFormError}
+        editAbsenceSaving={equipoModal.equipoAbsenceSaving}
+        horarioWizard={{
+          step: equipoModal.horarioWizardStep,
+          setStep: equipoModal.setHorarioWizardStep,
+          targetDate: equipoModal.horarioWizardTargetDate,
+          setTargetDate: equipoModal.setHorarioWizardTargetDate,
+          fullStart: equipoModal.horarioFullStart,
+          setFullStart: equipoModal.setHorarioFullStart,
+          fullEnd: equipoModal.horarioFullEnd,
+          setFullEnd: equipoModal.setHorarioFullEnd,
+          forgotMode: equipoModal.horarioWizardForgotMode,
+          setForgotMode: equipoModal.setHorarioWizardForgotMode,
+          fullBreakMins: equipoModal.horarioFullBreakMins,
+          setFullBreakMins: equipoModal.setHorarioFullBreakMins,
+          fullBreakCustom: equipoModal.horarioFullBreakCustom,
+          setFullBreakCustom: equipoModal.setHorarioFullBreakCustom,
+          breakOtro: equipoModal.horarioBreakOtro,
+          setBreakOtro: equipoModal.setHorarioBreakOtro,
+          wizardError: equipoModal.horarioWizardError,
+          setWizardError: equipoModal.setHorarioWizardError,
+          saving: equipoModal.horarioWizardSaving,
+          onEnterWizard: equipoModal.enterEquipoHorarioWizard,
+          onBackWizardToMenu: equipoModal.volverEquipoHorarioWizardAMenu,
+          onSubmitJornada: (forced) =>
+            void equipoModal.submitEquipoHorarioJornadaCompleta(forced),
+        }}
         onSetPeriodo={equipo.setEquipoPeriodo}
         onSetDia={equipo.setEquipoDia}
         onSetMes={equipo.setMesEquipo}
@@ -126,14 +167,8 @@ export default function ManagerPage() {
         onSetSortColumn={equipo.setEquipoSortColumn}
         onOpenEditModal={equipoModal.openEquipoEditModal}
         onCloseEditModal={equipoModal.cerrarEquipoModal}
-        onSetModalVista={equipoModal.setEquipoModalVista}
         onGuardarVacaciones={equipoModal.guardarEquipoVacacionesOBaja}
         onSetFormError={equipoModal.setEquipoFormError}
-        onGuardarHorario={equipoModal.guardarEquipoHorarioManual}
-        onSetFormIn={equipoModal.setEquipoFormIn}
-        onSetFormOut={equipoModal.setEquipoFormOut}
-        onSetFormBreak={equipoModal.setEquipoFormBreak}
-        onSetFormNota={equipoModal.setEquipoFormNota}
         onOpenPartEditor={equipoPart.openEquipoPartEditor}
       />
 

@@ -17,10 +17,29 @@ export interface LoginRequest {
   password: string;
 }
 
+/** Usuario en la respuesta de POST /api/Auth/login (API real + variantes habituales). */
+export interface LoginResponseUser {
+  id: string;
+  email: string;
+  role: string;
+  /** GUID empresa tenant cuando existe en BD (misma idea que claim JWT `company_id`). */
+  companyId?: string | null;
+  company_id?: string | null;
+  CompanyId?: string | null;
+}
+
 export interface LoginResponse {
   token: string;
   expiresIn: number;
-  user: { id: string; email: string; role: string };
+  user: LoginResponseUser;
+}
+
+/** Unifica camelCase / snake_case / Pascal del JSON de login. */
+export function pickCompanyIdFromLoginUser(user: LoginResponseUser): string | undefined {
+  const raw = user.companyId ?? user.company_id ?? user.CompanyId;
+  if (typeof raw !== "string") return undefined;
+  const t = raw.trim();
+  return t.length > 0 ? t : undefined;
 }
 
 export const authApi = {

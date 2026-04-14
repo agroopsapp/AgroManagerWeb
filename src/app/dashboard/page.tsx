@@ -12,7 +12,9 @@ import { USER_ROLE, formatTaskId } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTasks } from "@/contexts/TasksContext";
 import DatePicker from "@/components/DatePicker";
+import { MODAL_BACKDROP_CENTER, MODAL_SURFACE, MODAL_SURFACE_PAD } from "@/components/modalShell";
 import { useFeatures } from "@/contexts/FeaturesContext";
+import { workerHomePath } from "@/lib/dashboardNavGating";
 import DashboardAvisos from "@/components/DashboardAvisos";
 import { useRouter } from "next/navigation";
 
@@ -199,7 +201,7 @@ function IncidentPreviewCard({ incident }: IncidentPreviewProps) {
 
 export default function DashboardPage() {
   const { user, isReady } = useAuth();
-  const { enableAnimals } = useFeatures();
+  const { enableAnimals, enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const { tasks, generalTasks } = useTasks();
   const role: UserRole | undefined = user?.role;
   const isSuperAdmin = role === USER_ROLE.SuperAdmin;
@@ -211,9 +213,9 @@ export default function DashboardPage() {
     if (!isReady) return;
     if (!user?.role) return;
     if (user.role === USER_ROLE.Worker) {
-      router.replace("/dashboard/tasks");
+      router.replace(workerHomePath(enableTimeTracking, enableOperativaYAnalisisMenu));
     }
-  }, [isReady, user?.role, router]);
+  }, [isReady, user?.role, router, enableOperativaYAnalisisMenu, enableTimeTracking]);
 
   const isRedirecting = isReady && user?.role === USER_ROLE.Worker;
 
@@ -987,14 +989,14 @@ export default function DashboardPage() {
       {/* Modal para seleccionar semana con calendario completo */}
       {showWeekPicker && (
         <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
+          className={`fixed inset-0 z-40 ${MODAL_BACKDROP_CENTER}`}
           onClick={() => setShowWeekPicker(false)}
           role="dialog"
           aria-modal="true"
           aria-label="Elegir semana en el calendario"
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-white p-4 shadow-2xl dark:bg-slate-800 dark:border dark:border-slate-600"
+            className={`w-full max-w-md ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between gap-2">

@@ -122,6 +122,16 @@ export function formatDateES(iso: string): string {
   });
 }
 
+/** Tabla equipo: «lunes 13/04/2026» (menos ancho que `formatDateES`). */
+export function formatDateEsWeekdayDdMmYyyy(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const weekday = d.toLocaleDateString("es-ES", { weekday: "long" });
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${weekday} ${dd}/${mm}/${yyyy}`;
+}
+
 export function formatTimeLocal(utcIso: string | null): string {
   if (!utcIso) return "—";
   const d = new Date(utcIso);

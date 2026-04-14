@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { MODAL_BACKDROP_CENTER, MODAL_SURFACE, MODAL_SURFACE_PAD, modalFramePanel } from "@/components/modalShell";
 import type { Task as TaskType, TaskPriority, TaskStatus } from "@/types";
 import { formatTaskId } from "@/types";
 import DatePicker from "@/components/DatePicker";
@@ -343,14 +344,14 @@ export default function TaskCard({
       {/* Modal Detalles */}
       {detailsOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
           onClick={closeDetails}
           role="dialog"
           aria-modal="true"
           aria-labelledby="details-title"
         >
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-slate-800 dark:border dark:border-slate-600"
+            className={modalFramePanel("lg", { className: "flex flex-col" })}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-600">
@@ -465,14 +466,14 @@ export default function TaskCard({
       {/* Modal Cambiar día */}
       {dateChangeOpen && onDateChange && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
           onClick={() => setDateChangeOpen(false)}
           role="dialog"
           aria-modal="true"
           aria-labelledby="change-date-title"
         >
           <div
-            className="w-full max-w-sm rounded-xl bg-white p-4 shadow-xl dark:bg-slate-800 dark:border dark:border-slate-600"
+            className={`w-full max-w-sm ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="change-date-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">
@@ -510,14 +511,14 @@ export default function TaskCard({
       {/* Modal confirmar eliminación */}
       {deleteConfirm && onDelete && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          className={`fixed inset-0 z-[60] ${MODAL_BACKDROP_CENTER}`}
           onClick={() => setDeleteConfirm(false)}
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-task-title"
         >
           <div
-            className="w-full max-w-xs rounded-xl bg-white p-4 shadow-xl dark:bg-slate-800 dark:border dark:border-slate-600"
+            className={`w-full max-w-xs ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="delete-task-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">

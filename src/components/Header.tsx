@@ -4,7 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { USER_ROLE } from "@/types";
+import { useFeatures } from "@/contexts/FeaturesContext";
+import { appHomePath } from "@/lib/dashboardNavGating";
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -13,8 +14,9 @@ interface HeaderProps {
 
 export default function Header({ onToggleMobileSidebar, onToggleQuickMenu }: HeaderProps) {
   const { user, logout } = useAuth();
+  const { enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const router = useRouter();
-  const panelHref = user?.role === USER_ROLE.Worker ? "/dashboard/tasks" : "/dashboard";
+  const panelHref = appHomePath(user?.role, enableTimeTracking, enableOperativaYAnalisisMenu);
 
   const handleLogout = () => {
     logout();

@@ -1,6 +1,7 @@
 "use client";
 
 import type { AyerCompletaStep } from "@/features/time-tracking/types";
+import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { BreakDurationCombos } from "./BreakDurationCombos";
 import { TimeSelect24h } from "./TimeSelect24h";
 import { formatDateES, formatMinutesShort } from "@/shared/utils/time";
@@ -45,8 +46,8 @@ export function AyerCompletaModal({
   onSubmit,
 }: AyerCompletaModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-xl dark:border dark:border-slate-600 dark:bg-slate-800">
+    <div className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}>
+      <div className={modalScrollablePanel("md")}>
         <div className="mb-3 flex items-start justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-rose-700 dark:text-rose-400">
             Registro manual del día anterior

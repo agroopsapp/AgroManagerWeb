@@ -21,76 +21,74 @@ export const PartesEnDiasDonut = memo(function PartesEnDiasDonut({
       : `conic-gradient(from -90deg, ${cOk} 0% ${p1}%, ${cNo} ${p1}% 100%)`;
 
   return (
-    <div className="equipo-dona-card flex min-h-[26rem] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white px-3 py-4 shadow-sm sm:min-h-[27rem] sm:px-4 sm:py-5 lg:h-full lg:min-h-0 dark:border-slate-600 dark:bg-white">
-      <p className="mb-3 min-h-[4rem] text-center text-sm font-semibold leading-snug text-slate-800 sm:mb-4 sm:min-h-[2.75rem] dark:text-slate-900">
+    <div className="equipo-dona-card flex w-full min-w-0 max-w-full flex-col overflow-hidden rounded-2xl border border-slate-200/65 bg-white px-3 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:px-4 sm:py-4 dark:border-slate-700/75 dark:bg-slate-900/45 dark:shadow-none">
+      <p className="mb-2 text-center text-sm font-semibold leading-tight text-slate-800 dark:text-slate-100 sm:text-base">
         Días imputados con parte
       </p>
-      <div className="flex min-h-0 flex-1 flex-col items-center gap-4 sm:gap-5">
-        <div className="relative mx-auto h-40 w-40 shrink-0 sm:h-44 sm:w-44">
-          <div
-            className="h-full w-full rounded-full shadow-md ring-1 ring-slate-200/80"
-            style={{
-              background: gradient,
-              mask: "radial-gradient(transparent 56%, black 57%)",
-              WebkitMask: "radial-gradient(transparent 56%, black 57%)",
-            }}
-          />
-          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
-            {diasImputados > 0 ? (
-              <>
-                <span className="text-2xl font-bold leading-none tabular-nums text-agro-800 sm:text-3xl dark:text-agro-900">
+      <div className="flex min-h-0 flex-col items-center gap-2 sm:gap-3">
+        <div className="flex w-full flex-col items-center gap-1.5">
+          <div className="relative mx-auto h-[7rem] w-[7rem] shrink-0 sm:h-[7.5rem] sm:w-[7.5rem]">
+            <div
+              className="h-full w-full rounded-full shadow-sm ring-1 ring-slate-200/80"
+              style={{
+                background: gradient,
+                mask: "radial-gradient(transparent 55%, black 56%)",
+                WebkitMask: "radial-gradient(transparent 55%, black 56%)",
+              }}
+            />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center">
+              {diasImputados > 0 ? (
+                <span className="text-2xl font-bold leading-none tabular-nums text-agro-800 sm:text-3xl dark:text-emerald-400">
                   {pct}%
                 </span>
-                <span className="mt-1 max-w-[7rem] text-[10px] font-medium leading-tight text-slate-500 dark:text-slate-600">
-                  de días imputados con parte
+              ) : (
+                <span className="max-w-[6.5rem] text-center text-sm font-medium leading-snug text-slate-500 dark:text-slate-400">
+                  Sin datos en el filtro
                 </span>
-              </>
-            ) : (
-              <span className="flex min-h-[2.75rem] max-w-[7rem] items-center justify-center px-2 text-center text-[11px] font-medium leading-snug text-slate-500">
-                Sin datos en el filtro
-              </span>
-            )}
+              )}
+            </div>
           </div>
+          {diasImputados > 0 ? (
+            <p className="max-w-[13rem] px-1 text-center text-sm font-medium leading-snug text-slate-600 dark:text-slate-300">
+              De días imputados con parte
+            </p>
+          ) : null}
         </div>
-        <ul className="mt-auto w-full min-w-0 max-w-full space-y-0 px-0.5 text-sm sm:px-0">
-          <li className="flex items-start justify-between gap-3 border-b border-slate-200 py-2.5 dark:border-slate-200">
-            <span className="flex min-w-0 flex-1 items-start gap-2.5 pt-0.5">
+        <ul className="w-full min-w-0 max-w-full space-y-0 px-0.5 text-sm sm:px-0">
+          <li className="flex items-start justify-between gap-2 border-b border-slate-200 py-1.5 dark:border-slate-600/70">
+            <span className="flex min-w-0 flex-1 items-start gap-2 pt-0.5">
               <span
-                className="mt-0.5 h-3 w-3 shrink-0 rounded-sm shadow-sm ring-1 ring-slate-200/80"
+                className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-sm ring-1 ring-slate-200/80"
                 style={{ backgroundColor: cOk }}
                 aria-hidden
               />
-              <span className="text-[13px] leading-snug text-slate-600 dark:text-slate-700">
-                Con parte
-              </span>
+              <span className="leading-snug text-slate-600 dark:text-slate-300">Con parte</span>
             </span>
             <span className="shrink-0 text-right">
-              <span className="block text-base font-bold tabular-nums leading-tight text-slate-900">
+              <span className="block text-sm font-bold tabular-nums leading-tight text-slate-900 dark:text-slate-100">
                 {diasConParte}
               </span>
-              <span className="mt-0.5 block min-h-[14px] text-[10px] text-slate-500">días</span>
+              <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">días</span>
             </span>
           </li>
-          <li className="flex items-start justify-between gap-3 py-2.5">
-            <span className="flex min-w-0 flex-1 items-start gap-2.5 pt-0.5">
+          <li className="flex items-start justify-between gap-2 py-1.5">
+            <span className="flex min-w-0 flex-1 items-start gap-2 pt-0.5">
               <span
-                className="mt-0.5 h-3 w-3 shrink-0 rounded-sm shadow-sm ring-1 ring-slate-200/80"
+                className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-sm ring-1 ring-slate-200/80"
                 style={{ backgroundColor: cNo }}
                 aria-hidden
               />
-              <span className="text-[13px] leading-snug text-slate-600 dark:text-slate-700">
-                Sin parte
-              </span>
+              <span className="leading-snug text-slate-600 dark:text-slate-300">Sin parte</span>
             </span>
             <span className="shrink-0 text-right">
-              <span className="block text-base font-bold tabular-nums leading-tight text-slate-900">
+              <span className="block text-sm font-bold tabular-nums leading-tight text-slate-900 dark:text-slate-100">
                 {Math.max(0, diasImputados - diasConParte)}
               </span>
-              <span className="mt-0.5 block min-h-[14px] text-[10px] text-slate-500">días</span>
+              <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">días</span>
             </span>
           </li>
           {diasImputados > 0 && (
-            <li className="border-t border-slate-200 pt-2.5 text-center text-[10px] font-medium text-slate-500 dark:border-slate-200">
+            <li className="border-t border-slate-200 pt-1.5 text-center text-xs font-medium text-slate-500 dark:border-slate-600/70 dark:text-slate-400">
               {diasImputados} día{diasImputados !== 1 ? "s" : ""} imputado{diasImputados !== 1 ? "s" : ""} en el periodo
             </li>
           )}

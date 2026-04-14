@@ -8,6 +8,7 @@ import { USER_ROLE, formatTaskId } from "@/types";
 import type { Task, TaskFamily } from "@/types";
 import DatePicker from "@/components/DatePicker";
 import CreateTaskModal from "@/components/CreateTaskModal";
+import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -172,8 +173,8 @@ export default function UnassignedTasksPage() {
 
       {/* Modal asignar */}
       {assigningTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-600 dark:bg-slate-800">
+        <div className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}>
+          <div className={modalScrollablePanel("md")}>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Asignar tarea
             </h2>

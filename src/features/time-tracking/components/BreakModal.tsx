@@ -10,6 +10,7 @@ import {
 import { type Company, type WorkService } from "@/types";
 import { BreakDurationClock } from "./BreakDurationClock";
 import { SignaturePadDialog } from "@/components/SignaturePadDialog";
+import { MODAL_BACKDROP_SCROLL, MODAL_SURFACE, MODAL_SURFACE_PAD } from "@/components/modalShell";
 import { getApiBaseUrl } from "@/lib/api-client";
 
 type RestStep = "closed" | "askRest" | "askAmount" | "summary" | "workPart";
@@ -113,9 +114,9 @@ export function BreakModal({
       : workPartSignatureTemp;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/40 px-4 py-4 sm:items-center sm:py-6">
+    <div className={`fixed inset-0 z-40 ${MODAL_BACKDROP_SCROLL}`}>
       <div
-        className={`my-auto w-full max-h-[92vh] overflow-y-auto rounded-2xl bg-white p-4 shadow-xl dark:border dark:border-slate-600 dark:bg-slate-800 ${
+        className={`my-auto w-full max-h-[min(92vh,900px)] overflow-y-auto ${MODAL_SURFACE} ${MODAL_SURFACE_PAD} ${
           step === "workPart" ? "max-w-xl" : "max-w-sm"
         }`}
       >

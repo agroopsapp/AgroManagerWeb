@@ -28,6 +28,7 @@ import { MOCK_WORKERS, MOCK_FARMS, TASK_TEMPLATES, MOCK_RECURRING_SCHEDULES } fr
 import type { Task, TaskStatus, TaskPriority, RecurringTaskSchedule, DayOfWeek, UserRole } from "@/types";
 import { USER_ROLE, formatTaskId } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { MODAL_BACKDROP_CENTER, modalFramePanel } from "@/components/modalShell";
 import { useTasks } from "@/contexts/TasksContext";
 import TaskCard from "@/components/TaskCard";
 import CreateTaskModal from "@/components/CreateTaskModal";
@@ -876,14 +877,14 @@ export default function TasksPage() {
       {/* Modal tarea periódica */}
       {recurringModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
           onClick={closeRecurringModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="recurring-task-title"
         >
           <div
-            className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-hidden flex flex-col dark:bg-slate-800 dark:border dark:border-slate-600"
+            className={modalFramePanel("lg", { className: "flex flex-col" })}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-600">

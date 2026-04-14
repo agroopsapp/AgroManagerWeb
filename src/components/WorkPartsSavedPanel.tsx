@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SignaturePadDialog } from "@/components/SignaturePadDialog";
+import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { customerCompanyMock } from "@/lib/customerCompanyMock";
 import { downloadWorkPartPdf } from "@/lib/workPartPdf";
 import {
@@ -312,9 +313,9 @@ export function WorkPartsSavedPanel({
       </section>
 
       {editing && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-3 py-6">
+        <div className={`fixed inset-0 z-[60] ${MODAL_BACKDROP_CENTER}`}>
           <div
-            className="max-h-[min(90vh,720px)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-4 shadow-xl dark:border dark:border-slate-600 dark:bg-slate-800 sm:p-5"
+            className={modalScrollablePanel("xl")}
             role="dialog"
             aria-modal="true"
             aria-labelledby="work-part-edit-title"

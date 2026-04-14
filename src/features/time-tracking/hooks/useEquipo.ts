@@ -25,9 +25,10 @@ import {
   yearToRange,
 } from "@/shared/utils/time";
 import {
+  effectiveExtraMinutesEntry,
   effectiveWorkMinutesEntry,
   formatLastModifiedByUser,
-  formatRazon,
+  formatRazonTablaEquipo,
   isSinJornadaImputableRazon,
   RAZON_NO_LABORAL,
   RAZON_SIN_IMPUTAR,
@@ -36,7 +37,13 @@ import {
 } from "@/features/time-tracking/utils/formatters";
 import { ApiError } from "@/lib/api-client";
 import { getWorkPartsForWorker } from "@/lib/workPartsStorage";
-import { companiesApi, timeTrackingApi, usersApi, workServicesApi } from "@/services";
+import {
+  companiesApi,
+  timeTrackingApi,
+  usersApi,
+  workServicesApi,
+  type TimeEntryRowsSummaryDto,
+} from "@/services";
 import { mapTimeEntryRowsItemToMock } from "@/features/time-tracking/utils/mapTimeEntryRowsItemToMock";
 import type {
   TimeEntryMock,
@@ -93,7 +100,8 @@ function compareEquipoFila(
   b: EquipoTablaFila,
   key: EquipoSortKey,
   asc: boolean,
-  getPersonaLabel?: (f: EquipoTablaFila) => string
+  getPersonaLabel?: (f: EquipoTablaFila) => string,
+  capWorkMinutesPerDay: number = 8 * 60,
 ): number {
   const m = asc ? 1 : -1;
   const ts = (iso: string | null | undefined) =>
@@ -102,7 +110,7 @@ function compareEquipoFila(
   const wid = (f: EquipoTablaFila) => (f.kind === "registro" ? f.e.workerId : f.workerId);
   const wd = (f: EquipoTablaFila) => (f.kind === "registro" ? f.e.workDate : f.workDate);
   const razonTxt = (f: EquipoTablaFila) => {
-    if (f.kind === "registro") return formatRazon(f.e.razon);
+    if (f.kind === "registro") return formatRazonTablaEquipo(f.e);
     if (f.kind === "noLaboral") return RAZON_NO_LABORAL;
     return RAZON_SIN_IMPUTAR;
   };
@@ -174,6 +182,17 @@ function compareEquipoFila(
       cmp = bA - bB;
       break;
     }
+    case "estado": {
+      const code = (f: EquipoTablaFila) => {
+        if (f.kind !== "registro") return "\uFFFF";
+        const s = f.e.timeEntryStatus;
+        if (s === null || s === undefined) return "\uFFFE";
+        if (s === "unknown") return "\uFFFD-unknown";
+        return s;
+      };
+      cmp = code(a).localeCompare(code(b), "en");
+      break;
+    }
     case "razon":
       cmp = razonTxt(a).localeCompare(razonTxt(b), "es");
       break;
@@ -195,6 +214,12 @@ function compareEquipoFila(
       cmp = dMa - dMb;
       break;
     }
+    case "extra": {
+      const xA = eA ? effectiveExtraMinutesEntry(eA, capWorkMinutesPerDay) : -1;
+      const xB = eB ? effectiveExtraMinutesEntry(eB, capWorkMinutesPerDay) : -1;
+      cmp = xA - xB;
+      break;
+    }
     default:
       cmp = 0;
   }
@@ -211,10 +236,13 @@ function sortEquipoFilas(
   filas: EquipoTablaFila[],
   key: EquipoSortKey,
   dir: "asc" | "desc",
-  getPersonaLabel?: (f: EquipoTablaFila) => string
+  getPersonaLabel?: (f: EquipoTablaFila) => string,
+  capWorkMinutesPerDay: number = 8 * 60,
 ): EquipoTablaFila[] {
   const asc = dir === "asc";
-  return [...filas].sort((a, b) => compareEquipoFila(a, b, key, asc, getPersonaLabel));
+  return [...filas].sort((a, b) =>
+    compareEquipoFila(a, b, key, asc, getPersonaLabel, capWorkMinutesPerDay),
+  );
 }
 
 export type UseEquipoOptions = {
@@ -240,6 +268,8 @@ export function useEquipo(options?: UseEquipoOptions) {
     return `${now.getFullYear()}-Q${q}`;
   });
   const [anioEquipo, setAnioEquipo] = useState(currentYearLocal());
+  /** Con periodo «Año»: mes 1–12 del detalle (GET /rows por mes; resumen anual en /rows/summary). */
+  const [equipoAnioMesPagina, setEquipoAnioMesPagina] = useState(() => new Date().getMonth() + 1);
   /** Tabla: como radios — solo uno de los tres modos extra o ninguno. */
   const [equipoTablaFiltroExtra, setEquipoTablaFiltroExtra] =
     useState<EquipoTablaFiltroExtra>("ninguno");
@@ -257,6 +287,17 @@ export function useEquipo(options?: UseEquipoOptions) {
   const opcionesMesEquipo = useMemo(() => monthSelectOptions(12), []);
   const opcionesTrimestre = useMemo(() => quarterOptions(3), []);
   const opcionesAnio = useMemo(() => yearOptions(6), []);
+  const opcionesMesDentroAnioEquipo = useMemo(() => {
+    const y = Number(anioEquipo);
+    if (!Number.isFinite(y)) return [];
+    return Array.from({ length: 12 }, (_, i) => {
+      const m = i + 1;
+      const d = new Date(y, m - 1, 1);
+      const raw = d.toLocaleDateString("es-ES", { month: "long" });
+      const label = raw.charAt(0).toUpperCase() + raw.slice(1);
+      return { value: m, label };
+    });
+  }, [anioEquipo]);
 
   const [teamHistorialEntries, setTeamHistorialEntries] = useState<TimeEntryMock[]>([]);
   /** Trabajadores para filtro «Persona»; rellenar desde API (p. ej. grid horas equipo). */
@@ -264,6 +305,10 @@ export function useEquipo(options?: UseEquipoOptions) {
   const [equipoRowsLoading, setEquipoRowsLoading] = useState(false);
   const [equipoRowsError, setEquipoRowsError] = useState<string | null>(null);
   const [equipoRowsTotalCount, setEquipoRowsTotalCount] = useState(0);
+  /** Resumen GET /api/TimeEntries/rows/summary (KPIs y gráficos). */
+  const [equipoSummary, setEquipoSummary] = useState<TimeEntryRowsSummaryDto | null>(null);
+  const [equipoSummaryLoading, setEquipoSummaryLoading] = useState(false);
+  const [equipoSummaryError, setEquipoSummaryError] = useState<string | null>(null);
   const [equipoFetchNonce, setEquipoFetchNonce] = useState(0);
   const equipoFetchSeq = useRef(0);
 
@@ -396,13 +441,19 @@ export function useEquipo(options?: UseEquipoOptions) {
   }, [enableEquipoCompanyFilter]);
 
   /**
-   * Filtro por servicio en API: el grid denso sigue generando celdas «sin imputar» por calendario.
-   * Forzar «solo con parte en servidor» al elegir servicio evita filas vacías irrelevantes; al quitar
-   * servicio se desactiva ese checkbox (vuelve la vista completa del periodo).
+   * Servicio o empresa concreta en API: forzar «solo con parte en servidor» (misma razón que antes
+   * solo con servicio — menos ruido en el grid). Sin ambos, vuelve a ningún filtro rápido.
+   * El usuario puede cambiar después a «Sin fichar» / «Sin parte»; solo se reaplica al variar empresa/servicio.
    */
   useEffect(() => {
-    setEquipoTablaFiltroExtra(equipoServiceId?.trim() ? "soloConParteServidor" : "ninguno");
-  }, [equipoServiceId]);
+    const scopedService = Boolean(equipoServiceId?.trim());
+    const scopedCompany = Boolean(equipoSuperAdminCompanyId?.trim());
+    if (scopedService || scopedCompany) {
+      setEquipoTablaFiltroExtra("soloConParteServidor");
+    } else {
+      setEquipoTablaFiltroExtra("ninguno");
+    }
+  }, [equipoServiceId, equipoSuperAdminCompanyId]);
 
   /** Trabajadores (GET /api/Users). Misma companyId de tenant que las ClientCompanies del combo Empresa. */
   useEffect(() => {
@@ -477,30 +528,89 @@ export function useEquipo(options?: UseEquipoOptions) {
     return { label: `Año ${anioEquipo}`, ...clamped };
   }, [equipoPeriodo, equipoDia, equipoSemana, mesEquipo, trimestreEquipo, anioEquipo]);
 
-  /** Grid equipo: GET /api/TimeEntries/rows (todas las páginas → cruce denso en cliente). */
+  const prevAnioEquipoRef = useRef(anioEquipo);
+  useEffect(() => {
+    if (equipoPeriodo !== "anio") return;
+    if (prevAnioEquipoRef.current === anioEquipo) return;
+    prevAnioEquipoRef.current = anioEquipo;
+    const y = Number(anioEquipo);
+    if (!Number.isFinite(y)) return;
+    const cy = Number(currentYearLocal());
+    setEquipoAnioMesPagina(y === cy ? new Date().getMonth() + 1 : 1);
+  }, [anioEquipo, equipoPeriodo]);
+
+  const prevEquipoPeriodoRef = useRef(equipoPeriodo);
+  useEffect(() => {
+    const was = prevEquipoPeriodoRef.current;
+    prevEquipoPeriodoRef.current = equipoPeriodo;
+    if (equipoPeriodo !== "anio" || was === "anio") return;
+    const ym = parseMonthYm(mesEquipo);
+    const y = Number(anioEquipo);
+    if (!Number.isFinite(y)) return;
+    if (ym && ym.y === y) {
+      setEquipoAnioMesPagina(ym.m);
+    } else {
+      const cy = Number(currentYearLocal());
+      setEquipoAnioMesPagina(y === cy ? new Date().getMonth() + 1 : 1);
+    }
+  }, [equipoPeriodo, mesEquipo, anioEquipo]);
+
+  /** Rango que ve el usuario (mes dentro del año si periodo = año; si no, coincide con `equipoRange`). */
+  const equipoVistaRange = useMemo(() => {
+    if (!equipoRange) return null;
+    if (equipoPeriodo !== "anio") {
+      return { start: equipoRange.start, end: equipoRange.end };
+    }
+    const y = Number(anioEquipo);
+    const month = equipoAnioMesPagina;
+    if (!Number.isFinite(y) || month < 1 || month > 12) return null;
+    const start = `${y}-${String(month).padStart(2, "0")}-01`;
+    const endD = new Date(y, month, 0).getDate();
+    const end = `${y}-${String(month).padStart(2, "0")}-${String(endD).padStart(2, "0")}`;
+    const clamped = clampRangeToToday({ start, end });
+    if (!clamped) return null;
+    return { start: clamped.start, end: clamped.end };
+  }, [equipoRange, equipoPeriodo, anioEquipo, equipoAnioMesPagina]);
+
+  /** Rango del grid/tabla y de GET /rows (coincide con `equipoRange` salvo en periodo «año» → un mes). */
+  const equipoDetalleRange = useMemo(() => {
+    if (!equipoRange) return null;
+    return equipoVistaRange ?? equipoRange;
+  }, [equipoVistaRange, equipoRange]);
+
+  /** Grid: GET /api/TimeEntries/rows en `equipoVistaRange` (mes si periodo=año). Summary: `equipoRange` completo. */
   useEffect(() => {
     if (!equipoRange) {
       setTeamHistorialEntries([]);
       setEquipoRowsTotalCount(0);
       setEquipoRowsError(null);
       setEquipoRowsLoading(false);
+      setEquipoSummary(null);
+      setEquipoSummaryError(null);
+      setEquipoSummaryLoading(false);
       return;
     }
 
+    const rowsRange = equipoDetalleRange ?? equipoRange;
     const ac = new AbortController();
     const seq = ++equipoFetchSeq.current;
     const userIdForApi =
       filtroPersonaEquipo === "todas" ? undefined : filtroPersonaEquipo.trim();
+    const clientCompanyIdForApi = equipoSuperAdminCompanyId?.trim() || undefined;
+    const serviceIdForApi = equipoServiceId?.trim() || undefined;
 
     setEquipoRowsLoading(true);
     setEquipoRowsError(null);
+    setEquipoSummaryLoading(true);
+    setEquipoSummaryError(null);
 
     timeTrackingApi
       .getTimeEntryRowsAllItems({
-        from: equipoRange.start,
-        to: equipoRange.end,
+        from: rowsRange.start,
+        to: rowsRange.end,
         userId: userIdForApi,
-        serviceId: equipoServiceId?.trim() || undefined,
+        serviceId: serviceIdForApi,
+        clientCompanyId: clientCompanyIdForApi,
         signal: ac.signal,
       })
       .then(({ items, totalCount }: { items: unknown[]; totalCount: number }) => {
@@ -530,12 +640,45 @@ export function useEquipo(options?: UseEquipoOptions) {
         if (seq === equipoFetchSeq.current) setEquipoRowsLoading(false);
       });
 
+    timeTrackingApi
+      .getTimeEntryRowsSummary({
+        from: equipoRange.start,
+        to: equipoRange.end,
+        userId: userIdForApi,
+        serviceId: serviceIdForApi,
+        clientCompanyId: clientCompanyIdForApi,
+        signal: ac.signal,
+      })
+      .then((summary) => {
+        if (seq !== equipoFetchSeq.current) return;
+        setEquipoSummary(summary);
+        setEquipoSummaryError(null);
+      })
+      .catch((e: unknown) => {
+        if (ac.signal.aborted) return;
+        if (seq !== equipoFetchSeq.current) return;
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        if (e instanceof Error && e.name === "AbortError") return;
+        setEquipoSummary(null);
+        setEquipoSummaryError(
+          e instanceof ApiError && e.message.trim()
+            ? e.message.trim()
+            : "No se pudo cargar el resumen para gráficos (se usan cálculos locales).",
+        );
+      })
+      .finally(() => {
+        if (seq === equipoFetchSeq.current) setEquipoSummaryLoading(false);
+      });
+
     return () => ac.abort();
   }, [
     equipoRange?.start,
     equipoRange?.end,
+    equipoDetalleRange?.start,
+    equipoDetalleRange?.end,
     filtroPersonaEquipo,
     equipoServiceId,
+    equipoSuperAdminCompanyId,
     equipoFetchNonce,
   ]);
 
@@ -570,25 +713,34 @@ export function useEquipo(options?: UseEquipoOptions) {
   );
 
   const equipoRowsFiltradas = useMemo(() => {
-    if (!equipoRange) return [];
+    if (!equipoDetalleRange) return [];
     let rows = entriesVistaEquipo.filter(
-      (e) => e.workDate >= equipoRange.start && e.workDate <= equipoRange.end
+      (e) =>
+        e.workDate >= equipoDetalleRange.start && e.workDate <= equipoDetalleRange.end
     );
     if (filtroPersonaEquipo !== "todas") {
       rows = rows.filter((e) => entryStablePersonKey(e) === filtroPersonaEquipo);
     }
     return rows;
-  }, [entriesVistaEquipo, filtroPersonaEquipo, equipoRange]);
+  }, [entriesVistaEquipo, filtroPersonaEquipo, equipoDetalleRange]);
+
+  /** Recuento para KPI/dona «registros en periodo»: API summary si existe, si no filas cargadas. */
+  const equipoRegistrosPeriodoKpi = useMemo(() => {
+    if (equipoSummary?.timeEntryCount != null) {
+      return Math.max(0, Math.round(equipoSummary.timeEntryCount));
+    }
+    return equipoRowsFiltradas.length;
+  }, [equipoSummary, equipoRowsFiltradas]);
 
   /** Fichajes del API en [from,to], indexados para el cruce con el calendario denso. */
   const entriesMesEquipoPorPersona = useMemo(() => {
-    if (!equipoRange) return new Map<string, TimeEntryMock>();
+    if (!equipoDetalleRange) return new Map<string, TimeEntryMock>();
     return indexEquipoEntriesByPersonAndDate(
       entriesVistaEquipo,
-      equipoRange.start,
-      equipoRange.end
+      equipoDetalleRange.start,
+      equipoDetalleRange.end
     );
-  }, [entriesVistaEquipo, equipoRange]);
+  }, [entriesVistaEquipo, equipoDetalleRange]);
 
   /**
    * Eje de personas del grid: persona concreta, lista de trabajadores del API,
@@ -598,17 +750,21 @@ export function useEquipo(options?: UseEquipoOptions) {
     if (filtroPersonaEquipo !== "todas") {
       return [filtroPersonaEquipo];
     }
-    if (!equipoRange) return [];
+    if (!equipoDetalleRange) return [];
     if (equipoWorkers.length > 0) {
       return equipoWorkers.map((w) => w.id);
     }
-    return uniquePersonKeysInRange(entriesVistaEquipo, equipoRange.start, equipoRange.end);
-  }, [filtroPersonaEquipo, equipoWorkers, entriesVistaEquipo, equipoRange]);
+    return uniquePersonKeysInRange(
+      entriesVistaEquipo,
+      equipoDetalleRange.start,
+      equipoDetalleRange.end
+    );
+  }, [filtroPersonaEquipo, equipoWorkers, entriesVistaEquipo, equipoDetalleRange]);
 
   const diasCalendarioMesEquipo = useMemo(() => {
-    if (!equipoRange) return [];
-    return listDaysInRange(equipoRange.start, equipoRange.end);
-  }, [equipoRange]);
+    if (!equipoDetalleRange) return [];
+    return listDaysInRange(equipoDetalleRange.start, equipoDetalleRange.end);
+  }, [equipoDetalleRange]);
 
   const filasEquipoCalendario = useMemo(
     () =>
@@ -626,6 +782,13 @@ export function useEquipo(options?: UseEquipoOptions) {
     ]
   );
 
+  /** Mismo criterio que el summary del API (`hoursPerWorkingDay`, por defecto 8 h). */
+  const equipoCapTrabajoDiarioMinutos = useMemo(() => {
+    const h = equipoSummary?.hoursPerWorkingDay;
+    if (h != null && Number.isFinite(h) && h > 0) return Math.round(h * 60);
+    return 8 * 60;
+  }, [equipoSummary]);
+
   const [equipoSort, setEquipoSort] = useState<{
     key: EquipoSortKey | null;
     dir: "asc" | "desc" | null;
@@ -639,13 +802,15 @@ export function useEquipo(options?: UseEquipoOptions) {
       filasEquipoCalendario,
       equipoSort.key,
       equipoSort.dir,
-      resolveEquipoPersonaNombre
+      resolveEquipoPersonaNombre,
+      equipoCapTrabajoDiarioMinutos,
     );
   }, [
     filasEquipoCalendario,
     equipoSort.key,
     equipoSort.dir,
     resolveEquipoPersonaNombre,
+    equipoCapTrabajoDiarioMinutos,
   ]);
 
   const equipoFilasVista = useMemo(() => {
@@ -678,29 +843,99 @@ export function useEquipo(options?: UseEquipoOptions) {
     });
   }, []);
 
-  const totalMinutosImputadosMes = useMemo(
-    () => equipoRowsFiltradas.reduce((acc, e) => acc + effectiveWorkMinutesEntry(e), 0),
-    [equipoRowsFiltradas]
-  );
-  const totalHorasDecimalMes = Math.round((totalMinutosImputadosMes / 60) * 10) / 10;
+  const totalMinutosImputadosMes = useMemo(() => {
+    if (equipoSummary?.workedMinutesTotal != null) {
+      return Math.max(0, Math.round(equipoSummary.workedMinutesTotal));
+    }
+    return equipoRowsFiltradas.reduce((acc, e) => acc + effectiveWorkMinutesEntry(e), 0);
+  }, [equipoSummary, equipoRowsFiltradas]);
+
+  const totalHorasDecimalMes = useMemo(() => {
+    if (equipoSummary?.workedHoursTotal != null) {
+      const h = equipoSummary.workedHoursTotal;
+      return Math.round(h * 10) / 10;
+    }
+    return Math.round((totalMinutosImputadosMes / 60) * 10) / 10;
+  }, [equipoSummary, totalMinutosImputadosMes]);
 
   const diasLaborablesMesEquipo = useMemo(() => {
+    if (equipoSummary?.workingDaysInRange != null) {
+      return Math.max(0, Math.round(equipoSummary.workingDaysInRange));
+    }
     if (!equipoRange) return 0;
     return diasCalendarioMesEquipo.filter((d) => !d.isWeekend).length;
-  }, [equipoRange, diasCalendarioMesEquipo]);
+  }, [equipoSummary, equipoRange, diasCalendarioMesEquipo]);
 
-  /** Personas que cuentan para el objetivo teórico = mismo eje que el grid denso. */
-  const personasEnObjetivo =
-    filtroPersonaEquipo === "todas" ? trabajadoresVistaEquipo.length : 1;
-  const horasObjetivoMesTeorico = diasLaborablesMesEquipo * 8 * personasEnObjetivo;
-  const horasImputadasDecimal = totalMinutosImputadosMes / 60;
-  const horasFaltaParaObjetivo = Math.max(0, horasObjetivoMesTeorico - horasImputadasDecimal);
-  const horasExtraSobreObjetivo = Math.max(0, horasImputadasDecimal - horasObjetivoMesTeorico);
-  const hDonutImputado = Math.min(horasImputadasDecimal, horasObjetivoMesTeorico);
-  const hDonutFalta = Math.max(0, horasObjetivoMesTeorico - horasImputadasDecimal);
-  const hDonutExtra = Math.max(0, horasImputadasDecimal - horasObjetivoMesTeorico);
+  /** Personas que cuentan para el objetivo teórico (API o eje del grid). */
+  const personasEnObjetivo = useMemo(() => {
+    if (
+      equipoSummary?.scope?.peopleCount != null &&
+      Number.isFinite(equipoSummary.scope.peopleCount) &&
+      equipoSummary.scope.peopleCount > 0
+    ) {
+      return equipoSummary.scope.peopleCount;
+    }
+    return filtroPersonaEquipo === "todas" ? trabajadoresVistaEquipo.length : 1;
+  }, [equipoSummary, filtroPersonaEquipo, trabajadoresVistaEquipo]);
+
+  const horasObjetivoMesTeorico = useMemo(() => {
+    if (equipoSummary?.theoreticalCapHours != null) {
+      return Math.max(0, equipoSummary.theoreticalCapHours);
+    }
+    return diasLaborablesMesEquipo * 8 * personasEnObjetivo;
+  }, [equipoSummary, diasLaborablesMesEquipo, personasEnObjetivo]);
+
+  const horasImputadasDecimal = useMemo(() => {
+    if (equipoSummary?.workedHoursTotal != null) {
+      return Math.max(0, equipoSummary.workedHoursTotal);
+    }
+    return totalMinutosImputadosMes / 60;
+  }, [equipoSummary, totalMinutosImputadosMes]);
+
+  const horasFaltaParaObjetivo = useMemo(() => {
+    if (equipoSummary?.donutObjectiveVsWorked) {
+      return Math.max(0, equipoSummary.donutObjectiveVsWorked.hoursGapToObjective);
+    }
+    return Math.max(0, horasObjetivoMesTeorico - horasImputadasDecimal);
+  }, [equipoSummary, horasObjetivoMesTeorico, horasImputadasDecimal]);
+
+  const horasExtraSobreObjetivo = useMemo(() => {
+    if (equipoSummary?.donutObjectiveVsWorked) {
+      return Math.max(0, equipoSummary.donutObjectiveVsWorked.hoursExtraOverObjective);
+    }
+    return Math.max(0, horasImputadasDecimal - horasObjetivoMesTeorico);
+  }, [equipoSummary, horasImputadasDecimal, horasObjetivoMesTeorico]);
+
+  const hDonutImputado = useMemo(() => {
+    if (equipoSummary?.donutObjectiveVsWorked) {
+      return Math.max(0, equipoSummary.donutObjectiveVsWorked.hoursImputedUpToCap);
+    }
+    return Math.min(horasImputadasDecimal, horasObjetivoMesTeorico);
+  }, [equipoSummary, horasImputadasDecimal, horasObjetivoMesTeorico]);
+
+  const hDonutFalta = useMemo(() => {
+    if (equipoSummary?.donutObjectiveVsWorked) {
+      return Math.max(0, equipoSummary.donutObjectiveVsWorked.hoursGapToObjective);
+    }
+    return Math.max(0, horasObjetivoMesTeorico - horasImputadasDecimal);
+  }, [equipoSummary, horasObjetivoMesTeorico, horasImputadasDecimal]);
+
+  const hDonutExtra = useMemo(() => {
+    if (equipoSummary?.donutObjectiveVsWorked) {
+      return Math.max(0, equipoSummary.donutObjectiveVsWorked.hoursExtraOverObjective);
+    }
+    return Math.max(0, horasImputadasDecimal - horasObjetivoMesTeorico);
+  }, [equipoSummary, horasImputadasDecimal, horasObjetivoMesTeorico]);
 
   const fichajeTipoStats = useMemo(() => {
+    if (equipoSummary) {
+      return {
+        horasNormal: equipoSummary.normalHoursTotal,
+        horasManual: equipoSummary.manualHoursTotal,
+        registrosNormal: equipoSummary.normalEntryCount,
+        registrosManual: equipoSummary.manualEntryCount,
+      };
+    }
     let minNormal = 0;
     let minManual = 0;
     let nNormal = 0;
@@ -722,12 +957,14 @@ export function useEquipo(options?: UseEquipoOptions) {
       registrosNormal: nNormal,
       registrosManual: nManual,
     };
-  }, [equipoRowsFiltradas]);
+  }, [equipoSummary, equipoRowsFiltradas]);
 
-  const diasSinImputarEquipo = useMemo(
-    () => filasEquipoCalendario.filter((f) => f.kind === "sinImputar").length,
-    [filasEquipoCalendario]
-  );
+  const diasSinImputarEquipo = useMemo(() => {
+    if (equipoSummary?.kpiTeamGrid) {
+      return Math.max(0, Math.round(equipoSummary.kpiTeamGrid.slotsWithoutEntry));
+    }
+    return filasEquipoCalendario.filter((f) => f.kind === "sinImputar").length;
+  }, [equipoSummary, filasEquipoCalendario]);
   /**
    * Mismo valor que «Falta para objetivo» (izquierda): tope mensual − imputado total.
    * No usar días_sin_imputar × 8: si un día con fichaje supera 8 h, 8×días + imputado puede
@@ -736,13 +973,14 @@ export function useEquipo(options?: UseEquipoOptions) {
   const horasSinImputarTipoFichaje = hDonutFalta;
 
   const partesEquipoStats = useMemo(() => {
+    const ymKey = equipoDetalleRange?.start.slice(0, 7) ?? "";
     const keyHasPart = new Set<string>();
     for (const pk of trabajadoresVistaEquipo) {
       const wid = workerIdFromPersonKey(pk);
       const list = getWorkPartsForWorker(wid);
       for (const p of list) {
         if (!p?.workDate) continue;
-        if (p.workDate.slice(0, 7) !== mesEquipo) continue;
+        if (!ymKey || p.workDate.slice(0, 7) !== ymKey) continue;
         keyHasPart.add(`${wid}-${p.workDate}`);
       }
     }
@@ -757,7 +995,66 @@ export function useEquipo(options?: UseEquipoOptions) {
       if (keyHasPart.has(`${e.workerId}-${e.workDate}`)) diasConParte += 1;
     }
     return { diasImputados, diasConParte };
-  }, [filasEquipoCalendario, trabajadoresVistaEquipo, mesEquipo, equipoPartsVersion]);
+  }, [filasEquipoCalendario, trabajadoresVistaEquipo, equipoDetalleRange, equipoPartsVersion]);
+
+  /**
+   * KPIs rejilla densa: cada fila es un par persona-día en el periodo.
+   * Parte = mismo criterio que `timeEntryConParteEnServidor` (columna API).
+   */
+  const equipoRejillaParteStats = useMemo(() => {
+    if (equipoSummary?.kpiTeamGrid) {
+      const g = equipoSummary.kpiTeamGrid;
+      return {
+        totalCeldas: g.laborablePersonDaySlots,
+        conFichajeCerrado: g.slotsWithClosedTimeEntry,
+        conFichajeYParte: g.closedEntriesWithServerPart,
+        conFichajeSinParte: g.closedEntriesWithoutServerPart,
+      };
+    }
+    const totalCeldas = filasEquipoCalendario.length;
+    let conFichajeCerrado = 0;
+    let conFichajeYParte = 0;
+    let conFichajeSinParte = 0;
+    for (const f of filasEquipoCalendario) {
+      if (f.kind !== "registro") continue;
+      const e = f.e;
+      if (isSinJornadaImputableRazon(e.razon)) continue;
+      if (!e.checkOutUtc) continue;
+      conFichajeCerrado += 1;
+      if (timeEntryConParteEnServidor(e)) conFichajeYParte += 1;
+      else conFichajeSinParte += 1;
+    }
+    return {
+      totalCeldas,
+      conFichajeCerrado,
+      conFichajeYParte,
+      conFichajeSinParte,
+    };
+  }, [equipoSummary, filasEquipoCalendario]);
+
+  /** Jornadas laborables en rejilla (sinImputar + registro) vs filas con fichaje (registro). */
+  const equipoJornadasFichajeStats = useMemo(() => {
+    if (equipoSummary?.kpiTeamGrid) {
+      const g = equipoSummary.kpiTeamGrid;
+      const conFichaje =
+        g.slotsWithAnyTimeEntry > 0 ? g.slotsWithAnyTimeEntry : g.slotsWithClosedTimeEntry;
+      return {
+        jornadasLaborables: g.laborablePersonDaySlots,
+        conFichaje,
+      };
+    }
+    let jornadasLaborables = 0;
+    let conFichaje = 0;
+    for (const f of filasEquipoCalendario) {
+      if (f.kind === "sinImputar") {
+        jornadasLaborables += 1;
+      } else if (f.kind === "registro") {
+        jornadasLaborables += 1;
+        conFichaje += 1;
+      }
+    }
+    return { jornadasLaborables, conFichaje };
+  }, [equipoSummary, filasEquipoCalendario]);
 
   return {
     // filters
@@ -775,6 +1072,9 @@ export function useEquipo(options?: UseEquipoOptions) {
     setTrimestreEquipo,
     anioEquipo,
     setAnioEquipo,
+    equipoAnioMesPagina,
+    setEquipoAnioMesPagina,
+    opcionesMesDentroAnioEquipo,
     equipoTablaFiltroExtra,
     setEquipoSoloSinImputar,
     setEquipoSoloSinParteServidor,
@@ -797,8 +1097,12 @@ export function useEquipo(options?: UseEquipoOptions) {
       filtroPersonaEquipo === "todas" ? null : filtroPersonaEquipo,
     equipoRowsLoading,
     equipoRowsError,
+    equipoSummaryLoading,
+    equipoSummaryError,
     /** totalCount devuelto por el API (primera página / metadatos). */
     equipoRowsTotalCount,
+    /** Recuento coherente con GET /rows/summary para KPIs (si summary OK). */
+    equipoRegistrosPeriodoKpi,
     refetchEquipoRows,
     setEquipoWorkers,
     equipoSuperAdminCompanyId,
@@ -819,12 +1123,15 @@ export function useEquipo(options?: UseEquipoOptions) {
     equipoMarcarRestaurarScroll,
     // computed
     equipoRange,
+    equipoVistaRange,
     equipoRowsFiltradas,
     diasCalendarioMesEquipo,
     filasEquipoCalendario,
     equipoSort,
     equipoFilasOrdenadas,
     equipoFilasVista,
+    /** Para columna «Extra» y export: minutos de jornada estándar/día (API summary). */
+    equipoCapTrabajoDiarioMinutos,
     setEquipoSortColumn,
     totalMinutosImputadosMes,
     totalHorasDecimalMes,
@@ -841,6 +1148,8 @@ export function useEquipo(options?: UseEquipoOptions) {
     diasSinImputarEquipo,
     horasSinImputarTipoFichaje,
     partesEquipoStats,
+    equipoRejillaParteStats,
+    equipoJornadasFichajeStats,
   };
 }
 

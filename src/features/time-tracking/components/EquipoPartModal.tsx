@@ -1,6 +1,7 @@
 "use client";
 
 import { SignaturePadDialog } from "@/components/SignaturePadDialog";
+import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import type { TimeEntryMock } from "@/features/time-tracking/types";
 import { effectiveWorkMinutesEntry } from "@/features/time-tracking/utils/formatters";
 import { type WorkPartRecord } from "@/lib/workPartsStorage";
@@ -66,7 +67,7 @@ export function EquipoPartModal({
   return (
     <>
       <div
-        className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4"
+        className={`fixed inset-0 z-[110] ${MODAL_BACKDROP_CENTER}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="equipo-part-title"
@@ -78,7 +79,7 @@ export function EquipoPartModal({
         }}
       >
         <div
-          className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-600 dark:bg-slate-800"
+          className={modalScrollablePanel("xl")}
           onClick={(ev) => ev.stopPropagation()}
         >
           <h2

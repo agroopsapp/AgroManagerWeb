@@ -1,6 +1,7 @@
 "use client";
 
 import type { ForgotStep, ForgotMode } from "@/features/time-tracking/types";
+import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { parseHHMM, toHHMM } from "@/shared/utils/time";
 import { TimeSelect24h } from "./TimeSelect24h";
 
@@ -29,6 +30,16 @@ interface ForgotModalProps {
   onSetBreakOtro: (v: boolean) => void;
   onSubmitSoloEntrada: () => void;
   onSubmitJornadaCompleta: (forced?: number) => void;
+  /**
+   * `overlay`: capa fija (registro de jornada).
+   * `embedded`: solo el panel, dentro de otro diálogo (p. ej. RRHH «Editar día»).
+   */
+  variant?: "overlay" | "embedded";
+  /**
+   * Si existe, el «Atrás» del paso hora de inicio no vuelve a pick_day / pick_type
+   * (uso: wizard RRHH vuelve al menú de ausencias / jornada).
+   */
+  onBackFromFullStartOverride?: () => void;
 }
 
 export function ForgotModal({
@@ -54,10 +65,11 @@ export function ForgotModal({
   onSetBreakOtro,
   onSubmitSoloEntrada,
   onSubmitJornadaCompleta,
+  variant = "overlay",
+  onBackFromFullStartOverride,
 }: ForgotModalProps) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-4 shadow-xl dark:border dark:border-slate-600 dark:bg-slate-800">
+  const panel = (
+    <div className={modalScrollablePanel("md")}>
         <div className="mb-3 flex items-start justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
             Corrección de fichaje
@@ -194,6 +206,10 @@ export function ForgotModal({
                 type="button"
                 onClick={() => {
                   onSetError(null);
+                  if (onBackFromFullStartOverride) {
+                    onBackFromFullStartOverride();
+                    return;
+                  }
                   if (forgotMode === "full_ayer" || forgotMode === "full_ultimo_laboral") {
                     onSetForgotMode(null);
                     onSetTargetDate(null);
@@ -347,7 +363,11 @@ export function ForgotModal({
             </div>
           </>
         )}
-      </div>
     </div>
   );
+
+  if (variant === "embedded") {
+    return panel;
+  }
+  return <div className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}>{panel}</div>;
 }

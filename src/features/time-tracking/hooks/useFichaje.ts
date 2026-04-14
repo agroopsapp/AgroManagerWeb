@@ -13,6 +13,7 @@ import {
   type HistoricoPersonalFila,
 } from "@/features/time-tracking/utils/formatters";
 import type { TimeEntryMock, TimeEntryRazon } from "@/features/time-tracking/types";
+import { parseTimeEntryApiStatus } from "@/features/time-tracking/utils/timeEntryApiStatus";
 
 type AuthUser = { id?: string; email?: string | null; role?: string } | null | undefined;
 
@@ -39,10 +40,11 @@ function dtoToEntry(
   dto: TimeEntryDto,
   fallbackWorkerId: number,
 ): TimeEntryMock {
+  const { status: apiStatus, ...dtoRest } = dto;
   const workerId =
     Number.isFinite(dto.workerId) && dto.workerId > 0 ? dto.workerId : fallbackWorkerId;
   return {
-    ...dto,
+    ...dtoRest,
     timeEntryId: dto.timeEntryId ?? null,
     companyId: dto.companyId ?? null,
     workerId,
@@ -52,6 +54,7 @@ function dtoToEntry(
     userEmail: dto.userEmail ?? null,
     lastModifiedByEmail: dto.lastModifiedByEmail ?? null,
     lastModifiedByName: dto.lastModifiedByName ?? null,
+    timeEntryStatus: parseTimeEntryApiStatus(apiStatus),
   };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { MODAL_BACKDROP_CENTER, modalFramePanel } from "@/components/modalShell";
 import { useTasks } from "@/contexts/TasksContext";
 import { TASK_TEMPLATES, MOCK_WORKERS, MOCK_FARMS } from "@/data/mock";
 import type { Task, TaskPriority, TaskFamily } from "@/types";
@@ -105,14 +106,14 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="create-task-title"
     >
       <div
-        className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-hidden flex flex-col dark:bg-slate-800 dark:border dark:border-slate-600"
+        className={modalFramePanel("lg", { className: "flex flex-col" })}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-b border-slate-200 px-4 py-3 dark:border-slate-600">

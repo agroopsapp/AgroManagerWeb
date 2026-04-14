@@ -1,10 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDateES } from "@/shared/utils/time";
+import { formatDateES, workDateIsWeekend } from "@/shared/utils/time";
 import { ClockPanel } from "@/features/time-tracking/components/ClockPanel";
 import { HistorialPersonal } from "@/features/time-tracking/components/HistorialPersonal";
+import { PersonalEditarDiaModal } from "@/features/time-tracking/components/PersonalEditarDiaModal";
 import { useFichadorPanel } from "@/features/time-tracking/hooks/useFichadorPanel";
 import { useFichaje } from "@/features/time-tracking/hooks/useFichaje";
 import { useBreakModal } from "@/features/time-tracking/hooks/useBreakModal";
@@ -28,6 +31,7 @@ const BreakModal = dynamic(
 
 export default function TimeTrackingPage() {
   const { user, isReady } = useAuth();
+  const [personalEditarDiaWorkDate, setPersonalEditarDiaWorkDate] = useState<string | null>(null);
 
   // --- Hooks ---
   const panel = useFichadorPanel({ user, isReady });
@@ -183,50 +187,79 @@ export default function TimeTrackingPage() {
     forgotModal.forgotStep === "closed" &&
     fichaje.actionLoading === null;
 
-  const handleOpenForgotForDateFromHistory = (workDate: string) => {
-    forgotModal.openForgotForDate(workDate);
+  const handleOpenEditarDiaMenuFromHistory = (workDate: string) => {
+    setPersonalEditarDiaWorkDate(workDate);
   };
+
+  const personaLabelHistorial =
+    user?.email?.split("@")[0]?.trim() || user?.email?.trim() || "Usuario";
 
   // --- Render ---
   return (
-    <div className="min-w-0 max-w-full space-y-4">
+    <div className="min-w-0 max-w-full space-y-6">
       {breakModal.workPartSuccessMessage && (
-        <div className="fixed left-1/2 top-1/2 z-[9999] w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-3 text-center text-sm font-semibold text-emerald-900 shadow-2xl ring-2 ring-emerald-200/60 dark:border-emerald-600 dark:bg-emerald-950/90 dark:text-emerald-100 dark:ring-emerald-700/50">
+        <div className="fixed left-1/2 top-1/2 z-[9999] w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-emerald-200/90 bg-emerald-50 px-5 py-4 text-center text-sm font-semibold text-emerald-900 shadow-[0_24px_48px_-12px_rgba(5,150,105,0.35)] dark:border-emerald-700/80 dark:bg-emerald-950/95 dark:text-emerald-100">
           {breakModal.workPartSuccessMessage}
         </div>
       )}
 
-      {/* Header */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-agro-600 via-emerald-500 to-sky-500 px-4 py-3 shadow-sm sm:px-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Cabecera: legible en cualquier tema, acento de marca sin barra verde plana */}
+      <header className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white px-5 py-6 shadow-[0_1px_3px_rgba(15,23,42,0.06)] sm:px-8 sm:py-7 dark:border-slate-700/80 dark:bg-slate-900/90 dark:shadow-none">
+        <div
+          className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-agro-500 via-emerald-500 to-teal-500"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -right-16 -top-24 h-48 w-48 rounded-full bg-agro-500/[0.07] blur-3xl dark:bg-agro-400/10"
+          aria-hidden
+        />
+        <div className="relative flex flex-col gap-5 pl-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-agro-100/80">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-agro-600 dark:text-agro-400">
               Registro de jornada
             </p>
-            <h1 className="mt-1 text-2xl font-bold text-white">Fichador</h1>
-            <p className="mt-1 text-sm text-agro-50/90">
+            <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+              Fichador
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
               Marca tu entrada y salida de forma sencilla y cumpliendo el registro horario.
             </p>
+            <Link
+              href="/dashboard/time-tracking/vacaciones-y-festivos"
+              className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-agro-700 underline-offset-2 hover:text-agro-800 hover:underline dark:text-agro-400 dark:hover:text-agro-300"
+            >
+              <span aria-hidden>📅</span>
+              Ver calendario de vacaciones y festivos
+            </Link>
           </div>
           {user && (
-            <div className="flex min-w-0 max-w-full flex-col items-end gap-1 text-right">
-              <span className="max-w-full truncate rounded-full border border-white/30 bg-white/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-agro-50 backdrop-blur sm:px-3 sm:text-xs">
+            <div className="flex min-w-0 shrink-0 flex-col gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/90 px-4 py-3 dark:border-slate-600/80 dark:bg-slate-800/60">
+              <span className="max-w-[min(100%,18rem)] truncate text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Sesión
+              </span>
+              <span className="max-w-full truncate text-sm font-medium text-slate-900 dark:text-slate-100">
                 {user.email}
               </span>
-              <span className="text-[11px] text-agro-50/80">
-                Hoy: {formatDateES(fichaje.today)}
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Hoy: <span className="font-medium text-slate-700 dark:text-slate-300">{formatDateES(fichaje.today)}</span>
               </span>
             </div>
           )}
         </div>
-      </div>
+      </header>
 
       {ayerCompleta.hayDiasSinCuadrarEnHistorico && (
         <div
-          className="sticky top-2 z-30 min-w-0 max-w-full rounded-xl border border-rose-300 bg-rose-50 px-3 py-2.5 shadow-sm dark:border-rose-600 dark:bg-rose-950/40 sm:px-4 sm:py-3"
+          className="sticky top-2 z-30 flex min-w-0 max-w-full gap-3 rounded-2xl border border-rose-200/80 bg-rose-50/90 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-rose-800/60 dark:bg-rose-950/50 sm:px-5 sm:py-3.5"
           role="status"
         >
-          <p className="text-sm leading-snug text-rose-900 dark:text-rose-100">
+          <span
+            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-lg dark:bg-rose-900/50"
+            aria-hidden
+          >
+            ⚠
+          </span>
+          <p className="min-w-0 text-sm leading-relaxed text-rose-950 dark:text-rose-100">
             <span className="font-semibold">Histórico:</span> hay días laborables sin fichaje correcto
             (aparecen en rojo en la tabla).{" "}
             <strong>Habla con el administrador</strong> para cuadrar las horas laborales.
@@ -234,35 +267,49 @@ export default function TimeTrackingPage() {
         </div>
       )}
 
-      <div className="grid min-w-0 max-w-full gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <ClockPanel
-          hasOpenEntry={fichaje.hasOpenEntry}
-          openEntry={fichaje.openEntry}
-          jornadaCompletadaHoy={fichaje.jornadaCompletadaHoy}
-          closedTodayEntry={fichaje.closedTodayEntry}
-          actionLoading={fichaje.actionLoading}
-          forgotStep={forgotModal.forgotStep}
-          olvideFicharBotonActivo={olvideFicharBotonActivo}
-          onCheckIn={fichaje.handleCheckIn}
-          onCheckOut={handleCheckOut}
-          onOpenForgotModal={forgotModal.openForgotModal}
-          hayDiasSinCuadrarEnHistorico={ayerCompleta.hayDiasSinCuadrarEnHistorico}
-          ultimoLaboralSinCerrar={ayerCompleta.ultimoLaboralSinCerrar}
-          ayerCompStep={ayerCompleta.ayerCompStep}
-          onAbrirCompletarAyer={ayerCompleta.abrirCompletarAyer}
-          error={fichaje.error}
-          loading={fichaje.loading}
-          todayEntriesPersonal={fichaje.todayEntriesPersonal}
-          sessionEmail={user?.email}
+      {/* Un solo “módulo” visual: columna de acción + tabla comparten marco, acento y fondos */}
+      <div className="min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_2px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/60 dark:border-slate-700/80 dark:bg-slate-900/95 dark:shadow-none dark:ring-slate-700/80">
+        <div
+          className="h-1 w-full bg-gradient-to-r from-agro-500 via-emerald-500 to-teal-500"
+          aria-hidden
         />
+        <div className="grid min-w-0 lg:grid-cols-[minmax(280px,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(300px,21rem)_minmax(0,1fr)]">
+          <aside
+            aria-label="Fichaje y resumen del día"
+            className="min-w-0 border-b border-slate-100 bg-gradient-to-b from-slate-50/90 to-slate-50/40 p-4 sm:p-5 lg:border-b-0 lg:border-r dark:border-slate-800 dark:from-slate-950/50 dark:to-slate-950/25"
+          >
+            <ClockPanel
+              hasOpenEntry={fichaje.hasOpenEntry}
+              openEntry={fichaje.openEntry}
+              jornadaCompletadaHoy={fichaje.jornadaCompletadaHoy}
+              closedTodayEntry={fichaje.closedTodayEntry}
+              actionLoading={fichaje.actionLoading}
+              forgotStep={forgotModal.forgotStep}
+              olvideFicharBotonActivo={olvideFicharBotonActivo}
+              onCheckIn={fichaje.handleCheckIn}
+              onCheckOut={handleCheckOut}
+              onOpenForgotModal={forgotModal.openForgotModal}
+              hayDiasSinCuadrarEnHistorico={ayerCompleta.hayDiasSinCuadrarEnHistorico}
+              ultimoLaboralSinCerrar={ayerCompleta.ultimoLaboralSinCerrar}
+              ayerCompStep={ayerCompleta.ayerCompStep}
+              onAbrirCompletarAyer={ayerCompleta.abrirCompletarAyer}
+              error={fichaje.error}
+              loading={fichaje.loading}
+              todayEntriesPersonal={fichaje.todayEntriesPersonal}
+              sessionEmail={user?.email}
+            />
+          </aside>
 
-        <HistorialPersonal
-          loading={fichaje.loading}
-          historicoPersonalFilas={fichaje.historicoPersonalFilas}
-          hasAnyEntries={fichaje.entries.length > 0}
-          onOpenPartEditor={handleOpenPartEditorFromHistory}
-          onOpenForgotForDate={handleOpenForgotForDateFromHistory}
-        />
+          <div className="min-w-0 bg-white dark:bg-slate-900/95">
+            <HistorialPersonal
+              loading={fichaje.loading}
+              historicoPersonalFilas={fichaje.historicoPersonalFilas}
+              hasAnyEntries={fichaje.entries.length > 0}
+              onOpenPartEditor={handleOpenPartEditorFromHistory}
+              onOpenEditarDiaMenu={handleOpenEditarDiaMenuFromHistory}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Modal: completar registro de ayer */}
@@ -294,6 +341,20 @@ export default function TimeTrackingPage() {
             onSubmit={ayerCompleta.submitCompletarAyer}
           />
         )}
+
+      {personalEditarDiaWorkDate ? (
+        <PersonalEditarDiaModal
+          workDate={personalEditarDiaWorkDate}
+          personaLabel={personaLabelHistorial}
+          isWeekend={workDateIsWeekend(personalEditarDiaWorkDate)}
+          onClose={() => setPersonalEditarDiaWorkDate(null)}
+          onModificarHorario={() => {
+            const d = personalEditarDiaWorkDate;
+            setPersonalEditarDiaWorkDate(null);
+            if (d) forgotModal.openForgotForDate(d);
+          }}
+        />
+      ) : null}
 
       {/* Modal: Olvidé fichar */}
       {forgotModal.forgotStep !== "closed" && (

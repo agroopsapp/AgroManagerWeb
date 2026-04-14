@@ -11,6 +11,7 @@ import {
   postClientCompanyWithAreas,
 } from "@/services";
 import { useAuth } from "@/contexts/AuthContext";
+import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { USER_ROLE, type Company as CompanyType, type CompanyArea } from "@/types";
 
 function newAreaId(): string {
@@ -301,7 +302,7 @@ export default function CompaniesPage() {
           Solo administradores y managers pueden gestionar el catálogo de empresas.
         </p>
         <Link
-          href="/dashboard/tasks"
+          href="/dashboard"
           className="inline-flex rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
         >
           Volver al panel
@@ -351,6 +352,12 @@ export default function CompaniesPage() {
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700">
               <tr>
+                <th
+                  scope="col"
+                  className="w-12 px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400"
+                >
+                  N.º
+                </th>
                 <th className="px-4 py-3">
                   <button
                     type="button"
@@ -387,8 +394,11 @@ export default function CompaniesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-600">
-              {filteredAndSorted.map((company) => (
+              {filteredAndSorted.map((company, lineIndex) => (
                 <tr key={company.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
+                  <td className="px-2 py-3 text-center tabular-nums text-slate-500 dark:text-slate-400">
+                    {lineIndex + 1}
+                  </td>
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
                     {company.name}
                   </td>
@@ -460,14 +470,14 @@ export default function CompaniesPage() {
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
           onClick={closeModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="company-form-title"
         >
           <div
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl dark:border dark:border-slate-600 dark:bg-slate-800"
+            className={modalScrollablePanel("lg")}
             onClick={(e) => e.stopPropagation()}
           >
             <h2

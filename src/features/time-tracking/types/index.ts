@@ -1,6 +1,14 @@
 // Tipos locales del feature time-tracking
 // Fuente original: app/dashboard/time-tracking/page.tsx
 
+/** Valores exactos de `status` en JSON del API de fichajes (sin normalizar mayúsculas). */
+export type TimeEntryApiStatus =
+  | "Open"
+  | "Closed"
+  | "Vacation"
+  | "SickLeave"
+  | "NonWorkingDay";
+
 /** Motivo de imputación del registro horario. */
 export type TimeEntryRazon =
   | "imputacion_normal"
@@ -53,11 +61,18 @@ export interface TimeEntryMock {
   previousCheckOutUtc?: string | null;
   /** Nota opcional del administrador al corregir horario. */
   edicionNotaAdmin?: string | null;
+  /** Zona o ubicación de trabajo si el API la envía en GET /TimeEntries/rows. */
+  workAreaName?: string | null;
   /**
    * El backend cerró la jornada a las 23:59 del mismo día (sin fichaje real de salida).
    * Hasta que el trabajador confirme entrada/salida/descanso reales, no puede fichar hoy.
    */
   cierreAutomaticoMedianoche?: boolean;
+  /**
+   * Estado de la jornada según el backend (campo JSON `status`, camelCase).
+   * Si el valor no está en la lista blanca del API → `"unknown"` (UI gris).
+   */
+  timeEntryStatus?: TimeEntryApiStatus | "unknown" | null;
 }
 
 export type EquipoTablaFila =
@@ -100,10 +115,12 @@ export type EquipoSortKey =
   | "entradaAntes"
   | "salidaAntes"
   | "descanso"
+  | "estado"
   | "razon"
   | "modificado"
   | "fechaMod"
-  | "duracion";
+  | "duracion"
+  | "extra";
 
 export type ForgotStep =
   | "closed"
@@ -128,3 +145,12 @@ export type AyerCompletaStep =
   | "fin"
   | "descanso"
   | "descanso_cant";
+
+/** Calendario público de empresa: festivos y vacaciones (referencia visual; persistencia local hasta API). */
+export type CalendarioLaboralMarkKind = "festivo" | "vacaciones";
+
+export type CalendarioLaboralDayMark = {
+  kind: CalendarioLaboralMarkKind;
+  /** Texto breve opcional (p. ej. nombre del festivo). */
+  note?: string;
+};

@@ -11,6 +11,8 @@ export {
   type TimeEntryDto,
   type TimeEntryRowsPageDto,
   type TimeEntryRowsQuery,
+  type TimeEntryRowsSummaryDto,
+  type TimeEntryRowsSummaryQuery,
 } from "./time-tracking.service";
 export { tasksApi } from "./tasks.service";
 export { farmsApi } from "./farms.service";

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Farm as FarmType } from "@/types";
 import { ApiError } from "@/lib/api-client";
+import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { farmsApi } from "@/services";
 
 type SortKey = "name" | "location";
@@ -283,14 +284,14 @@ export default function FarmsPage() {
       {/* Modal crear/editar */}
       {modalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
           onClick={closeModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="farm-form-title"
         >
           <div
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-800 dark:border dark:border-slate-600"
+            className={modalScrollablePanel("md")}
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="farm-form-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { MODAL_BACKDROP_CENTER, MODAL_SURFACE, MODAL_SURFACE_PAD } from "@/components/modalShell";
 
 type SignaturePadDialogProps = {
   open: boolean;
@@ -143,12 +144,12 @@ export function SignaturePadDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 px-3 py-6"
+      className={`fixed inset-0 z-[200] ${MODAL_BACKDROP_CENTER}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="sig-pad-title"
     >
-      <div className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl dark:border dark:border-slate-600 dark:bg-slate-800 sm:p-5">
+      <div className={`w-full max-w-lg ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`}>
         <h3
           id="sig-pad-title"
           className="text-base font-semibold text-slate-900 dark:text-slate-50"

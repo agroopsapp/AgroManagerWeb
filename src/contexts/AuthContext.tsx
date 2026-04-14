@@ -9,13 +9,15 @@ import React, {
   useEffect,
   useLayoutEffect,
 } from "react";
-import { authApi } from "@/services/auth.service";
+import { authApi, pickCompanyIdFromLoginUser } from "@/services/auth.service";
 import type { UserRole } from "@/types";
 
-interface AuthUser {
+export interface AuthUser {
   id: string;
   email: string;
   role: UserRole;
+  /** GUID empresa (login API / BD); ausente si el usuario no tiene empresa asignada. */
+  companyId?: string;
 }
 
 interface StoredAuthState {
@@ -78,17 +80,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    let data: { token: string; expiresIn?: number; user: { id: string; email: string; role: string } };
+    let data: Awaited<ReturnType<typeof authApi.login>>;
     try {
       data = await authApi.login(email, password);
     } catch (err) {
       if (err instanceof Error) throw err;
       throw new Error("No se ha podido conectar con el servidor de autenticación.");
     }
+    const companyId = pickCompanyIdFromLoginUser(data.user);
     const authUser: AuthUser = {
       id: data.user.id,
       email: data.user.email,
       role: data.user.role as AuthUser["role"],
+      ...(companyId ? { companyId } : {}),
     };
     const expiresInSec =
       typeof data.expiresIn === "number" && data.expiresIn > 0

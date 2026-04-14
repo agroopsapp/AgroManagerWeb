@@ -2,10 +2,11 @@
 
 import type { EquipoTablaFila, TimeEntryMock, TimeEntryRazon } from "@/features/time-tracking/types";
 import { entryStablePersonKey } from "@/features/time-tracking/utils/equipoGridMerge";
+import { formatTimeEntryStatusForExport } from "@/features/time-tracking/utils/timeEntryApiStatus";
 import { MOCK_APP_USER_EMAIL_BY_WORKER, workerNameById } from "@/mocks/time-tracking.mock";
 import {
   diffDurationMinutes,
-  formatDateES,
+  formatDateEsWeekdayDdMmYyyy,
   formatFechaModificacionUtc,
   formatMinutesShort,
   formatTiempoAnterior,
@@ -38,6 +39,38 @@ export function isAusenciaRazon(r: TimeEntryRazon | undefined): boolean {
 /** Vacaciones, baja, o día marcado como no laboral: sin horas imputables como jornada. */
 export function isSinJornadaImputableRazon(r: TimeEntryRazon | undefined): boolean {
   return isAusenciaRazon(r) || r === "dia_no_laboral";
+}
+
+/**
+ * `status` del API indica ausencia / día no laboral (no jornada cerrada con horas reales).
+ * Cubre casos como `imputationKind: "manual"` con `status: "Vacation"` en GET /TimeEntries/rows.
+ */
+export function isAbsenceCalendarApiStatus(
+  e: Pick<TimeEntryMock, "timeEntryStatus">,
+): boolean {
+  const s = e.timeEntryStatus;
+  return s === "SickLeave" || s === "Vacation" || s === "NonWorkingDay";
+}
+
+/** Entrada/salida/descanso/duración: ocultar por `razon` o por `status` de ausencia en API. */
+export function equipoRegistroOcultaHorasEnTabla(e: TimeEntryMock): boolean {
+  return isSinJornadaImputableRazon(e.razon) || isAbsenceCalendarApiStatus(e);
+}
+
+/**
+ * Columna «Razón»: prioriza `status` del API sobre `imputationKind` cuando marcan ausencia.
+ */
+export function formatRazonTablaEquipo(e: TimeEntryMock): string {
+  switch (e.timeEntryStatus) {
+    case "SickLeave":
+      return RAZON_LABELS.ausencia_baja;
+    case "Vacation":
+      return RAZON_LABELS.ausencia_vacaciones;
+    case "NonWorkingDay":
+      return RAZON_LABELS.dia_no_laboral;
+    default:
+      return formatRazon(e.razon);
+  }
 }
 
 export function formatRazon(razon: TimeEntryRazon | undefined): string {
@@ -105,7 +138,7 @@ export function historicoFilaSinImputarPasado(fila: HistoricoPersonalFila): bool
 
 /** Minutos trabajados efectivos: prioriza `workedMinutes` del API si existe; si no, bruto − descanso. */
 export function effectiveWorkMinutesEntry(e: TimeEntryMock): number {
-  if (isSinJornadaImputableRazon(e.razon)) return 0;
+  if (isSinJornadaImputableRazon(e.razon) || isAbsenceCalendarApiStatus(e)) return 0;
   const apiNet =
     typeof e.workedMinutes === "number" &&
     Number.isFinite(e.workedMinutes) &&
@@ -121,12 +154,25 @@ export function effectiveWorkMinutesEntry(e: TimeEntryMock): number {
   return apiNet ?? 0;
 }
 
+/**
+ * Minutos por encima del tope diario de jornada (`hoursPerWorkingDay` del summary, p. ej. 8 h).
+ * Ausencias / sin horas imputables: 0 (la UI muestra «—» con `equipoRegistroOcultaHorasEnTabla`).
+ */
+export function effectiveExtraMinutesEntry(
+  e: TimeEntryMock,
+  capWorkMinutesPerDay: number,
+): number {
+  if (equipoRegistroOcultaHorasEnTabla(e)) return 0;
+  const cap = Math.max(0, Math.round(capWorkMinutesPerDay));
+  return Math.max(0, effectiveWorkMinutesEntry(e) - cap);
+}
+
 // ---------------------------------------------------------------------------
 // Autor de modificación
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// CSV del equipo
+// Exportación tabla equipo (CSV / PDF)
 // ---------------------------------------------------------------------------
 
 function csvEscapeSemicolon(field: string): string {
@@ -151,71 +197,100 @@ function csvPersonaCell(
   return workerNameById(f.workerId);
 }
 
-/** CSV de la vista calendario de horas del equipo (incl. no laboral y sin imputar). */
-export function buildEquipoTableCsvFilas(
+function parteServidorExportCell(e: TimeEntryMock): string {
+  const api = workReportParteApiSummary(e);
+  if (!api.tieneParte) return "No";
+  return api.detalle ? `Sí · ${api.detalle}` : "Sí";
+}
+
+const DEFAULT_CAP_WORK_MINUTES_PER_DAY = 8 * 60;
+
+/** Cabeceras y filas alineadas con la tabla en pantalla (incl. parte en servidor). */
+export function buildEquipoTableExportRows(
   filas: EquipoTablaFila[],
-  nameByPersonKey?: Map<string, string>
-): string {
-  const sep = ";";
+  nameByPersonKey?: Map<string, string>,
+  capWorkMinutesPerDay: number = DEFAULT_CAP_WORK_MINUTES_PER_DAY,
+): { headers: string[]; rows: string[][] } {
+  const cap = Number.isFinite(capWorkMinutesPerDay) ? capWorkMinutesPerDay : DEFAULT_CAP_WORK_MINUTES_PER_DAY;
   const headers = [
     "Persona",
     "Fecha",
     "Entrada",
     "Salida",
-    "Entrada (antes)",
-    "Salida (antes)",
     "Descanso",
+    "Estado (API)",
     "Razón",
     "Modificado por",
     "Fecha modificación",
     "Duración",
+    "Extra",
+    "Parte en servidor",
   ];
-  const headerLine = headers.map(csvEscapeSemicolon).join(sep);
-  const dataLines = filas.map((f) => {
-    const cells =
-      f.kind === "registro"
-        ? [
-            csvPersonaCell(f, nameByPersonKey),
-            formatDateES(f.e.workDate),
-            isSinJornadaImputableRazon(f.e.razon) ? "—" : formatTimeLocal(f.e.checkInUtc),
-            isSinJornadaImputableRazon(f.e.razon) ? "—" : formatTimeLocal(f.e.checkOutUtc),
-            formatTiempoAnterior(f.e.previousCheckInUtc),
-            formatTiempoAnterior(f.e.previousCheckOutUtc),
-            isSinJornadaImputableRazon(f.e.razon) ? "—" : formatMinutesShort(f.e.breakMinutes ?? 0),
-            formatRazon(f.e.razon),
-            formatLastModifiedByUser(f.e),
-            formatFechaModificacionUtc(f.e.updatedAtUtc),
-            isSinJornadaImputableRazon(f.e.razon) ? "—" : formatMinutesShort(effectiveWorkMinutesEntry(f.e)),
-          ]
-        : f.kind === "noLaboral"
-          ? [
-              csvPersonaCell(f, nameByPersonKey),
-              formatDateES(f.workDate),
-              "—",
-              "—",
-              "—",
-              "—",
-              "—",
-              RAZON_NO_LABORAL,
-              "—",
-              "—",
-              "—",
-            ]
-          : [
-              csvPersonaCell(f, nameByPersonKey),
-              formatDateES(f.workDate),
-              "—",
-              "—",
-              "—",
-              "—",
-              "—",
-              RAZON_SIN_IMPUTAR,
-              "—",
-              "—",
-              "—",
-            ];
-    return cells.map(csvEscapeSemicolon).join(sep);
+  const rows = filas.map((f) => {
+    if (f.kind === "registro") {
+      const e = f.e;
+      const ocultaHoras = equipoRegistroOcultaHorasEnTabla(e);
+      const ocultaMetaPorStatusAusencia = isAbsenceCalendarApiStatus(e);
+      const extraM = effectiveExtraMinutesEntry(e, cap);
+      return [
+        csvPersonaCell(f, nameByPersonKey),
+        formatDateEsWeekdayDdMmYyyy(e.workDate),
+        ocultaHoras ? "—" : formatTimeLocal(e.checkInUtc),
+        ocultaHoras ? "—" : formatTimeLocal(e.checkOutUtc),
+        ocultaHoras ? "—" : formatMinutesShort(e.breakMinutes ?? 0),
+        ocultaMetaPorStatusAusencia ? "—" : formatTimeEntryStatusForExport(e.timeEntryStatus),
+        formatRazonTablaEquipo(e),
+        ocultaMetaPorStatusAusencia ? "—" : formatLastModifiedByUser(e),
+        ocultaMetaPorStatusAusencia ? "—" : formatFechaModificacionUtc(e.updatedAtUtc),
+        ocultaHoras ? "—" : formatMinutesShort(effectiveWorkMinutesEntry(e)),
+        ocultaHoras || extraM <= 0 ? "—" : formatMinutesShort(extraM),
+        ocultaMetaPorStatusAusencia ? "—" : parteServidorExportCell(e),
+      ];
+    }
+    if (f.kind === "noLaboral") {
+      return [
+        csvPersonaCell(f, nameByPersonKey),
+        formatDateEsWeekdayDdMmYyyy(f.workDate),
+        "—",
+        "—",
+        "—",
+        "—",
+        RAZON_NO_LABORAL,
+        "—",
+        "—",
+        "—",
+        "—",
+        "—",
+      ];
+    }
+    return [
+      csvPersonaCell(f, nameByPersonKey),
+      formatDateEsWeekdayDdMmYyyy(f.workDate),
+      "—",
+      "—",
+      "—",
+      "—",
+      RAZON_SIN_IMPUTAR,
+      "—",
+      "—",
+      "—",
+      "—",
+      "—",
+    ];
   });
+  return { headers, rows };
+}
+
+/** CSV de la vista calendario de horas del equipo (incl. no laboral y sin imputar). */
+export function buildEquipoTableCsvFilas(
+  filas: EquipoTablaFila[],
+  nameByPersonKey?: Map<string, string>,
+  capWorkMinutesPerDay?: number,
+): string {
+  const sep = ";";
+  const { headers, rows } = buildEquipoTableExportRows(filas, nameByPersonKey, capWorkMinutesPerDay);
+  const headerLine = headers.map(csvEscapeSemicolon).join(sep);
+  const dataLines = rows.map((cells) => cells.map(csvEscapeSemicolon).join(sep));
   return `\uFEFF${headerLine}\r\n${dataLines.join("\r\n")}`;
 }
 

@@ -1,5 +1,6 @@
 import type { TimeEntryMock, TimeEntryRazon } from "@/features/time-tracking/types";
 import { stableNumericIdFromUserId } from "@/features/time-tracking/utils/equipoGridMerge";
+import { parseTimeEntryApiStatus } from "@/features/time-tracking/utils/timeEntryApiStatus";
 import { diffDurationMinutes } from "@/shared/utils/time";
 
 function stableIdFromString(s: string): number {
@@ -15,9 +16,7 @@ function imputationKindToRazon(
   isManuallyCompleted: boolean
 ): TimeEntryRazon {
   const k = kind.toLowerCase();
-  if (isManuallyCompleted || k.includes("manual") || k.includes("error") || k.includes("rrhh")) {
-    return "imputacion_manual_error";
-  }
+  // Ausencias / tipo de día antes que «manual»: si no, `manual`+`isManuallyCompleted` oculta vacation en el kind.
   if (
     k.includes("no_laboral") ||
     k.includes("no laboral") ||
@@ -28,8 +27,15 @@ function imputationKindToRazon(
     return "dia_no_laboral";
   }
   if (k.includes("vacacion") || k.includes("vacation")) return "ausencia_vacaciones";
-  if (k.includes("baja") || k.includes("sick") || k.includes("ausencia")) {
+  if (
+    k.includes("baja") ||
+    k.includes("sick") ||
+    (k.includes("ausencia") && !k.includes("vacacion"))
+  ) {
     return "ausencia_baja";
+  }
+  if (isManuallyCompleted || k.includes("manual") || k.includes("error") || k.includes("rrhh")) {
+    return "imputacion_manual_error";
   }
   return "imputacion_normal";
 }
@@ -91,7 +97,12 @@ export function mapTimeEntryRowsItemToMock(raw: unknown): TimeEntryMock | null {
 
   const imputationKind = String(o.imputationKind ?? o.ImputationKind ?? "normal");
   const isManuallyCompleted = Boolean(o.isManuallyCompleted ?? o.IsManuallyCompleted ?? false);
-  const razon = imputationKindToRazon(imputationKind, isManuallyCompleted);
+  const timeEntryStatus = parseTimeEntryApiStatus(o.status ?? o.Status);
+
+  let razon = imputationKindToRazon(imputationKind, isManuallyCompleted);
+  if (timeEntryStatus === "Vacation") razon = "ausencia_vacaciones";
+  else if (timeEntryStatus === "SickLeave") razon = "ausencia_baja";
+  else if (timeEntryStatus === "NonWorkingDay") razon = "dia_no_laboral";
 
   const companyIdRaw = o.companyId ?? o.CompanyId;
   const companyId = typeof companyIdRaw === "string" ? companyIdRaw : null;
@@ -134,6 +145,16 @@ export function mapTimeEntryRowsItemToMock(raw: unknown): TimeEntryMock | null {
   const lastModifiedByEmail =
     typeof lastModifiedByEmailRaw === "string" ? lastModifiedByEmailRaw : null;
 
+  const workAreaNameRaw =
+    o.workAreaName ??
+    o.WorkAreaName ??
+    o.workLocationName ??
+    o.WorkLocationName ??
+    o.locationName ??
+    o.LocationName;
+  const workAreaName =
+    typeof workAreaNameRaw === "string" && workAreaNameRaw.trim() ? workAreaNameRaw.trim() : null;
+
   const workerId = stableNumericIdFromUserId(userId);
   const id = stableIdFromString(timeEntryId || `${userId}|${workDate}|${startAt}`);
 
@@ -167,5 +188,7 @@ export function mapTimeEntryRowsItemToMock(raw: unknown): TimeEntryMock | null {
     previousCheckOutUtc: null,
     edicionNotaAdmin: null,
     cierreAutomaticoMedianoche: false,
+    workAreaName,
+    timeEntryStatus,
   };
 }

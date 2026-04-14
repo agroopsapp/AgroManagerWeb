@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFeatures } from "@/contexts/FeaturesContext";
 import { TasksProvider } from "@/contexts/TasksContext";
 import { USER_ROLE } from "@/types";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import { MODAL_BACKDROP_CENTER, MODAL_SURFACE, MODAL_SURFACE_PAD } from "@/components/modalShell";
+import { appHomePath, isDashboardPathOperativaYAnalisis } from "@/lib/dashboardNavGating";
 
 const SIDEBAR_STORAGE_KEY = "agroops_sidebar_collapsed";
 
@@ -19,6 +21,7 @@ const QUICK_MENU_ITEMS = [
   { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
   { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
   { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
+  { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: "📅" },
   { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥", adminOnly: true },
   { href: "/dashboard/companies", label: "Empresas", icon: "🏢", adminOnly: true },
   { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
@@ -33,8 +36,9 @@ const QUICK_MENU_ITEMS = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, isReady } = useAuth();
-  const { enableAnimals, enableTimeTracking } = useFeatures();
+  const { enableAnimals, enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
@@ -43,6 +47,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!isReady) return;
     if (!user) router.replace("/login");
   }, [user, isReady, router]);
+
+  useEffect(() => {
+    if (!isReady || !user) return;
+    if (!enableOperativaYAnalisisMenu && pathname && isDashboardPathOperativaYAnalisis(pathname)) {
+      const dest = appHomePath(user.role, enableTimeTracking, enableOperativaYAnalisisMenu);
+      if (pathname !== dest) router.replace(dest);
+    }
+  }, [isReady, user, pathname, enableOperativaYAnalisisMenu, enableTimeTracking, router]);
 
   useEffect(() => {
     const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
@@ -94,20 +106,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <TasksProvider>
-    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-900">
+    {/* `h-[100dvh]` + `overflow-hidden`: el scroll queda en `<main>`; si el shell crece con
+        `min-h-screen` solamente, a veces hace scroll el documento y el `sticky` de las páginas
+        (p. ej. filtros en team-hours) deja de “pegar” bien. */}
+    <div className="flex h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900">
       <Header
         onToggleMobileSidebar={() => setMobileSidebarOpen((v) => !v)}
         onToggleQuickMenu={() => setQuickMenuOpen((v) => !v)}
       />
-      <div className="flex min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {/* Menú rápido: grid 3x3 */}
         {quickMenuOpen && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
             onClick={() => setQuickMenuOpen(false)}
           >
             <div
-              className="w-full max-w-xs rounded-2xl bg-white p-4 shadow-xl dark:bg-slate-900 dark:border dark:border-slate-700"
+              className={`w-full max-w-xs ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between">
@@ -140,7 +155,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   if (!enableTimeTracking && href === "/dashboard/time-tracking") {
                     return null;
                   }
+                  if (!enableTimeTracking && href.startsWith("/dashboard/time-tracking/")) {
+                    return null;
+                  }
                   if (!enableTimeTracking && href === "/dashboard/team-hours") {
+                    return null;
+                  }
+                  if (!enableOperativaYAnalisisMenu && isDashboardPathOperativaYAnalisis(href)) {
                     return null;
                   }
                   if (
@@ -180,6 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             />
             <div className="fixed inset-y-0 left-0 z-50 w-[min(20rem,88vw)] shadow-2xl md:hidden">
               <Sidebar
+                pathname={pathname}
                 collapsed={false}
                 mobileDrawer
                 onToggle={() => setMobileSidebarOpen(false)}
@@ -189,11 +211,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </>
         )}
 
-        <div className="flex w-full min-w-0 flex-1 flex-col md:flex-row">
-          <div className="hidden shrink-0 md:block">
-            <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
+          {/* Misma altura que main: flex-1 bajo el header + stretch en fila. Si cambias h-14 en Header, el bloque sigue llenando el viewport. */}
+          <div className="hidden min-h-0 shrink-0 self-stretch md:flex md:flex-col">
+            <Sidebar pathname={pathname} collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
           </div>
-          <main className="min-w-0 max-w-full flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 px-3 py-4 md:p-6 dark:bg-slate-900">
+          <main className="min-h-0 min-w-0 max-w-full flex-1 overflow-y-auto bg-slate-50 px-3 py-4 md:min-h-0 md:p-6 dark:bg-slate-900">
             {children}
           </main>
         </div>
