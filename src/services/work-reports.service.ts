@@ -26,6 +26,10 @@ export interface WorkReportLineDto {
   workAreaId: string;
   minutes: number;
   notes: string | null;
+  /** Texto descriptivo si el API lo devuelve en with-lines (p. ej. nombres al cerrar el parte). */
+  clientCompanyNameSnapshot?: string;
+  serviceNameSnapshot?: string;
+  workAreaNameSnapshot?: string;
 }
 
 export interface WorkReportWithLinesDto extends WorkReportDto {
@@ -42,6 +46,13 @@ export interface WorkReportLineCreateInput {
   workAreaNameSnapshot: string;
   notes: string;
   workAreaDescriptionSnapshot: string;
+}
+
+function snapshotStr(...candidates: unknown[]): string | undefined {
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c.trim();
+  }
+  return undefined;
 }
 
 function normalizeWorkReportLine(input: unknown): WorkReportLineDto {
@@ -61,6 +72,12 @@ function normalizeWorkReportLine(input: unknown): WorkReportLineDto {
       typeof (o.notes ?? o.Notes) === "string"
         ? String(o.notes ?? o.Notes)
         : null,
+    clientCompanyNameSnapshot: snapshotStr(
+      o.clientCompanyNameSnapshot,
+      o.ClientCompanyNameSnapshot,
+    ),
+    serviceNameSnapshot: snapshotStr(o.serviceNameSnapshot, o.ServiceNameSnapshot),
+    workAreaNameSnapshot: snapshotStr(o.workAreaNameSnapshot, o.WorkAreaNameSnapshot),
   };
 }
 
@@ -115,9 +132,12 @@ export const workReportsApi = {
       .then(normalizeWorkReport);
   },
 
-  getByIdWithLines(id: string): Promise<WorkReportWithLinesDto> {
+  getByIdWithLines(
+    id: string,
+    init?: { signal?: AbortSignal },
+  ): Promise<WorkReportWithLinesDto> {
     return apiClient
-      .get<unknown>(`${BASE}/with-lines/${encodeURIComponent(id)}`)
+      .get<unknown>(`${BASE}/with-lines/${encodeURIComponent(id)}`, init)
       .then(normalizeWorkReportWithLines);
   },
 

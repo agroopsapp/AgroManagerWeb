@@ -4,9 +4,10 @@ import React from "react";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { EquipoBarraLaboralesExtra } from "./EquipoBarraLaboralesExtra";
 import { EquipoObjetivoMesEncabezado } from "./EquipoObjetivoMesEncabezado";
-import { FichajeTipoDonut } from "./charts/FichajeTipoDonut";
+import { FichajeTipoRadialSummary } from "./charts/FichajeTipoRadialSummary";
 import { HorasMensualesDonut } from "./charts/HorasMensualesDonut";
 import { PartesEnDiasDonut } from "./charts/PartesEnDiasDonut";
+import { EquipoTablaAccionesDuo, EquipoTablaBotonPrimeraJornada } from "./EquipoTablaAccionesIconos";
 import { TimeEntryStatusBadge } from "./TimeEntryStatusBadge";
 import type {
   EquipoSortKey,
@@ -19,19 +20,25 @@ import type {
 import {
   effectiveExtraMinutesEntry,
   effectiveWorkMinutesEntry,
+  equipoAbsenceEtiquetaKind,
   equipoRegistroOcultaHorasEnTabla,
   formatLastModifiedByUser,
   formatRazonTablaEquipo,
   isAbsenceCalendarApiStatus,
   RAZON_NO_LABORAL,
   RAZON_SIN_IMPUTAR,
+  timeEntryConParteEnServidor,
   workReportParteApiSummary,
 } from "@/features/time-tracking/utils/formatters";
-import { downloadEquipoTablePdf } from "@/features/time-tracking/utils/equipoTablePdf";
 import {
-  getTasksFromRecord,
-  getWorkPartsForWorker,
-} from "@/lib/workPartsStorage";
+  equipoTablaEtiquetaBaseClass,
+  equipoTablaEtiquetaAusencia,
+  equipoTablaSinImputarBadgeClass,
+  equipoTablaZebraRowClass,
+  equipoTablaZebraStripeBg,
+} from "@/features/time-tracking/utils/equipoTableAppearance";
+import { timeEntryApiStatusBadgeClass } from "@/features/time-tracking/utils/timeEntryApiStatus";
+import { downloadEquipoTablePdf } from "@/features/time-tracking/utils/equipoTablePdf";
 import { workerNameById } from "@/mocks/time-tracking.mock";
 import { useWheelScrollChain } from "@/features/time-tracking/hooks/useWheelScrollChain";
 import {
@@ -45,6 +52,7 @@ import {
   workDateIsWeekend,
 } from "@/shared/utils/time";
 import { ForgotModal } from "./ForgotModal";
+import { EquipoRegistrosFiltrosEtiquetas } from "./EquipoRegistrosFiltrosEtiquetas";
 
 // ---------------------------------------------------------------------------
 // Prop types
@@ -152,6 +160,8 @@ interface TeamPanelProps {
   editFormError: string | null;
   /** Guardando ausencia vía POST/PUT TimeEntries. */
   editAbsenceSaving: boolean;
+  /** Eliminando fichaje del día vía DELETE TimeEntries. */
+  editFichajeDeleting: boolean;
   /** Asistente «Corrección de fichaje» (mismo flujo que registro de jornada). */
   horarioWizard: {
     step: ForgotStep;
@@ -188,6 +198,8 @@ interface TeamPanelProps {
   onSetSoloSinImputar: (v: boolean) => void;
   onSetSoloSinParteServidor: (v: boolean) => void;
   onSetSoloConParteServidor: (v: boolean) => void;
+  /** Limpia empresa, persona, servicio y vista rápida (no toca periodo). */
+  onBorrarFiltrosAlcance?: () => void;
 
   // ── Sort handler ───────────────────────────────────────────────────────
   onSetSortColumn: (key: EquipoSortKey) => void;
@@ -200,9 +212,11 @@ interface TeamPanelProps {
     isWeekendFila: boolean;
     personaLabel?: string | null;
     targetUserId?: string | null;
+    irDirectoAlWizard?: boolean;
   }) => void;
   onCloseEditModal: () => void;
   onGuardarVacaciones: (tipo: "vacaciones" | "baja" | "dia_no_laboral") => void | Promise<void>;
+  onEliminarFichaje: () => void | Promise<void>;
   onSetFormError: (e: string | null) => void;
 
   // ── Part editor handler ────────────────────────────────────────────────
@@ -287,6 +301,7 @@ export function TeamPanel({
   editModalVista,
   editFormError,
   editAbsenceSaving,
+  editFichajeDeleting,
   horarioWizard,
   onSetPeriodo,
   onSetDia,
@@ -297,20 +312,50 @@ export function TeamPanel({
   onSetSoloSinImputar,
   onSetSoloSinParteServidor,
   onSetSoloConParteServidor,
+  onBorrarFiltrosAlcance,
   onSetSortColumn,
   onOpenEditModal,
   onCloseEditModal,
   onGuardarVacaciones,
+  onEliminarFichaje,
   onSetFormError,
   onOpenPartEditor,
 }: TeamPanelProps) {
   useWheelScrollChain(tablaScrollRef, diasCalendario.length > 0);
+
+  const editMenuBusy = editAbsenceSaving || editFichajeDeleting;
 
   const mesDetalleTablaNombre =
     periodo === "anio" && gridMesDetalleEnAnio
       ? gridMesDetalleEnAnio.opcionesMes.find((o) => o.value === gridMesDetalleEnAnio.mesPagina)
           ?.label ?? `Mes ${gridMesDetalleEnAnio.mesPagina}`
       : "";
+
+  const periodoRangoTextoParaEtiquetas = React.useMemo(() => {
+    switch (periodo) {
+      case "dia":
+        return formatDateES(dia);
+      case "semana":
+        return `Semana que incluye ${formatDateES(dia)}`;
+      case "mes":
+        return opcionesMes.find((o) => o.value === mes)?.label ?? mes;
+      case "trimestre":
+        return opcionesTrimestre.find((o) => o.value === trimestre)?.label ?? trimestre;
+      case "anio":
+        return opcionesAnio.find((o) => o.value === anio)?.label ?? anio;
+      default:
+        return "";
+    }
+  }, [periodo, dia, mes, trimestre, anio, opcionesMes, opcionesTrimestre, opcionesAnio]);
+
+  const hayFiltrosAlcanceActivos = React.useMemo(
+    () =>
+      persona !== "todas" ||
+      Boolean(equipoCompanyFilter?.companyId?.trim()) ||
+      Boolean(equipoServiceFilter?.serviceId?.trim()) ||
+      tablaFiltroExtra !== "ninguno",
+    [persona, equipoCompanyFilter?.companyId, equipoServiceFilter?.serviceId, tablaFiltroExtra],
+  );
 
   return (
     <div className="min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800/95 sm:p-5">
@@ -335,9 +380,22 @@ export function TeamPanel({
         {/* Columna izquierda: filtros + total */}
         <div className="mx-auto flex w-full max-w-[400px] shrink-0 flex-col justify-between gap-4 rounded-3xl border-2 border-slate-200 bg-white p-4 shadow-md dark:border-slate-600 dark:bg-slate-900/80 lg:mx-0 lg:max-w-[min(400px,42vw)] lg:min-h-[320px] lg:p-5">
           <div className="min-h-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50/90 p-3 dark:border-slate-600 dark:bg-slate-800/50 sm:p-4">
-            <p className="mb-3 text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Filtros
-            </p>
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Filtros
+              </p>
+              {onBorrarFiltrosAlcance ? (
+                <button
+                  type="button"
+                  onClick={() => onBorrarFiltrosAlcance()}
+                  disabled={!hayFiltrosAlcanceActivos}
+                  className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:bg-slate-800 dark:hover:text-white"
+                  title="Quitar empresa, persona, servicio y vista rápida (el periodo no cambia)"
+                >
+                  Borrar filtros
+                </button>
+              ) : null}
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
               <div className="flex min-w-0 flex-col gap-1.5">
                 <label
@@ -655,7 +713,7 @@ export function TeamPanel({
 
           <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 lg:grid-cols-3 lg:items-stretch lg:gap-4">
             <div className="min-h-0 w-full min-w-0 max-w-full lg:h-full">
-              <FichajeTipoDonut
+              <FichajeTipoRadialSummary
                 horasNormal={fichajeTipoStats.horasNormal}
                 horasManual={fichajeTipoStats.horasManual}
                 horasSinImputar={horasSinImputarTipoFichaje}
@@ -847,6 +905,35 @@ export function TeamPanel({
               Exportar PDF (vista actual)
             </button>
           </div>
+          <EquipoRegistrosFiltrosEtiquetas
+            periodo={periodo}
+            periodoRangoTexto={periodoRangoTextoParaEtiquetas}
+            vistaTablaMesNombre={
+              periodo === "anio" && mesDetalleTablaNombre.trim() ? mesDetalleTablaNombre : null
+            }
+            vistaTablaAnioTexto={
+              periodo === "anio" ? (opcionesAnio.find((o) => o.value === anio)?.label ?? anio) : null
+            }
+            empresaNombre={
+              equipoCompanyFilter?.companyId
+                ? equipoCompanyFilter.companies.find((c) => c.id === equipoCompanyFilter.companyId)
+                    ?.name ?? null
+                : null
+            }
+            personaNombre={
+              persona !== "todas"
+                ? workersOpciones.find((w) => w.id === persona)?.name ?? null
+                : null
+            }
+            servicioNombre={
+              equipoServiceFilter?.serviceId
+                ? equipoServiceFilter.services.find((s) => s.id === equipoServiceFilter.serviceId)
+                    ?.name ?? null
+                : null
+            }
+            filtroExtra={tablaFiltroExtra}
+            className="mt-2 rounded-xl border border-slate-100 dark:border-slate-700"
+          />
           <div
             ref={tablaScrollRef}
             className="mt-2 max-h-[min(70vh,520px)] w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto rounded-xl border border-slate-100 dark:border-slate-700 [-webkit-overflow-scrolling:touch] [touch-action:pan-x_pan-y]"
@@ -989,25 +1076,30 @@ export function TeamPanel({
                     </td>
                   </tr>
                 ) : (
-                  filasOrdenadas.map((fila) => {
+                  filasOrdenadas.map((fila, rowIndex) => {
                   if (fila.kind === "noLaboral") {
+                    const zebra = equipoTablaZebraRowClass(rowIndex);
+                    const stripe = equipoTablaZebraStripeBg(rowIndex);
                     return (
-                      <tr
-                        key={`nl-${fila.userId}-${fila.workDate}`}
-                        className="border-t border-slate-200 bg-slate-100/95 text-slate-600 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300"
-                      >
-                        <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      <tr key={`nl-${fila.userId}-${fila.workDate}`} className={zebra}>
+                        <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
                           {resolvePersonaNombre(fila)}
                         </td>
-                        <td className="px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
+                        <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-200">
                           {formatDateEsWeekdayDdMmYyyy(fila.workDate)}
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs align-middle">
+                          <span
+                            className={`${equipoTablaEtiquetaBaseClass} ${timeEntryApiStatusBadgeClass("NonWorkingDay")}`}
+                          >
+                            No laboral
+                          </span>
+                        </td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
-                        <td className="max-w-[11rem] px-3 py-2 text-xs italic text-sky-700 dark:text-sky-400">
+                        <td className="max-w-[11rem] px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
                           {RAZON_NO_LABORAL}
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
@@ -1019,10 +1111,11 @@ export function TeamPanel({
                           —
                         </td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
-                        <td className="sticky right-0 z-[1] border-l border-slate-200/80 bg-slate-100 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-600 dark:bg-slate-800/55">
-                          <button
-                            type="button"
-                            onClick={() =>
+                        <td
+                          className={`sticky right-0 z-[1] align-middle border-l border-slate-200/80 px-1 py-1.5 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-700 ${stripe}`}
+                        >
+                          <EquipoTablaBotonPrimeraJornada
+                            onCrearJornada={() =>
                               onOpenEditModal({
                                 workerId: fila.workerId,
                                 workDate: fila.workDate,
@@ -1030,50 +1123,54 @@ export function TeamPanel({
                                 isWeekendFila: true,
                                 personaLabel: resolvePersonaNombre(fila),
                                 targetUserId: fila.userId,
+                                irDirectoAlWizard: true,
                               })
                             }
-                            className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
-                          >
-                            Editar
-                          </button>
+                          />
                         </td>
                       </tr>
                     );
                   }
 
                   if (fila.kind === "sinImputar") {
+                    const zebra = equipoTablaZebraRowClass(rowIndex);
+                    const stripe = equipoTablaZebraStripeBg(rowIndex);
                     return (
-                      <tr
-                        key={`si-${fila.userId}-${fila.workDate}`}
-                        className="border-t border-rose-200 bg-rose-50/95 text-rose-950 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-50"
-                      >
-                        <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-rose-900 dark:text-rose-100">
+                      <tr key={`si-${fila.userId}-${fila.workDate}`} className={zebra}>
+                        <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
                           {resolvePersonaNombre(fila)}
                         </td>
-                        <td className="px-3 py-2 text-xs font-semibold text-rose-900 dark:text-rose-100">
+                        <td className="px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-100">
                           {formatDateEsWeekdayDdMmYyyy(fila.workDate)}
                         </td>
-                        <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="max-w-[11rem] px-3 py-2 text-xs font-semibold text-rose-800 dark:text-rose-200">
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs align-middle">
+                          <span
+                            className={`${equipoTablaEtiquetaBaseClass} ${equipoTablaSinImputarBadgeClass}`}
+                          >
+                            Sin imputar
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="max-w-[11rem] px-3 py-2 text-xs text-slate-700 dark:text-slate-200">
                           {RAZON_SIN_IMPUTAR}
                         </td>
-                        <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-3 py-2 text-right text-xs font-semibold text-rose-800 dark:text-rose-200">
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-right text-xs text-slate-500 dark:text-slate-400">
                           —
                         </td>
-                        <td className="px-3 py-2 text-right text-xs font-semibold text-rose-800 dark:text-rose-200">
+                        <td className="px-3 py-2 text-right text-xs text-slate-500 dark:text-slate-400">
                           —
                         </td>
-                        <td className="px-3 py-2 text-xs text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="sticky right-0 z-[1] border-l border-rose-200/80 bg-rose-50 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-rose-800 dark:bg-rose-950/45">
-                          <button
-                            type="button"
-                            onClick={() =>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td
+                          className={`sticky right-0 z-[1] align-middle border-l border-slate-200/80 px-1 py-1.5 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-700 ${stripe}`}
+                        >
+                          <EquipoTablaBotonPrimeraJornada
+                            onCrearJornada={() =>
                               onOpenEditModal({
                                 workerId: fila.workerId,
                                 workDate: fila.workDate,
@@ -1081,12 +1178,10 @@ export function TeamPanel({
                                 isWeekendFila: false,
                                 personaLabel: resolvePersonaNombre(fila),
                                 targetUserId: fila.userId,
+                                irDirectoAlWizard: true,
                               })
                             }
-                            className="rounded-lg border border-rose-400 bg-white px-2 py-1 text-[10px] font-semibold text-rose-900 hover:bg-rose-100 dark:border-rose-600 dark:bg-rose-900/50 dark:text-rose-100 dark:hover:bg-rose-900/80"
-                          >
-                            Editar
-                          </button>
+                          />
                         </td>
                       </tr>
                     );
@@ -1094,66 +1189,35 @@ export function TeamPanel({
 
                   const e = fila.e;
                   const ausenciaPorApiStatus = isAbsenceCalendarApiStatus(e);
+                  const ausenciaEtiqueta = equipoAbsenceEtiquetaKind(e);
+                  const ausenciaEtiquetaVisual = ausenciaEtiqueta
+                    ? equipoTablaEtiquetaAusencia(ausenciaEtiqueta)
+                    : null;
                   const ocultaHoras = equipoRegistroOcultaHorasEnTabla(e);
                   const apiParte = workReportParteApiSummary(e);
-                  const part =
-                    getWorkPartsForWorker(e.workerId).find((p) => p.workDate === e.workDate) ?? null;
-                  const partTasksCount = part ? getTasksFromRecord(part).length : 0;
+                  const lineCount =
+                    typeof e.workReportLineCount === "number" &&
+                    Number.isFinite(e.workReportLineCount) &&
+                    e.workReportLineCount > 0
+                      ? e.workReportLineCount
+                      : null;
                   const parteCell = ocultaHoras ? (
                     "—"
-                  ) : part ? (
+                  ) : apiParte.tieneParte ? (
                     <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">
-                      Sí{partTasksCount ? ` (${partTasksCount})` : ""}
+                      Sí{lineCount != null ? ` (${lineCount})` : ""}
                     </span>
                   ) : (
                     <span className="text-slate-400 dark:text-slate-500">No</span>
                   );
-                  const rowVac = ausenciaPorApiStatus
-                    ? e.timeEntryStatus === "Vacation"
-                      ? "border-t border-sky-200 bg-sky-50/95 text-sky-950 dark:border-sky-800 dark:bg-sky-950/45 dark:text-sky-50"
-                      : e.timeEntryStatus === "SickLeave"
-                        ? "border-t border-violet-200 bg-violet-50/95 text-violet-950 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-50"
-                        : "border-t border-stone-200 bg-stone-50/95 text-stone-950 dark:border-stone-600 dark:bg-stone-900/35 dark:text-stone-100"
-                    : e.razon === "ausencia_vacaciones"
-                      ? "border-t border-sky-200 bg-sky-50/95 text-sky-950 dark:border-sky-800 dark:bg-sky-950/45 dark:text-sky-50"
-                      : e.razon === "ausencia_baja"
-                        ? "border-t border-violet-200 bg-violet-50/95 text-violet-950 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-50"
-                        : e.razon === "dia_no_laboral"
-                          ? "border-t border-stone-200 bg-stone-50/95 text-stone-950 dark:border-stone-600 dark:bg-stone-900/35 dark:text-stone-100"
-                          : "border-t border-slate-100 bg-white/80 dark:border-slate-700 dark:bg-slate-800/80";
-                  const stickyBg = ausenciaPorApiStatus
-                    ? e.timeEntryStatus === "Vacation"
-                      ? "bg-sky-50/98 dark:bg-sky-950/50"
-                      : e.timeEntryStatus === "SickLeave"
-                        ? "bg-violet-50/98 dark:bg-violet-950/45"
-                        : "bg-stone-50/98 dark:bg-stone-900/45"
-                    : e.razon === "ausencia_vacaciones"
-                      ? "bg-sky-50/98 dark:bg-sky-950/50"
-                      : e.razon === "ausencia_baja"
-                        ? "bg-violet-50/98 dark:bg-violet-950/45"
-                        : e.razon === "dia_no_laboral"
-                          ? "bg-stone-50/98 dark:bg-stone-900/45"
-                          : "bg-white/95 dark:bg-slate-800/95";
-                  const razonClass = ausenciaPorApiStatus
-                    ? e.timeEntryStatus === "Vacation"
-                      ? "rounded-md bg-sky-200/80 px-1.5 py-0.5 font-semibold text-sky-950 dark:bg-sky-800/60 dark:text-sky-100"
-                      : e.timeEntryStatus === "SickLeave"
-                        ? "rounded-md bg-violet-200/80 px-1.5 py-0.5 font-semibold text-violet-950 dark:bg-violet-300/30 dark:text-violet-100"
-                        : "rounded-md bg-stone-200/80 px-1.5 py-0.5 font-semibold text-stone-900 dark:bg-stone-600/50 dark:text-stone-100"
-                    : e.razon === "imputacion_manual_error"
+                  const zebra = equipoTablaZebraRowClass(rowIndex);
+                  const stripe = equipoTablaZebraStripeBg(rowIndex);
+                  const razonClass =
+                    e.razon === "imputacion_manual_error"
                       ? "rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-100"
-                      : e.razon === "ausencia_vacaciones"
-                        ? "rounded-md bg-sky-200/80 px-1.5 py-0.5 font-semibold text-sky-950 dark:bg-sky-800/60 dark:text-sky-100"
-                        : e.razon === "ausencia_baja"
-                          ? "rounded-md bg-violet-200/80 px-1.5 py-0.5 font-semibold text-violet-950 dark:bg-violet-300/30 dark:text-violet-100"
-                          : e.razon === "dia_no_laboral"
-                            ? "rounded-md bg-stone-200/80 px-1.5 py-0.5 font-semibold text-stone-900 dark:bg-stone-600/50 dark:text-stone-100"
-                            : "text-slate-700 dark:text-slate-200";
+                      : "text-slate-700 dark:text-slate-200";
                   return (
-                    <tr
-                      key={`${e.id}-${e.workerId}-${e.workDate}`}
-                      className={rowVac}
-                    >
+                    <tr key={`${e.id}-${e.workerId}-${e.workDate}`} className={zebra}>
                       <td className="whitespace-nowrap px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-100">
                         {resolvePersonaNombre(fila)}
                       </td>
@@ -1168,8 +1232,12 @@ export function TeamPanel({
                         {ocultaHoras ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
                       </td>
                       <td className="px-3 py-2 text-xs align-middle">
-                        {ausenciaPorApiStatus ? (
-                          <span className="text-slate-400 dark:text-slate-500">—</span>
+                        {ausenciaEtiquetaVisual ? (
+                          <span
+                            className={`${equipoTablaEtiquetaBaseClass} ${ausenciaEtiquetaVisual.badgeClass}`}
+                          >
+                            {ausenciaEtiquetaVisual.label}
+                          </span>
                         ) : (
                           <TimeEntryStatusBadge status={e.timeEntryStatus} />
                         )}
@@ -1233,34 +1301,23 @@ export function TeamPanel({
                         )}
                       </td>
                       <td
-                        className={`sticky right-0 z-[1] px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] ${stickyBg}`}
+                        className={`sticky right-0 z-[1] align-middle border-l border-slate-200/80 px-1 py-1.5 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-700 ${stripe}`}
                       >
-                        <div className="flex flex-col gap-1">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onOpenEditModal({
-                                workerId: e.workerId,
-                                workDate: e.workDate,
-                                existing: e,
-                                isWeekendFila: workDateIsWeekend(e.workDate),
-                                personaLabel: resolvePersonaNombre(fila),
-                                targetUserId: e.userId ?? null,
-                              })
-                            }
-                            className="rounded-lg border border-agro-500/60 bg-agro-50 px-2 py-1 text-[10px] font-semibold text-agro-800 hover:bg-agro-100 dark:border-agro-600 dark:bg-agro-950/50 dark:text-agro-100 dark:hover:bg-agro-900/60"
-                          >
-                            Editar hora
-                          </button>
-                          <button
-                            type="button"
-                            disabled={ocultaHoras || !e.checkOutUtc}
-                            onClick={() => onOpenPartEditor(e)}
-                            className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                          >
-                            {part ? "Editar parte" : "Añadir parte"}
-                          </button>
-                        </div>
+                        <EquipoTablaAccionesDuo
+                          onEditarHora={() =>
+                            onOpenEditModal({
+                              workerId: e.workerId,
+                              workDate: e.workDate,
+                              existing: e,
+                              isWeekendFila: workDateIsWeekend(e.workDate),
+                              personaLabel: resolvePersonaNombre(fila),
+                              targetUserId: e.userId ?? null,
+                            })
+                          }
+                          onEditarParte={() => onOpenPartEditor(e)}
+                          parteDisabled={ocultaHoras || !e.checkOutUtc}
+                          tieneParte={timeEntryConParteEnServidor(e)}
+                        />
                       </td>
                     </tr>
                   );
@@ -1324,7 +1381,7 @@ export function TeamPanel({
                       <div className="flex flex-col gap-2 sm:flex-row">
                         <button
                           type="button"
-                          disabled={editAbsenceSaving}
+                          disabled={editMenuBusy}
                           onClick={() => void onGuardarVacaciones("vacaciones")}
                           className="flex-1 rounded-xl border-2 border-sky-400 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-900 shadow-sm transition hover:bg-sky-100 disabled:opacity-60 dark:border-sky-600 dark:bg-sky-950/50 dark:text-sky-100 dark:hover:bg-sky-900/40"
                         >
@@ -1332,7 +1389,7 @@ export function TeamPanel({
                         </button>
                         <button
                           type="button"
-                          disabled={editAbsenceSaving}
+                          disabled={editMenuBusy}
                           onClick={() => void onGuardarVacaciones("baja")}
                           className="flex-1 rounded-xl border-2 border-violet-400 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-900 shadow-sm transition hover:bg-violet-100 disabled:opacity-60 dark:border-violet-600 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:bg-violet-900/35"
                         >
@@ -1341,7 +1398,7 @@ export function TeamPanel({
                       </div>
                       <button
                         type="button"
-                        disabled={editAbsenceSaving}
+                        disabled={editMenuBusy}
                         onClick={() => void onGuardarVacaciones("dia_no_laboral")}
                         className="mt-2 w-full rounded-xl border-2 border-stone-400 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-900 shadow-sm transition hover:bg-stone-100 disabled:opacity-60 dark:border-stone-500 dark:bg-stone-900/40 dark:text-stone-100 dark:hover:bg-stone-800/50"
                       >
@@ -1359,11 +1416,12 @@ export function TeamPanel({
                       </p>
                       <button
                         type="button"
+                        disabled={editMenuBusy}
                         onClick={() => {
                           horarioWizard.onEnterWizard();
                           onSetFormError(null);
                         }}
-                        className="w-full rounded-xl border-2 border-agro-500 bg-agro-50 px-4 py-3 text-sm font-semibold text-agro-900 shadow-sm transition hover:bg-agro-100 dark:border-agro-600 dark:bg-agro-950/40 dark:text-agro-100 dark:hover:bg-agro-900/50"
+                        className="w-full rounded-xl border-2 border-agro-500 bg-agro-50 px-4 py-3 text-sm font-semibold text-agro-900 shadow-sm transition hover:bg-agro-100 disabled:opacity-60 dark:border-agro-600 dark:bg-agro-950/40 dark:text-agro-100 dark:hover:bg-agro-900/50"
                       >
                         Modificar horario (imputación manual)
                       </button>
@@ -1371,10 +1429,35 @@ export function TeamPanel({
                         Mismo asistente que en <strong>Registro de jornada</strong>. Se guarda en el
                         servidor como jornada cerrada.
                       </p>
+                      <button
+                        type="button"
+                        disabled={
+                          editMenuBusy ||
+                          !(
+                            typeof editModalState.existing?.timeEntryId === "string" &&
+                            editModalState.existing.timeEntryId.trim().length > 0
+                          )
+                        }
+                        title={
+                          typeof editModalState.existing?.timeEntryId === "string" &&
+                          editModalState.existing.timeEntryId.trim().length > 0
+                            ? undefined
+                            : "No hay fila de fichaje en el servidor para este día"
+                        }
+                        onClick={() => void onEliminarFichaje()}
+                        className="mt-2 w-full rounded-xl border-2 border-red-400 bg-red-50 px-4 py-3 text-sm font-semibold text-red-900 shadow-sm transition hover:bg-red-100 disabled:opacity-60 dark:border-red-700 dark:bg-red-950/40 dark:text-red-100 dark:hover:bg-red-900/45"
+                      >
+                        {editFichajeDeleting ? "Eliminando…" : "Eliminar fichaje"}
+                      </button>
+                      <p className="mt-2 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                        Borra la fila de fichaje del día en el servidor (por ejemplo, si se imputó por
+                        error). Si el backend exige condiciones adicionales, verás el mensaje de error
+                        arriba.
+                      </p>
                     </div>
                     <button
                       type="button"
-                      disabled={editAbsenceSaving}
+                      disabled={editMenuBusy}
                       onClick={onCloseEditModal}
                       className="w-full rounded-xl border border-slate-300 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700/50"
                     >

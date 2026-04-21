@@ -151,10 +151,16 @@ export function buildEquipoCalTooltipModel(
     label: "Parte en servidor",
     value: parte.tieneParte ? `Sí${parte.detalle ? ` · ${parte.detalle}` : ""}` : "No",
   });
+  const desdeParte = e.workReportLinesSummary?.trim();
   const loc = e.workAreaName?.trim();
+  const ubicacion = desdeParte || loc;
   rows.push({
     label: "Dónde ha trabajado",
-    value: loc || "No consta ubicación en el API para este fichaje",
+    value:
+      ubicacion ||
+      (parte.tieneParte && (e.workReportLineCount ?? 0) > 0
+        ? "Parte con líneas: el resumen aún no está disponible."
+        : "No consta ubicación en el API para este fichaje"),
   });
   if (e.edicionNotaAdmin?.trim()) {
     rows.push({ label: "Nota administración", value: e.edicionNotaAdmin.trim() });

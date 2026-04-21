@@ -3,7 +3,7 @@
 import { memo, type ReactNode } from "react";
 
 const surfaceClass =
-  "relative flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-200/65 bg-white px-2.5 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:px-3 sm:py-2.5 dark:border-slate-700/75 dark:bg-slate-900/45 dark:shadow-none";
+  "relative flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-300 bg-white px-2.5 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:px-3 sm:py-2.5 dark:border-slate-600 dark:bg-slate-900/45 dark:shadow-none";
 
 const accentBar: Record<"emerald" | "sky" | "amber" | "violet" | "rose", string> = {
   emerald: "from-agro-500 to-emerald-600",

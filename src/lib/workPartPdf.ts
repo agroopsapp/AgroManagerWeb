@@ -1,11 +1,18 @@
 import autoTable from "jspdf-autotable";
 import { jsPDF } from "jspdf";
+import QRCode from "qrcode";
 import {
   AGROOPS_PDF_LOGO_PUBLIC_PATHS,
   createAgroOpsPdfWordmarkDataUrl,
 } from "@/lib/agroopsBranding";
 import { getMyCompanyProfile } from "@/lib/myCompanyProfile";
 import type { WorkPartRecord, WorkPartTask } from "@/lib/workPartsStorage";
+import {
+  DEFAULT_STANDARD_WORKDAY_MINUTES,
+  sessionDisplayNameFromEmail,
+  splitWorkedMinutesOrdinaryAndExtra,
+} from "@/features/time-tracking/utils/formatters";
+import { formatMinutesShort } from "@/shared/utils/time";
 import type { Company } from "@/types";
 
 type JsPDFWithPlugin = jsPDF & { lastAutoTable?: { finalY: number } };
@@ -49,6 +56,56 @@ async function getImageSize(dataUrl: string): Promise<{ w: number; h: number } |
   });
 }
 
+/**
+ * Texto que codifica el QR: al escanear se muestra como texto plano (no es URL ni deep link).
+ * Evitamos poner el nombre del producto al inicio: algunos lectores (p. ej. Google Lens) lo
+ * interpretan como enlace a app de tienda y muestran «no tienes la aplicación».
+ */
+function buildWorkPartQrPayload(
+  record: WorkPartRecord,
+  tasks: WorkPartTask[],
+  workerLabel: string,
+  imputationName: string,
+): string {
+  const breakM = Math.max(0, Math.round(Number(record.breakMinutes) || 0));
+  const lines = [
+    "Parte de trabajo — resumen en texto",
+    `Fecha: ${record.workDate}`,
+    `Trabajador/a: ${workerLabel}`,
+    `Imputación (cliente): ${imputationName}`,
+    `Entrada: ${record.entradaDisplay} · Salida: ${record.salidaDisplay} · Descanso: ${formatMinutesShort(breakM)}`,
+    `Total trabajado: ${formatMinutesShort(record.workedMinutes)}`,
+    `ID parte: ${record.id}`,
+  ];
+  if (tasks.length) {
+    lines.push("Tareas:");
+    const max = 10;
+    tasks.slice(0, max).forEach((t, i) => {
+      lines.push(
+        `  ${i + 1}. ${t.companyName} · ${t.serviceName} · ${t.areaName}`,
+      );
+    });
+    if (tasks.length > max) {
+      lines.push(`  … (+${tasks.length - max} más)`);
+    }
+  }
+  lines.push("Origen: PDF exportado desde el panel web (solo texto; no abre app móvil).");
+  return lines.join("\n");
+}
+
+async function workPartQrPngDataUrl(text: string): Promise<string | null> {
+  try {
+    return await QRCode.toDataURL(text, {
+      errorCorrectionLevel: "M",
+      margin: 1,
+      width: 280,
+      color: { dark: "#0f172a", light: "#ffffff" },
+    });
+  } catch {
+    return null;
+  }
+}
+
 function formatWorkDateLongEs(ymd: string): string {
   const [y, m, d] = ymd.split("-").map(Number);
   if (!y || !m || !d) return ymd;
@@ -89,6 +146,8 @@ export async function downloadWorkPartPdf(
   tasks: WorkPartTask[],
   opts?: {
     workerDisplayName?: string;
+    /** Si no hay nombre explícito, se usa para generar una etiqueta legible en el PDF. */
+    sessionEmail?: string | null;
     companies?: Company[];
   }
 ): Promise<void> {
@@ -166,41 +225,35 @@ export async function downloadWorkPartPdf(
     ].filter((x): x is string => Boolean(x));
     if (lines.length) {
       const wrapped = lines.flatMap((ln) => doc.splitTextToSize(ln, pageWidth - 2 * margin));
-      doc.text(wrapped, margin, y - 3);
-      y += Math.min(10, wrapped.length * 3.2);
+      doc.text(wrapped, margin, y);
+      y += wrapped.length * 3.6 + 4;
     }
   }
 
   const clientLogoData = companyMeta?.logoUrl?.trim()
     ? await fetchImageAsDataUrl(companyMeta.logoUrl.trim())
     : null;
-  const textMaxW = clientLogoData
-    ? pageWidth - 2 * margin - 48
-    : pageWidth - 2 * margin;
-  const imputationBlockStart = y;
+  const logoSlotW = clientLogoData ? 50 : 0;
+  const textMaxW = pageWidth - 2 * margin - logoSlotW;
+  const imputationLabelY = y;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
-  doc.text("Empresa de imputación (cliente / obra)", margin, y);
-  y += 4;
+  doc.text("Empresa de imputación (cliente / obra)", margin, imputationLabelY);
+  y = imputationLabelY + 5;
+
   doc.setFont("helvetica", "normal");
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(10);
   const nameLines = doc.splitTextToSize(imputationName, textMaxW);
   doc.text(nameLines, margin, y);
-  y += nameLines.length * 4.2;
+  y += nameLines.length * 4.5 + 2;
+
   if (clientLogoData) {
     const lw = 44;
     const lh = 12;
-    addImageSafe(
-      doc,
-      clientLogoData,
-      pageWidth - margin - lw,
-      imputationBlockStart,
-      lw,
-      lh
-    );
+    addImageSafe(doc, clientLogoData, pageWidth - margin - lw, imputationLabelY, lw, lh);
   }
 
   doc.setFontSize(8);
@@ -233,10 +286,12 @@ export async function downloadWorkPartPdf(
   doc.setFontSize(10);
   doc.text(`Día: ${formatWorkDateLongEs(record.workDate)}`, margin, y);
   y += 5;
-  if (opts?.workerDisplayName?.trim()) {
-    doc.text(`Trabajador/a: ${opts.workerDisplayName.trim()}`, margin, y);
-    y += 5;
-  }
+
+  const workerLabel =
+    opts?.workerDisplayName?.trim() ||
+    sessionDisplayNameFromEmail(opts?.sessionEmail ?? undefined);
+  doc.text(`Trabajador/a: ${workerLabel}`, margin, y);
+  y += 5;
 
   y += 3;
   doc.setFont("helvetica", "bold");
@@ -245,12 +300,25 @@ export async function downloadWorkPartPdf(
   y += 4;
   doc.setFont("helvetica", "normal");
   doc.setTextColor(55, 55, 55);
-  const resumen =
-    `Entrada: ${record.entradaDisplay}  ·  Salida: ${record.salidaDisplay}  ·  ` +
-    `Descanso: ${record.breakMinutes} min  ·  Total trabajado: ${record.workedMinutes} min`;
-  const resumenLines = doc.splitTextToSize(resumen, pageWidth - 2 * margin);
-  doc.text(resumenLines, margin, y);
-  y += resumenLines.length * 4 + 4;
+  const topeH = DEFAULT_STANDARD_WORKDAY_MINUTES / 60;
+  const { ordinary, extra, total } = splitWorkedMinutesOrdinaryAndExtra(record.workedMinutes);
+  const breakM = Math.max(0, Math.round(Number(record.breakMinutes) || 0));
+  const line1 = `Entrada: ${record.entradaDisplay}  ·  Salida: ${record.salidaDisplay}  ·  Descanso: ${formatMinutesShort(breakM)}`;
+  const line1Wrapped = doc.splitTextToSize(line1, pageWidth - 2 * margin);
+  doc.text(line1Wrapped, margin, y);
+  y += line1Wrapped.length * 4.5;
+  doc.text(
+    `Jornada ordinaria (tope ${topeH} h): ${formatMinutesShort(ordinary)}`,
+    margin,
+    y,
+  );
+  y += 4.5;
+  doc.text(`Horas extra: ${formatMinutesShort(extra)}`, margin, y);
+  y += 4.5;
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total trabajado: ${formatMinutesShort(total)}`, margin, y);
+  y += 6;
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
 
   if (tasks.length === 0) {
@@ -260,22 +328,24 @@ export async function downloadWorkPartPdf(
   } else {
     autoTable(doc, {
       startY: y,
-      head: [["#", "Empresa", "Servicio", "Área", "Observaciones"]],
+      head: [["#", "Empresa", "Servicio", "Área", "Obs. área", "Notas"]],
       body: tasks.map((t, i) => [
         String(i + 1),
         t.companyName,
         t.serviceName,
         t.areaName,
         t.areaObservations?.trim() || "—",
+        t.lineNotes?.trim() || "—",
       ]),
       styles: { fontSize: 8, cellPadding: 1.5, overflow: "linebreak" },
       headStyles: { fillColor: [22, 101, 52], textColor: 255 },
       columnStyles: {
-        0: { cellWidth: 12 },
-        1: { cellWidth: 36 },
-        2: { cellWidth: 34 },
-        3: { cellWidth: 34 },
-        4: { cellWidth: "auto" },
+        0: { cellWidth: 10 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 28 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 32 },
+        5: { cellWidth: "auto" },
       },
       margin: { left: margin, right: margin },
     });
@@ -311,13 +381,53 @@ export async function downloadWorkPartPdf(
     y += sigH + 4;
   }
 
+  const qrPayload = buildWorkPartQrPayload(record, tasks, workerLabel, imputationName);
+  const qrSize = 34;
+  const qrBlockMinH = qrSize + 18;
+  if (y + qrBlockMinH > pageH - 14) {
+    doc.addPage();
+    y = margin;
+  }
+
+  const titleY = y;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Resumen en QR (escanear con el móvil)", margin, titleY);
+  const qrX = pageWidth - margin - qrSize;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(70, 70, 70);
+  const qrHelp = doc.splitTextToSize(
+    "El código solo contiene texto (no es un enlace a ninguna app). Escanea con la cámara o un lector QR y elige ver o copiar el texto. Si el móvil sugiere instalar una aplicación, usa «mostrar texto», «solo texto» u otra app de QR que muestre el contenido.",
+    pageWidth - 2 * margin - qrSize - 5,
+  );
+  doc.text(qrHelp, margin, titleY + 5);
+  const helpH = qrHelp.length * 3.6;
+  const qrDataUrl = await workPartQrPngDataUrl(qrPayload);
+  const qrPlaced =
+    qrDataUrl &&
+    addImageSafe(doc, qrDataUrl, qrX, titleY, qrSize, qrSize, "FAST");
+  if (!qrPlaced) {
+    doc.setFontSize(7.5);
+    doc.setTextColor(180, 60, 60);
+    doc.text(
+      "(No se pudo generar el código QR en este dispositivo.)",
+      margin,
+      titleY + 5 + helpH + 2,
+    );
+    doc.setTextColor(70, 70, 70);
+  }
+  y = Math.max(titleY + 5 + helpH, titleY + qrSize) + 8;
+
   doc.setFontSize(7);
   doc.setTextColor(120, 120, 120);
-  doc.text(
-    `Documento generado el ${new Date().toLocaleString("es-ES")}`,
-    margin,
-    pageH - 9
-  );
+  let footerY = pageH - 9;
+  if (y > pageH - 14) {
+    doc.addPage();
+    footerY = 12;
+  }
+  doc.text(`Documento generado el ${new Date().toLocaleString("es-ES")}`, margin, footerY);
 
   const safeId = record.id.replace(/[^a-zA-Z0-9-_]/g, "").slice(0, 14) || "parte";
   doc.save(`parte-trabajo-${record.workDate}-${safeId}.pdf`);

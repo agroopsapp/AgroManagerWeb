@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
 import { SignaturePadDialog } from "@/components/SignaturePadDialog";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { customerCompanyMock } from "@/lib/customerCompanyMock";
@@ -15,6 +16,10 @@ import {
 } from "@/lib/workPartsStorage";
 import { workServicesMock } from "@/lib/workServicesMock";
 import type { Company, WorkService } from "@/types";
+import {
+  DEFAULT_STANDARD_WORKDAY_MINUTES,
+  splitWorkedMinutesOrdinaryAndExtra,
+} from "@/features/time-tracking/utils/formatters";
 
 type Line = { lineId: string; companyId: string; serviceId: string; areaId: string };
 
@@ -61,6 +66,7 @@ export function WorkPartsSavedPanel({
   /** Nombre para el PDF y cabeceras (opcional). */
   workerDisplayName?: string;
 }) {
+  const { showSuccess } = useFlashSuccess();
   const [parts, setParts] = useState<WorkPartRecord[]>([]);
   const [editing, setEditing] = useState<WorkPartRecord | null>(null);
   const [editCompanies, setEditCompanies] = useState<Company[]>([]);
@@ -232,6 +238,7 @@ export function WorkPartsSavedPanel({
       }
       setEditing(null);
       refresh();
+      showSuccess("Parte local guardado correctamente.");
     } finally {
       setEditSaving(false);
     }
@@ -339,10 +346,33 @@ export function WorkPartsSavedPanel({
                 <span className="font-semibold">{editing.salidaDisplay}</span>
               </p>
               <p>
-                Descanso: <span className="font-semibold">{formatMinutesShort(editing.breakMinutes)}</span>{" "}
-                · Total trabajado:{" "}
-                <span className="font-semibold">{formatMinutesShort(editing.workedMinutes)}</span>
+                Descanso:{" "}
+                <span className="font-semibold">{formatMinutesShort(editing.breakMinutes)}</span>
               </p>
+              {(() => {
+                const { ordinary, extra, total } = splitWorkedMinutesOrdinaryAndExtra(
+                  editing.workedMinutes,
+                  DEFAULT_STANDARD_WORKDAY_MINUTES,
+                );
+                const topeH = DEFAULT_STANDARD_WORKDAY_MINUTES / 60;
+                return (
+                  <div className="mt-1 space-y-0.5 border-t border-slate-200/80 pt-1.5 dark:border-slate-600/80">
+                    <p>
+                      Jornada ordinaria{" "}
+                      <span className="text-slate-500 dark:text-slate-400">(tope {topeH} h)</span>:{" "}
+                      <span className="font-semibold">{formatMinutesShort(ordinary)}</span>
+                    </p>
+                    <p>
+                      Horas extra:{" "}
+                      <span className="font-semibold">{formatMinutesShort(extra)}</span>
+                    </p>
+                    <p>
+                      Total trabajado:{" "}
+                      <span className="font-semibold">{formatMinutesShort(total)}</span>
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
 
             {editLoading ? (

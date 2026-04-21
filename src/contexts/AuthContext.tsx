@@ -10,7 +10,7 @@ import React, {
   useLayoutEffect,
 } from "react";
 import { authApi, pickCompanyIdFromLoginUser } from "@/services/auth.service";
-import type { UserRole } from "@/types";
+import { normalizeUserRoleFromApi, type UserRole } from "@/types";
 
 export interface AuthUser {
   id: string;
@@ -29,7 +29,8 @@ interface StoredAuthState {
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  /** Devuelve el usuario autenticado para redirigir sin esperar al siguiente render. */
+  login: (email: string, password: string) => Promise<AuthUser>;
   logout: () => void;
   isReady: boolean;
 }
@@ -62,7 +63,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             Number.isFinite(parsed.expiresAt)
           ) {
             if (parsed.expiresAt > Date.now()) {
-              setUser(parsed.user);
+              setUser({
+                ...parsed.user,
+                role: normalizeUserRoleFromApi(parsed.user.role),
+              });
               setToken(parsed.token);
             } else {
               localStorage.removeItem(STORAGE_KEY);
@@ -79,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
     let data: Awaited<ReturnType<typeof authApi.login>>;
     try {
       data = await authApi.login(email, password);
@@ -91,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const authUser: AuthUser = {
       id: data.user.id,
       email: data.user.email,
-      role: data.user.role as AuthUser["role"],
+      role: normalizeUserRoleFromApi(data.user.role),
       ...(companyId ? { companyId } : {}),
     };
     const expiresInSec =
@@ -108,6 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(authUser);
     setToken(data.token);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    return authUser;
   }, []);
 
   const logout = useCallback(() => {

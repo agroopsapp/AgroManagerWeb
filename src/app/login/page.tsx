@@ -4,6 +4,9 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFeatures } from "@/contexts/FeaturesContext";
+import { appHomePath } from "@/lib/dashboardNavGating";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,11 +14,13 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, user, isReady } = useAuth();
+  const { enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const router = useRouter();
 
   useEffect(() => {
-    if (isReady && user) router.replace("/dashboard");
-  }, [user, isReady, router]);
+    if (!isReady || !user) return;
+    router.replace(appHomePath(user.role, enableTimeTracking, enableOperativaYAnalisisMenu));
+  }, [user, isReady, router, enableTimeTracking, enableOperativaYAnalisisMenu]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,11 +35,12 @@ export default function LoginPage() {
     }
     try {
       setLoading(true);
-      await login(email.trim(), password);
-      router.push("/dashboard");
+      const authUser = await login(email.trim(), password);
+      router.replace(
+        appHomePath(authUser.role, enableTimeTracking, enableOperativaYAnalisisMenu),
+      );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "No se ha podido iniciar sesión.";
-      setError(msg);
+      setError(userVisibleMessageFromUnknown(err, "No se ha podido iniciar sesión."));
     } finally {
       setLoading(false);
     }

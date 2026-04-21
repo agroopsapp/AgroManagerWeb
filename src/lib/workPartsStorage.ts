@@ -10,6 +10,8 @@ export type WorkPartTask = {
   areaId: string;
   areaName: string;
   areaObservations: string;
+  /** Notas de la línea de parte (API `WorkReportLine.notes`). */
+  lineNotes?: string;
 };
 
 export type WorkPartRecord = {
@@ -49,6 +51,7 @@ export function getTasksFromRecord(r: WorkPartRecord): WorkPartTask[] {
       areaId: t.areaId,
       areaName: t.areaName ?? "",
       areaObservations: t.areaObservations ?? "",
+      lineNotes: typeof t.lineNotes === "string" ? t.lineNotes : undefined,
     }));
   }
   if (r.serviceId && r.areaId) {

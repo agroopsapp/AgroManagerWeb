@@ -32,3 +32,4 @@ export {
   postClientCompanyWithAreas,
   putCompanyOnApi,
 } from "./companies.service";
+export { superadminApi } from "./superadmin.service";

@@ -61,6 +61,27 @@ export const USER_ROLE = {
 
 export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
 
+/**
+ * Alinea el string de rol del login/JWT con `USER_ROLE`.
+ * El backend a veces serializa p. ej. `Superadmin` y el front compara con `SuperAdmin`.
+ */
+export function normalizeUserRoleFromApi(raw: unknown): UserRole {
+  if (raw == null || typeof raw !== "string") return USER_ROLE.Worker;
+  const t = raw.trim();
+  if (!t) return USER_ROLE.Worker;
+  const compact = t.toLowerCase().replace(/[\s_-]+/g, "");
+  if (compact === "superadmin" || compact === "superadministrador") return USER_ROLE.SuperAdmin;
+  if (compact === "admin") return USER_ROLE.Admin;
+  if (compact === "manager") return USER_ROLE.Manager;
+  if (compact === "worker") return USER_ROLE.Worker;
+  const values = Object.values(USER_ROLE) as UserRole[];
+  const exact = values.find((r) => r === t);
+  if (exact) return exact;
+  const ci = values.find((r) => r.toLowerCase() === t.toLowerCase());
+  if (ci) return ci;
+  return t as UserRole;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -70,6 +91,8 @@ export interface User {
   roleName?: string;
   companyId?: string;
   companyName?: string;
+  /** Si true, el usuario no participa en fichaje / listados de jornada (API `excludedFromTimeTracking`). */
+  excludedFromTimeTracking?: boolean;
 }
 
 export interface Worker {
@@ -137,7 +160,7 @@ export interface Company {
   id: string;
   /**
    * Empresa matriz / tenant (`companyId` en ClientCompany cuando difiere de `id`).
-   * GET /api/Users/company/{id} y `User.companyId` suelen usar este GUID, no el id de fila cliente.
+   * `User.companyId` suele ser el GUID del tenant; el listado por empresa en superadmin es GET `/api/superadmin/companies/{id}/users`.
    */
   organizationCompanyId?: string | null;
   name: string;

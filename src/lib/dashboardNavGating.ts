@@ -21,33 +21,38 @@ export function isDashboardPathOperativaYAnalisis(pathname: string | null): path
   return (DASHBOARD_PATHS_OPERATIVA_Y_ANALISIS as readonly string[]).includes(pathname);
 }
 
-/** Inicio coherente con menú: si el Panel está oculto, admin/manager van a jornada o Mi empresa. */
+/**
+ * Ruta de inicio tras login / logo «panel».
+ * Con fichaje activo, **todos** los roles entran en Registro de jornada (`/dashboard/time-tracking`).
+ */
 export function appHomePath(
   role: UserRole | undefined,
   enableTimeTracking: boolean,
   enableOperativaYAnalisisMenu: boolean,
 ): string {
+  if (enableTimeTracking) {
+    return "/dashboard/time-tracking";
+  }
   if (role === USER_ROLE.Worker) {
     return workerHomePath(enableTimeTracking, enableOperativaYAnalisisMenu);
   }
   if (enableOperativaYAnalisisMenu) {
     return "/dashboard";
   }
-  if (enableTimeTracking) {
-    return "/dashboard/time-tracking";
-  }
   return "/dashboard/my-company";
 }
 
 /**
- * Pantalla inicial del rol Worker si «Tareas» no está en el menú.
- * Evita devolver `/dashboard`: esa ruta redirige al trabajador y generaría un bucle.
+ * Destino del trabajador cuando no debe ver `/dashboard` (evita bucle con la redirección del panel).
+ * Sin fichaje: tareas si hay menú operativo; si no, Mi empresa.
  */
 export function workerHomePath(
   enableTimeTracking: boolean,
   enableOperativaYAnalisisMenu: boolean,
 ): string {
+  if (enableTimeTracking) {
+    return "/dashboard/time-tracking";
+  }
   if (enableOperativaYAnalisisMenu) return "/dashboard/tasks";
-  if (enableTimeTracking) return "/dashboard/time-tracking";
   return "/dashboard/my-company";
 }

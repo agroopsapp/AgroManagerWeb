@@ -181,14 +181,17 @@ function buildQuery(params: Record<string, string | undefined>): string {
   return qs ? `?${qs}` : "";
 }
 
-/** Query para GET /api/TimeEntries/rows (page, pageSize numéricos, booleans solo si true). */
+/**
+ * Query para GET /api/TimeEntries/rows (page, pageSize numéricos).
+ * Regla general: booleans solo si true, excepto `excludedFromTimeTracking` que admite true/false (nullable).
+ */
 function buildRowsQuery(
   params: Record<string, string | number | boolean | undefined | null>
 ): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "") continue;
-    if (value === false) continue;
+    if (value === false && key !== "excludedFromTimeTracking") continue;
     search.append(key, String(value));
   }
   const qs = search.toString();
@@ -235,6 +238,7 @@ async function fetchTimeEntryRowsPageImpl(
     from: opts.from,
     to: opts.to,
     userId: opts.userId?.trim() ? opts.userId.trim() : undefined,
+    excludedFromTimeTracking: opts.excludedFromTimeTracking,
     page,
     pageSize,
     onlyWorkingDaysWithoutWorkReport:
@@ -255,6 +259,13 @@ export type TimeEntryRowsQuery = {
   to: string;
   /** Si se omite, el backend aplica reglas por rol (todas las personas visibles). */
   userId?: string;
+  /**
+   * Filtro nullable (bool?) alineado con backend.
+   * - omitido: legacy (no filtra)
+   * - true: solo excluidos
+   * - false: solo NO excluidos
+   */
+  excludedFromTimeTracking?: boolean;
   page?: number;
   /** Entre 1 y 200 en backend. */
   pageSize?: number;
@@ -269,6 +280,8 @@ export type TimeEntryRowsSummaryQuery = {
   from: string;
   to: string;
   userId?: string;
+  /** Igual que en `rows`: filtro nullable (bool?) por exclusión de fichaje. */
+  excludedFromTimeTracking?: boolean;
   hoursPerWorkingDay?: number;
   onlyWorkingDaysWithoutWorkReport?: boolean;
   clientCompanyId?: string;
@@ -483,6 +496,12 @@ export const timeTrackingApi = {
     await apiClient.put<unknown>(`/api/TimeEntries/${id}`, body);
   },
 
+  /** Elimina la fila de fichaje del día — DELETE /api/TimeEntries/{id} (204 sin cuerpo). */
+  async deleteTimeEntry(timeEntryId: string, opts?: { signal?: AbortSignal }): Promise<void> {
+    const id = encodeURIComponent(timeEntryId.trim());
+    await apiClient.delete<unknown>(`/api/TimeEntries/${id}`, { signal: opts?.signal });
+  },
+
   /** Registra una jornada completa manual (Olvidé fichar). */
   async createManualClosedEntry(
     body: Omit<CreateTimeEntryBody, "status">,
@@ -509,6 +528,7 @@ export const timeTrackingApi = {
       from: opts.from,
       to: opts.to,
       userId: opts.userId?.trim() ? opts.userId.trim() : undefined,
+      excludedFromTimeTracking: opts.excludedFromTimeTracking,
       hoursPerWorkingDay:
         opts.hoursPerWorkingDay != null && Number.isFinite(opts.hoursPerWorkingDay)
           ? opts.hoursPerWorkingDay

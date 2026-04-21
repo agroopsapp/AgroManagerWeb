@@ -1,10 +1,12 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { ApiError } from "@/lib/api-client";
+import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
+import { sessionDisplayNameFromEmail } from "@/features/time-tracking/utils/formatters";
 import { companiesApi, getClientCompanyWithAreas, workServicesApi } from "@/services";
 import { workReportsApi } from "@/services/work-reports.service";
 import { downloadWorkPartPdf } from "@/lib/workPartPdf";
-import type { WorkPartRecord } from "@/lib/workPartsStorage";
+import type { WorkPartRecord, WorkPartTask } from "@/lib/workPartsStorage";
 import {
   timeTrackingApi,
   type TimeEntryDto,
@@ -12,24 +14,23 @@ import {
 import type { TimeEntryMock } from "@/features/time-tracking/types";
 import type { Company, WorkService } from "@/types";
 
-type WorkPartTask = {
-  companyId: string;
-  companyName: string;
-  serviceId: string;
-  serviceName: string;
-  areaId: string;
-  areaName: string;
-  areaObservations: string;
-};
-
 interface Params {
   openEntry: TimeEntryMock | null;
   entries: TimeEntryMock[];
   setEntries: React.Dispatch<React.SetStateAction<TimeEntryMock[]>>;
   miWorkerId: number;
+  /** Email de la sesión: nombre en el PDF del parte si no hay otro dato. */
+  sessionEmail?: string | null;
 }
 
-export function useBreakModal({ openEntry, entries: _entries, setEntries, miWorkerId }: Params) {
+export function useBreakModal({
+  openEntry,
+  entries: _entries,
+  setEntries,
+  miWorkerId,
+  sessionEmail,
+}: Params) {
+  const { showSuccess } = useFlashSuccess();
   const SUCCESS_FEEDBACK_MS = 650;
   const splitMinutes = (totalMinutes: number, count: number): number[] => {
     if (count <= 0) return [];
@@ -58,7 +59,7 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
   const [workPartCompanies, setWorkPartCompanies] = useState<Company[]>([]);
   const [workPartServices, setWorkPartServices] = useState<WorkService[]>([]);
   const [workPartLines, setWorkPartLines] = useState<
-    { lineId: string; companyId: string; serviceId: string; areaId: string }[]
+    { lineId: string; companyId: string; serviceId: string; areaId: string; notes: string }[]
   >([]);
   const [workPartOverrideEntry, setWorkPartOverrideEntry] = useState<null | {
     workDate: string;
@@ -173,7 +174,7 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
         workPartCompanies.find((x) => x.id === preferredCompanyId) ?? workPartCompanies[0];
       const sid = workPartServices[0]?.id ?? "";
       const aid = c?.areas[0]?.id ?? "";
-      return [{ lineId: lid, companyId: c?.id ?? "", serviceId: sid, areaId: aid }];
+      return [{ lineId: lid, companyId: c?.id ?? "", serviceId: sid, areaId: aid, notes: "" }];
     });
   }, [
     restModalStep,
@@ -249,11 +250,14 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
             : e
         );
       });
-      if (opts?.closeOnSuccess !== false) setRestModalStep("closed");
+      if (opts?.closeOnSuccess !== false) {
+        setRestModalStep("closed");
+        showSuccess("Jornada cerrada correctamente.");
+      }
       return finishedEntry;
     } catch (e) {
       const msg =
-        e instanceof ApiError ? e.message : "No se pudo finalizar la jornada.";
+        userVisibleMessageFromUnknown(e, "No se pudo finalizar la jornada.");
       setWorkPartError(msg);
       return null;
     } finally {
@@ -317,6 +321,7 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
         areaId: ar.id,
         areaName: ar.name,
         areaObservations: ar.observations ?? "",
+        lineNotes: (line.notes ?? "").trim(),
       });
     }
 
@@ -357,7 +362,7 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
         clientCompanyNameSnapshot: task.companyName,
         serviceNameSnapshot: task.serviceName,
         workAreaNameSnapshot: task.areaName,
-        notes: "",
+        notes: (task.lineNotes ?? "").trim(),
         workAreaDescriptionSnapshot: task.areaObservations,
       }));
 
@@ -415,10 +420,10 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
           );
         }
       } catch (e) {
-        const msg = e instanceof ApiError ? e.message : "No se pudo guardar el parte.";
-        setWorkPartError(msg);
+        setWorkPartError(userVisibleMessageFromUnknown(e, "No se pudo guardar el parte."));
         return;
       }
+      showSuccess("Parte guardado correctamente.");
       await new Promise<void>((resolve) => window.setTimeout(resolve, SUCCESS_FEEDBACK_MS));
       setWorkPartSuccessMessage(null);
       setWorkPartJustSaved(false);
@@ -433,8 +438,7 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
     try {
       reportId = await saveWorkReport(target, finished);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "No se pudo guardar el parte.";
-      setWorkPartError(msg);
+      setWorkPartError(userVisibleMessageFromUnknown(e, "No se pudo guardar el parte."));
       return;
     }
     if (reportId) {
@@ -450,6 +454,7 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
         ),
       );
     }
+    showSuccess("Jornada cerrada y parte guardado correctamente.");
     await new Promise<void>((resolve) => window.setTimeout(resolve, SUCCESS_FEEDBACK_MS));
     setWorkPartSuccessMessage(null);
     setWorkPartJustSaved(false);
@@ -471,7 +476,7 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `ln-${Date.now()}-${prev.length}`;
-      return [...prev, { lineId: lid, companyId: cid, serviceId: sid, areaId: aid }];
+      return [...prev, { lineId: lid, companyId: cid, serviceId: sid, areaId: aid, notes: "" }];
     });
   };
 
@@ -483,7 +488,7 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
 
   const patchWorkPartLine = (
     lineId: string,
-    patch: Partial<{ companyId: string; serviceId: string; areaId: string }>
+    patch: Partial<{ companyId: string; serviceId: string; areaId: string; notes: string }>,
   ) => {
     setWorkPartLines((prev) =>
       prev.map((l) => (l.lineId === lineId ? { ...l, ...patch } : l))
@@ -532,6 +537,7 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
         areaId: area.id,
         areaName: area.name,
         areaObservations: area.observations ?? "",
+        lineNotes: (line.notes ?? "").trim(),
       });
     }
 
@@ -570,7 +576,11 @@ export function useBreakModal({ openEntry, entries: _entries, setEntries, miWork
     setWorkPartError(null);
     setWorkPartPdfLoading(true);
     try {
-      await downloadWorkPartPdf(record, tasks, { companies: workPartCompanies });
+      await downloadWorkPartPdf(record, tasks, {
+        companies: workPartCompanies,
+        workerDisplayName: sessionDisplayNameFromEmail(sessionEmail ?? undefined),
+        sessionEmail: sessionEmail ?? undefined,
+      });
       setWorkPartPdfGeneratedAt(new Date().toISOString());
     } catch {
       setWorkPartError("No se pudo generar el PDF del parte.");

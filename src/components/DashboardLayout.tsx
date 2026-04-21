@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { FlashSuccessProvider } from "@/contexts/FlashSuccessContext";
 import { useFeatures } from "@/contexts/FeaturesContext";
 import { TasksProvider } from "@/contexts/TasksContext";
 import { USER_ROLE } from "@/types";
@@ -22,8 +23,8 @@ const QUICK_MENU_ITEMS = [
   { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
   { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
   { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: "📅" },
-  { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥", adminOnly: true },
-  { href: "/dashboard/companies", label: "Empresas", icon: "🏢", adminOnly: true },
+  { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥" },
+  { href: "/dashboard/companies", label: "Empresas", icon: "🏢" },
   { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
   // Fila 2 (después de operativa)
   { href: "/dashboard/animals", label: "Animales", icon: "🐄" },
@@ -31,14 +32,20 @@ const QUICK_MENU_ITEMS = [
   { href: "/dashboard/farms", label: "Granjas", icon: "🌾" },
   // Fila 3
   { href: "/dashboard/stats", label: "Estadísticas", icon: "📈" },
+  { href: "/dashboard/superadmin", label: "Superadmin", icon: "🛡", superAdminOnly: true },
   { href: "/dashboard/settings", label: "Ajustes", icon: "⚙" },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+  pathname,
+}: {
+  children: React.ReactNode;
+  pathname: string;
+}) {
   const { user, isReady } = useAuth();
   const { enableAnimals, enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const router = useRouter();
-  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
@@ -105,6 +112,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
+    <FlashSuccessProvider>
     <TasksProvider>
     {/* `h-[100dvh]` + `overflow-hidden`: el scroll queda en `<main>`; si el shell crece con
         `min-h-screen` solamente, a veces hace scroll el documento y el `sticky` de las páginas
@@ -139,13 +147,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                {QUICK_MENU_ITEMS.map(({ href, label, icon, adminOnly }) => {
+                {QUICK_MENU_ITEMS.map(({ href, label, icon, adminOnly, superAdminOnly }) => {
                   const isAdminLike =
                     user?.role === USER_ROLE.Admin ||
                     user?.role === USER_ROLE.SuperAdmin ||
                     user?.role === USER_ROLE.Manager;
 
                   if (href === "/dashboard" && user?.role === USER_ROLE.Worker) {
+                    return null;
+                  }
+
+                  if (superAdminOnly && user?.role !== USER_ROLE.SuperAdmin) {
                     return null;
                   }
 
@@ -223,5 +235,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
     </div>
     </TasksProvider>
+    </FlashSuccessProvider>
   );
 }

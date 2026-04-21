@@ -155,6 +155,16 @@ export function mapTimeEntryRowsItemToMock(raw: unknown): TimeEntryMock | null {
   const workAreaName =
     typeof workAreaNameRaw === "string" && workAreaNameRaw.trim() ? workAreaNameRaw.trim() : null;
 
+  const workReportLinesSummaryRaw =
+    o.workReportLinesSummary ??
+    o.WorkReportLinesSummary ??
+    o.workReportLocationSummary ??
+    o.WorkReportLocationSummary;
+  const workReportLinesSummary =
+    typeof workReportLinesSummaryRaw === "string" && workReportLinesSummaryRaw.trim()
+      ? workReportLinesSummaryRaw.trim()
+      : null;
+
   const workerId = stableNumericIdFromUserId(userId);
   const id = stableIdFromString(timeEntryId || `${userId}|${workDate}|${startAt}`);
 
@@ -189,6 +199,7 @@ export function mapTimeEntryRowsItemToMock(raw: unknown): TimeEntryMock | null {
     edicionNotaAdmin: null,
     cierreAutomaticoMedianoche: false,
     workAreaName,
+    workReportLinesSummary,
     timeEntryStatus,
   };
 }

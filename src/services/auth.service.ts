@@ -3,6 +3,8 @@
  * Login usa fetch directo (sin token). El resto de la app usa apiClient con token.
  */
 
+import { messageFromApiErrorJsonBody } from "@/shared/utils/apiErrorDisplay";
+
 const STORAGE_KEY = "agroops_auth";
 
 function getBaseUrl(): string {
@@ -54,8 +56,8 @@ export const authApi = {
     if (!response.ok) {
       let message = "Error al iniciar sesión.";
       try {
-        const data = await response.json();
-        if (data?.message) message = data.message as string;
+        const data: unknown = await response.json();
+        message = messageFromApiErrorJsonBody(data, response.status, response.statusText);
       } catch {
         // ignore
       }

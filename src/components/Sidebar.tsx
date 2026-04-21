@@ -13,6 +13,8 @@ type NavItem = {
   label: string;
   icon: string;
   adminOnly?: boolean;
+  /** Solo rol `SuperAdmin` (API `/api/superadmin/*`). */
+  superAdminOnly?: boolean;
 };
 
 type NavSection = {
@@ -35,9 +37,9 @@ const navSections: NavSection[] = [
     items: [
       { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
       { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: "📅" },
-      { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥", adminOnly: true },
+      { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥" },
       { href: "/dashboard/my-company", label: "Mi empresa", icon: "🏷️" },
-      { href: "/dashboard/companies", label: "Empresas", icon: "🏢", adminOnly: true },
+      { href: "/dashboard/companies", label: "Empresas", icon: "🏢" },
       { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
     ],
   },
@@ -55,7 +57,10 @@ const navSections: NavSection[] = [
   },
   {
     title: "Sistema",
-    items: [{ href: "/dashboard/settings", label: "Ajustes", icon: "⚙" }],
+    items: [
+      { href: "/dashboard/superadmin", label: "Superadmin", icon: "🛡", superAdminOnly: true },
+      { href: "/dashboard/settings", label: "Ajustes", icon: "⚙" },
+    ],
   },
 ];
 
@@ -91,6 +96,7 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
 
   const isNavItemVisible = (item: NavItem): boolean => {
     if (item.href === "/dashboard" && role === USER_ROLE.Worker) return false;
+    if (item.superAdminOnly && role !== USER_ROLE.SuperAdmin) return false;
     if (item.adminOnly && !isAdminLike) return false;
     if (!enableTimeTracking && item.href === "/dashboard/time-tracking") return false;
     if (!enableTimeTracking && item.href.startsWith("/dashboard/time-tracking/")) return false;

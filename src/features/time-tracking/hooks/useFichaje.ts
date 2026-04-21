@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ApiError } from "@/lib/api-client";
+import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { getTasksFromRecord, getWorkPartsForWorker } from "@/lib/workPartsStorage";
 import { timeTrackingApi, type TimeEntryDto } from "@/services/time-tracking.service";
 import {
@@ -59,6 +60,7 @@ function dtoToEntry(
 }
 
 export function useFichaje({ user, isReady, miWorkerId }: Params) {
+  const { showSuccess } = useFlashSuccess();
   const [entries, setEntries] = useState<TimeEntryMock[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<"checkin" | "checkout" | null>(null);
@@ -94,7 +96,7 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
       } catch (e) {
         if (ac.signal.aborted) return;
         const msg =
-          e instanceof ApiError ? e.message : "No se pudieron cargar tus fichajes.";
+          userVisibleMessageFromUnknown(e, "No se pudieron cargar tus fichajes.");
         setError(msg);
         setEntries([]);
       } finally {
@@ -199,14 +201,15 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
         const withoutSameId = prev.filter((e) => e.id !== next.id);
         return [...withoutSameId, next];
       });
+      showSuccess("Entrada de jornada registrada correctamente.");
     } catch (e) {
       const msg =
-        e instanceof ApiError ? e.message : "No se pudo registrar la entrada.";
+        userVisibleMessageFromUnknown(e, "No se pudo registrar la entrada.");
       setError(msg);
     } finally {
       setActionLoading(null);
     }
-  }, [entries, miWorkerId, user?.email]);
+  }, [entries, miWorkerId, user?.email, showSuccess]);
 
   return {
     entries,

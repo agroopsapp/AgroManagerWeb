@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Farm as FarmType } from "@/types";
-import { ApiError } from "@/lib/api-client";
+import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { farmsApi } from "@/services";
 
@@ -10,6 +11,7 @@ type SortKey = "name" | "location";
 type SortDir = "asc" | "desc";
 
 export default function FarmsPage() {
+  const { showSuccess } = useFlashSuccess();
   const [farms, setFarms] = useState<FarmType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,8 +38,7 @@ export default function FarmsPage() {
         setFarms(list ?? []);
       } catch (e) {
         if (ac.signal.aborted) return;
-        const msg = e instanceof ApiError ? e.message : "No se pudieron cargar las granjas.";
-        setError(msg);
+        setError(userVisibleMessageFromUnknown(e, "No se pudieron cargar las granjas."));
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
@@ -125,9 +126,11 @@ export default function FarmsPage() {
         setFarms((prev) => [created, ...prev]);
       }
       closeModal();
+      showSuccess(
+        editingFarm ? "Granja actualizada correctamente." : "Granja creada correctamente.",
+      );
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "No se pudo guardar la granja.";
-      setError(msg);
+      setError(userVisibleMessageFromUnknown(e, "No se pudo guardar la granja."));
     } finally {
       setSaving(false);
     }
@@ -140,9 +143,9 @@ export default function FarmsPage() {
       await farmsApi.delete(id);
       setFarms((prev) => prev.filter((f) => f.id !== id));
       setDeleteConfirm(null);
+      showSuccess("Granja eliminada correctamente.");
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "No se pudo eliminar la granja.";
-      setError(msg);
+      setError(userVisibleMessageFromUnknown(e, "No se pudo eliminar la granja."));
     } finally {
       setDeletingId(null);
     }

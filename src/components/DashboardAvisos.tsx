@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useFeatures } from "@/contexts/FeaturesContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -39,7 +38,6 @@ export default function DashboardAvisos({ variant = "default" }: { variant?: Avi
   const comfortable = variant === "comfortable";
   const { enableTimeTracking } = useFeatures();
   const { user, isReady } = useAuth();
-  const pathname = usePathname();
   const [resumen, setResumen] = useState<ResumenImputacionHoy | "pendiente">("pendiente");
   const workerId = workerIdForLoggedUser(user);
 
@@ -60,7 +58,7 @@ export default function DashboardAvisos({ variant = "default" }: { variant?: Avi
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("storage", onStorage);
     };
-  }, [enableTimeTracking, pathname, isReady, workerId]);
+  }, [enableTimeTracking, isReady, workerId]);
 
   const linkClass = comfortable
     ? "mt-3 inline-block text-sm font-semibold text-agro-700 underline-offset-2 hover:underline dark:text-agro-400"

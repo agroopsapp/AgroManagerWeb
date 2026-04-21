@@ -17,12 +17,14 @@ export default function SettingsPage() {
   } = useFeatures();
   const { user } = useAuth();
   const role = user?.role;
+  const isSuperAdmin = role === USER_ROLE.SuperAdmin;
   const canEditAnimalsFeature =
-    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin || role === USER_ROLE.Manager;
-  const canEditTimeTrackingFeature =
-    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin || role === USER_ROLE.Manager;
-  /** Mismos roles que fichador y animales: si no, la tarjeta no aparece para Admin/Manager. */
-  const canEditOperativaMenuFeature = canEditTimeTrackingFeature;
+    role === USER_ROLE.Admin || isSuperAdmin || role === USER_ROLE.Manager;
+  /** Solo SuperAdmin: coincide con la política del módulo fichador en Ajustes. */
+  const canEditTimeTrackingFeature = isSuperAdmin;
+  /** Panel, tareas, etc.: administradores y managers (SuperAdmin también puede gestionarlo). */
+  const canEditOperativaMenuFeature =
+    role === USER_ROLE.Admin || isSuperAdmin || role === USER_ROLE.Manager;
 
   return (
     <div className="space-y-4">

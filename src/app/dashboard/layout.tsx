@@ -1,9 +1,22 @@
 "use client";
 
-import DashboardLayout from "@/components/DashboardLayout";
+import { Suspense } from "react";
+import DashboardPathnameShell from "./DashboardPathnameShell";
 
-/** Client layout: evita en dev (Turbopack) el fallo intermitente `useContext`/`usePathname` al mezclar
- *  el boundary servidor→cliente con páginas que ya son 100 % cliente. */
+/** Suspense: el shell que llama a `usePathname` es un módulo aparte (`DashboardPathnameShell`);
+ *  sin boundary, en dev (Turbopack) a veces falla el SSR con `useContext` nulo. */
+function DashboardShellFallback() {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 dark:bg-slate-900">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+    </div>
+  );
+}
+
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return (
+    <Suspense fallback={<DashboardShellFallback />}>
+      <DashboardPathnameShell>{children}</DashboardPathnameShell>
+    </Suspense>
+  );
 }

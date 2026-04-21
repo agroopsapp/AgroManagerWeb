@@ -1,5 +1,7 @@
 "use client";
 
+import { sanitizeApiErrorText } from "@/shared/utils/apiErrorDisplay";
+
 /**
  * Boundary de error para rutas bajo el layout raíz (login, home, etc.).
  * Sin este archivo, Next puede mostrar solo "missing required error components".
@@ -16,7 +18,7 @@ export default function AppError({
       <div className="rounded-2xl border border-red-200 bg-red-50/90 p-6 text-slate-900 shadow-sm dark:border-red-900/50 dark:bg-red-950/40 dark:text-slate-100">
         <h1 className="text-lg font-semibold text-red-800 dark:text-red-200">Error al cargar la página</h1>
         <p className="mt-2 text-sm text-red-900/90 dark:text-red-100/90">
-          {error.message || "Ha ocurrido un error inesperado."}
+          {sanitizeApiErrorText(error.message) || "Ha ocurrido un error inesperado."}
         </p>
         <p className="mt-3 text-xs text-slate-600 dark:text-slate-400">
           Si ves esto tras editar código, para el servidor, ejecuta{" "}

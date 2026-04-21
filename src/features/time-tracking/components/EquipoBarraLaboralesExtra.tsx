@@ -35,7 +35,7 @@ export const EquipoBarraLaboralesExtra = memo(function EquipoBarraLaboralesExtra
     : 0;
 
   return (
-    <div className="mt-2 min-w-0 space-y-2 rounded-lg border border-slate-200/80 bg-slate-50/90 px-2.5 py-2 dark:border-slate-600/80 dark:bg-slate-800/35 sm:px-3 sm:py-2.5">
+    <div className="mt-2 min-w-0 space-y-2 rounded-lg border border-slate-300 bg-slate-50/90 px-2.5 py-2 dark:border-slate-600 dark:bg-slate-800/35 sm:px-3 sm:py-2.5">
       <p className="text-sm font-semibold tracking-tight text-slate-800 dark:text-slate-100">
         Imputación vs tope laboral
       </p>

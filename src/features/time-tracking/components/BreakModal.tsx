@@ -2,6 +2,10 @@
 
 import type { TimeEntryMock } from "@/features/time-tracking/types";
 import {
+  DEFAULT_STANDARD_WORKDAY_MINUTES,
+  splitWorkedMinutesOrdinaryAndExtra,
+} from "@/features/time-tracking/utils/formatters";
+import {
   diffDurationMinutes,
   formatMinutesShort,
   formatTimeLocal,
@@ -13,8 +17,43 @@ import { SignaturePadDialog } from "@/components/SignaturePadDialog";
 import { MODAL_BACKDROP_SCROLL, MODAL_SURFACE, MODAL_SURFACE_PAD } from "@/components/modalShell";
 import { getApiBaseUrl } from "@/lib/api-client";
 
+const TOPE_JORNADA_ORDINARIA_H = DEFAULT_STANDARD_WORKDAY_MINUTES / 60;
+
+/** Desglose neto: ordinarias (hasta 8 h), extra y total (misma lógica que la columna «Extra» del equipo). */
+function ResumenHorasNetasTrabajadas({ workedMinutes }: { workedMinutes: number | null }) {
+  if (workedMinutes === null || !Number.isFinite(workedMinutes)) {
+    return (
+      <p>
+        Total trabajado: <span className="font-semibold">—</span>
+      </p>
+    );
+  }
+  const { ordinary, extra, total } = splitWorkedMinutesOrdinaryAndExtra(workedMinutes);
+  return (
+    <div className="space-y-0.5">
+      <p>
+        Jornada ordinaria{" "}
+        <span className="text-slate-500 dark:text-slate-400">(tope {TOPE_JORNADA_ORDINARIA_H} h)</span>:{" "}
+        <span className="font-semibold">{formatMinutesShort(ordinary)}</span>
+      </p>
+      <p>
+        Horas extra: <span className="font-semibold">{formatMinutesShort(extra)}</span>
+      </p>
+      <p>
+        Total trabajado: <span className="font-semibold">{formatMinutesShort(total)}</span>
+      </p>
+    </div>
+  );
+}
+
 type RestStep = "closed" | "askRest" | "askAmount" | "summary" | "workPart";
-type WorkPartLine = { lineId: string; companyId: string; serviceId: string; areaId: string };
+type WorkPartLine = {
+  lineId: string;
+  companyId: string;
+  serviceId: string;
+  areaId: string;
+  notes: string;
+};
 
 type WorkPartOverrideEntry = {
   workDate: string;
@@ -248,12 +287,7 @@ export function BreakModal({
                     Comida/descanso:{" "}
                     <span className="font-semibold">{formatMinutesShort(breakMin)}</span>
                   </p>
-                  <p>
-                    Total trabajado:{" "}
-                    <span className="font-semibold">
-                      {formatMinutesShort(workedMinutes)}
-                    </span>
-                  </p>
+                  <ResumenHorasNetasTrabajadas workedMinutes={workedMinutes} />
                 </div>
                 <div className="mt-4 flex justify-end gap-2">
                   <button
@@ -282,7 +316,7 @@ export function BreakModal({
                           ? crypto.randomUUID()
                           : `ln-${Date.now()}`;
                       onSetWorkPartLines([
-                        { lineId: lid, companyId: "", serviceId: "", areaId: "" },
+                        { lineId: lid, companyId: "", serviceId: "", areaId: "", notes: "" },
                       ]);
                       onSetWorkPartModalMode("create");
                       onSetStep("workPart");
@@ -355,12 +389,7 @@ export function BreakModal({
                     Comida/descanso:{" "}
                     <span className="font-semibold">{formatMinutesShort(breakMin)}</span>
                   </p>
-                  <p>
-                    Total trabajado:{" "}
-                    <span className="font-semibold">
-                      {formatMinutesShort(workedMinutes)}
-                    </span>
-                  </p>
+                  <ResumenHorasNetasTrabajadas workedMinutes={workedMinutes} />
                 </div>
 
                 {workPartDataLoading ? (
@@ -506,6 +535,28 @@ export function BreakModal({
                                     </option>
                                   ))}
                                 </select>
+                              </div>
+                              <div className="sm:col-span-2">
+                                <label
+                                  htmlFor={`work-part-notes-${line.lineId}`}
+                                  className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300"
+                                >
+                                  Notas de la línea{" "}
+                                  <span className="font-normal text-slate-400 dark:text-slate-500">
+                                    (opcional)
+                                  </span>
+                                </label>
+                                <textarea
+                                  id={`work-part-notes-${line.lineId}`}
+                                  value={line.notes}
+                                  onChange={(e) =>
+                                    onPatchWorkPartLine(line.lineId, { notes: e.target.value })
+                                  }
+                                  rows={2}
+                                  maxLength={2000}
+                                  placeholder="Incidencias, detalle de la tarea…"
+                                  className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                                />
                               </div>
                             </div>
                           </li>

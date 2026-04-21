@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { USER_ROLE } from "@/types";
@@ -13,6 +13,7 @@ import { TeamPanel } from "@/features/time-tracking/components/TeamPanel";
 import { EquipoPartModal } from "@/features/time-tracking/components/EquipoPartModal";
 
 export default function ManagerPage() {
+  const [parteEquipoValidationError, setParteEquipoValidationError] = useState<string | null>(null);
   const { user, isReady } = useAuth();
   const { enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const router = useRouter();
@@ -45,12 +46,33 @@ export default function ManagerPage() {
 
   const equipoPart = useEquipoPart({
     setEquipoPartsVersion: equipo.setEquipoPartsVersion,
+    refetchEquipoRows: equipo.refetchEquipoRows,
+    onValidationError: setParteEquipoValidationError,
   });
+
+  useEffect(() => {
+    if (equipoPart.equipoPartModal) setParteEquipoValidationError(null);
+  }, [equipoPart.equipoPartModal]);
 
   if (!isReady || !user) return null;
 
   return (
     <div className="min-w-0 max-w-full space-y-5">
+      {parteEquipoValidationError ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/35 dark:text-amber-100"
+        >
+          <span>{parteEquipoValidationError}</span>{" "}
+          <button
+            type="button"
+            className="ml-2 font-semibold underline"
+            onClick={() => setParteEquipoValidationError(null)}
+          >
+            Cerrar
+          </button>
+        </div>
+      ) : null}
       <TeamPanel
         periodo={equipo.equipoPeriodo}
         dia={equipo.equipoDia}
@@ -130,6 +152,7 @@ export default function ManagerPage() {
         editModalVista={equipoModal.equipoModalVista}
         editFormError={equipoModal.equipoFormError}
         editAbsenceSaving={equipoModal.equipoAbsenceSaving}
+        editFichajeDeleting={equipoModal.equipoFichajeDeleting}
         horarioWizard={{
           step: equipoModal.horarioWizardStep,
           setStep: equipoModal.setHorarioWizardStep,
@@ -164,12 +187,17 @@ export default function ManagerPage() {
         onSetSoloSinImputar={equipo.setEquipoSoloSinImputar}
         onSetSoloSinParteServidor={equipo.setEquipoSoloSinParteServidor}
         onSetSoloConParteServidor={equipo.setEquipoSoloConParteServidor}
+        onBorrarFiltrosAlcance={equipo.equipoBorrarFiltrosAlcance}
         onSetSortColumn={equipo.setEquipoSortColumn}
         onOpenEditModal={equipoModal.openEquipoEditModal}
         onCloseEditModal={equipoModal.cerrarEquipoModal}
         onGuardarVacaciones={equipoModal.guardarEquipoVacacionesOBaja}
+        onEliminarFichaje={() => void equipoModal.eliminarEquipoFichaje()}
         onSetFormError={equipoModal.setEquipoFormError}
-        onOpenPartEditor={equipoPart.openEquipoPartEditor}
+        onOpenPartEditor={async (entry) => {
+          setParteEquipoValidationError(null);
+          await equipoPart.openEquipoPartEditor(entry);
+        }}
       />
 
       {equipoPart.equipoPartModal && (

@@ -217,7 +217,8 @@ export default function DashboardPage() {
     }
   }, [isReady, user?.role, router, enableOperativaYAnalisisMenu, enableTimeTracking]);
 
-  const isRedirecting = isReady && user?.role === USER_ROLE.Worker;
+  /** Sin usuario aún, o trabajador (redirige fuera del panel general): no pintar el tablero. */
+  const hideOperativeDashboard = !isReady || !user || user.role === USER_ROLE.Worker;
 
   const [selectedDate, setSelectedDate] = useState<string>(() => todayISO());
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("all");
@@ -344,7 +345,7 @@ export default function DashboardPage() {
     return map;
   }, [incidentsForSelectedDate]);
 
-  return isRedirecting ? (
+  return hideOperativeDashboard ? (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="h-6 w-6 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
     </div>

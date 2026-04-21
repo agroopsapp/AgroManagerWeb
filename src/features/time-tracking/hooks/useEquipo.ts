@@ -29,18 +29,21 @@ import {
   effectiveWorkMinutesEntry,
   formatLastModifiedByUser,
   formatRazonTablaEquipo,
+  formatWorkReportLinesForUbicacion,
   isSinJornadaImputableRazon,
   RAZON_NO_LABORAL,
   RAZON_SIN_IMPUTAR,
+  sessionDisplayNameFromEmail,
   timeEntryConParteEnServidor,
   timeEntrySinParteEnServidor,
 } from "@/features/time-tracking/utils/formatters";
-import { ApiError } from "@/lib/api-client";
-import { getWorkPartsForWorker } from "@/lib/workPartsStorage";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   companiesApi,
   timeTrackingApi,
   usersApi,
+  workReportsApi,
   workServicesApi,
   type TimeEntryRowsSummaryDto,
 } from "@/services";
@@ -251,12 +254,19 @@ export type UseEquipoOptions = {
    * Usar en SuperAdmin, Manager y Admin en vistas de equipo.
    */
   enableEquipoCompanyFilter?: boolean;
+  /**
+   * Si true, incluye (y muestra) usuarios con `excludedFromTimeTracking=true` en el combo «Persona»
+   * y en el grid. Si false (por defecto), se ocultan visualmente (UX) como hasta ahora.
+   */
+  includeExcludedFromTimeTracking?: boolean;
 };
 
 // ----- Hook -----
 
 export function useEquipo(options?: UseEquipoOptions) {
   const enableEquipoCompanyFilter = options?.enableEquipoCompanyFilter === true;
+  const includeExcludedFromTimeTracking = options?.includeExcludedFromTimeTracking === true;
+  const { user: authUser } = useAuth();
   const [filtroPersonaEquipo, setFiltroPersonaEquipo] = useState<string | "todas">("todas");
   const [equipoPeriodo, setEquipoPeriodo] = useState<"dia" | "semana" | "mes" | "trimestre" | "anio">("mes");
   const [equipoDia, setEquipoDia] = useState(localTodayISO());
@@ -282,6 +292,14 @@ export function useEquipo(options?: UseEquipoOptions) {
   }, []);
   const setEquipoSoloConParteServidor = useCallback((checked: boolean) => {
     setEquipoTablaFiltroExtra(checked ? "soloConParteServidor" : "ninguno");
+  }, []);
+
+  /** Restablece alcance (empresa, persona, servicio) y vista rápida; no cambia periodo ni fechas. */
+  const equipoBorrarFiltrosAlcance = useCallback(() => {
+    setFiltroPersonaEquipo("todas");
+    setEquipoSuperAdminCompanyId(null);
+    setEquipoServiceId(null);
+    setEquipoTablaFiltroExtra("ninguno");
   }, []);
 
   const opcionesMesEquipo = useMemo(() => monthSelectOptions(12), []);
@@ -425,9 +443,7 @@ export function useEquipo(options?: UseEquipoOptions) {
         if (cancelled) return;
         if (e instanceof DOMException && e.name === "AbortError") return;
         setEquipoServicesError(
-          e instanceof ApiError && e.message.trim()
-            ? e.message.trim()
-            : "No se pudieron cargar los servicios.",
+          userVisibleMessageFromUnknown(e, "No se pudieron cargar los servicios."),
         );
         setEquipoServicesCatalog([]);
       })
@@ -455,30 +471,83 @@ export function useEquipo(options?: UseEquipoOptions) {
     }
   }, [equipoServiceId, equipoSuperAdminCompanyId]);
 
-  /** Trabajadores (GET /api/Users). Misma companyId de tenant que las ClientCompanies del combo Empresa. */
+  /**
+   * Catálogo «Persona»: con filtro empresa (admin/manager) → GET /api/Users.
+   * Sin él (Worker): solo GET /api/Users/{id} — listar todos suele devolver 403; no llamamos a GetAll.
+   */
   useEffect(() => {
-    if (!enableEquipoCompanyFilter) {
+    if (enableEquipoCompanyFilter) {
+      const ac = new AbortController();
+      usersApi
+        .getAll({ signal: ac.signal })
+        .then((list) => {
+          setEquipoWorkers(
+            list.map((u) => ({
+              id: u.id,
+              name: u.name,
+              companyId: u.companyId ?? null,
+              excludedFromTimeTracking: u.excludedFromTimeTracking === true,
+            })),
+          );
+        })
+        .catch((e) => {
+          if (e instanceof DOMException && e.name === "AbortError") return;
+          setEquipoWorkers([]);
+        });
+      return () => ac.abort();
+    }
+
+    if (!authUser?.id) {
       setEquipoWorkers([]);
       return;
     }
-    const ac = new AbortController();
-    usersApi
-      .getAll(undefined, { signal: ac.signal })
-      .then((list) => {
-        setEquipoWorkers(
-          list.map((u) => ({
+
+    let cancelled = false;
+    const emailFallback = sessionDisplayNameFromEmail(authUser.email);
+
+    (async () => {
+      try {
+        const u = await usersApi.getById(authUser.id);
+        if (cancelled) return;
+        setEquipoWorkers([
+          {
             id: u.id,
-            name: u.name,
+            name: (u.name ?? "").trim() || emailFallback,
             companyId: u.companyId ?? null,
-          })),
-        );
-      })
-      .catch((e) => {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        setEquipoWorkers([]);
-      });
-    return () => ac.abort();
-  }, [enableEquipoCompanyFilter]);
+            excludedFromTimeTracking: u.excludedFromTimeTracking === true,
+          },
+        ]);
+      } catch {
+        if (!cancelled) {
+          setEquipoWorkers([
+            {
+              id: authUser.id,
+              name: emailFallback,
+              companyId: authUser.companyId ?? null,
+              excludedFromTimeTracking: false,
+            },
+          ]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    enableEquipoCompanyFilter,
+    includeExcludedFromTimeTracking,
+    authUser?.id,
+    authUser?.email,
+    authUser?.companyId,
+  ]);
+
+  /** Worker: por defecto «Persona» = yo (el desplegable muestra el nombre, no solo «Todos»). */
+  useEffect(() => {
+    if (enableEquipoCompanyFilter) return;
+    if (!authUser?.id) return;
+    setFiltroPersonaEquipo((prev) => (prev === "todas" ? authUser.id : prev));
+  }, [enableEquipoCompanyFilter, authUser?.id]);
 
   // ----- Derived / memos -----
 
@@ -598,6 +667,10 @@ export function useEquipo(options?: UseEquipoOptions) {
       filtroPersonaEquipo === "todas" ? undefined : filtroPersonaEquipo.trim();
     const clientCompanyIdForApi = equipoSuperAdminCompanyId?.trim() || undefined;
     const serviceIdForApi = equipoServiceId?.trim() || undefined;
+    // Alineación backend (bool?):
+    // - si se incluyen excluidos → no enviar param (legacy)
+    // - si se ocultan excluidos → enviar false para que summary y grid filtren igual
+    const excludedFromTimeTrackingForApi = includeExcludedFromTimeTracking ? undefined : false;
 
     setEquipoRowsLoading(true);
     setEquipoRowsError(null);
@@ -609,6 +682,7 @@ export function useEquipo(options?: UseEquipoOptions) {
         from: rowsRange.start,
         to: rowsRange.end,
         userId: userIdForApi,
+        excludedFromTimeTracking: excludedFromTimeTrackingForApi,
         serviceId: serviceIdForApi,
         clientCompanyId: clientCompanyIdForApi,
         signal: ac.signal,
@@ -620,19 +694,62 @@ export function useEquipo(options?: UseEquipoOptions) {
           .filter((x: TimeEntryMock | null): x is TimeEntryMock => x != null);
         setTeamHistorialEntries(mapped);
         setEquipoRowsTotalCount(totalCount);
+
+        const reportIds = Array.from(
+          new Set(
+            mapped
+              .map((e) => e.workReportId?.trim())
+              .filter((id): id is string => Boolean(id)),
+          ),
+        );
+        const enrichTargets = mapped.filter(
+          (e) =>
+            e.workReportId?.trim() &&
+            typeof e.workReportLineCount === "number" &&
+            e.workReportLineCount > 0,
+        );
+        if (reportIds.length > 0 && enrichTargets.length > 0) {
+          void (async () => {
+            const summaries = new Map<string, string>();
+            await Promise.all(
+              reportIds.map(async (reportId) => {
+                try {
+                  const rep = await workReportsApi.getByIdWithLines(reportId, {
+                    signal: ac.signal,
+                  });
+                  if (ac.signal.aborted) return;
+                  const text = formatWorkReportLinesForUbicacion(rep.lines).trim();
+                  if (text) summaries.set(reportId, text);
+                } catch {
+                  /* parte no legible o sin permiso */
+                }
+              }),
+            );
+            if (ac.signal.aborted || seq !== equipoFetchSeq.current) return;
+            if (summaries.size === 0) return;
+            setTeamHistorialEntries((prev) => {
+              if (seq !== equipoFetchSeq.current) return prev;
+              return prev.map((e) => {
+                const rid = e.workReportId?.trim();
+                if (!rid || !summaries.has(rid)) return e;
+                return { ...e, workReportLinesSummary: summaries.get(rid) ?? null };
+              });
+            });
+          })();
+        }
       })
       .catch((e: unknown) => {
         if (ac.signal.aborted) return;
         if (seq !== equipoFetchSeq.current) return;
-        if (e instanceof ApiError) {
-          setEquipoRowsError(e.message);
-        } else if (e instanceof DOMException && e.name === "AbortError") {
+        if (e instanceof DOMException && e.name === "AbortError") {
           return;
-        } else if (e instanceof Error && e.name === "AbortError") {
-          return;
-        } else {
-          setEquipoRowsError("No se pudieron cargar los fichajes del equipo.");
         }
+        if (e instanceof Error && e.name === "AbortError") {
+          return;
+        }
+        setEquipoRowsError(
+          userVisibleMessageFromUnknown(e, "No se pudieron cargar los fichajes del equipo."),
+        );
         setTeamHistorialEntries([]);
         setEquipoRowsTotalCount(0);
       })
@@ -645,6 +762,7 @@ export function useEquipo(options?: UseEquipoOptions) {
         from: equipoRange.start,
         to: equipoRange.end,
         userId: userIdForApi,
+        excludedFromTimeTracking: excludedFromTimeTrackingForApi,
         serviceId: serviceIdForApi,
         clientCompanyId: clientCompanyIdForApi,
         signal: ac.signal,
@@ -661,9 +779,10 @@ export function useEquipo(options?: UseEquipoOptions) {
         if (e instanceof Error && e.name === "AbortError") return;
         setEquipoSummary(null);
         setEquipoSummaryError(
-          e instanceof ApiError && e.message.trim()
-            ? e.message.trim()
-            : "No se pudo cargar el resumen para gráficos (se usan cálculos locales).",
+          userVisibleMessageFromUnknown(
+            e,
+            "No se pudo cargar el resumen para gráficos (se usan cálculos locales).",
+          ),
         );
       })
       .finally(() => {
@@ -679,6 +798,7 @@ export function useEquipo(options?: UseEquipoOptions) {
     filtroPersonaEquipo,
     equipoServiceId,
     equipoSuperAdminCompanyId,
+    includeExcludedFromTimeTracking,
     equipoFetchNonce,
   ]);
 
@@ -693,19 +813,42 @@ export function useEquipo(options?: UseEquipoOptions) {
     });
   }, [teamHistorialEntries, equipoSuperAdminCompanyId]);
 
+  /** UserIds excluidos del fichaje (según catálogo; el backend puede devolver el campo ya filtrado). */
+  const equipoExcludedPersonIds = useMemo(
+    () =>
+      new Set(
+        equipoWorkers
+          .filter((w) => w.excludedFromTimeTracking === true)
+          .map((w) => w.id.trim())
+          .filter((id) => id.length > 0),
+      ),
+    [equipoWorkers],
+  );
+
+  /** Fichajes visibles en UI: si no se incluyen excluidos, se quitan los de `excludedFromTimeTracking=true`. */
+  const entriesVistaEquipoCliente = useMemo(() => {
+    if (includeExcludedFromTimeTracking) return entriesVistaEquipo;
+    if (equipoExcludedPersonIds.size === 0) return entriesVistaEquipo;
+    return entriesVistaEquipo.filter((e) => {
+      const pk = entryStablePersonKey(e);
+      if (!pk || pk.startsWith("legacy:")) return true;
+      return !equipoExcludedPersonIds.has(pk);
+    });
+  }, [entriesVistaEquipo, equipoExcludedPersonIds, includeExcludedFromTimeTracking]);
+
   /** Nombres para tabla/CSV/orden (usuarios API + fallback desde fichajes legacy). */
   const equipoNombrePorClave = useMemo(() => {
     const m = new Map<string, string>();
     for (const w of equipoWorkers) {
       if (w.id) m.set(w.id, w.name);
     }
-    for (const e of entriesVistaEquipo) {
+    for (const e of entriesVistaEquipoCliente) {
       const pk = entryStablePersonKey(e);
       if (!pk || m.has(pk)) continue;
       m.set(pk, workerNameById(e.workerId));
     }
     return m;
-  }, [equipoWorkers, entriesVistaEquipo]);
+  }, [equipoWorkers, entriesVistaEquipoCliente]);
 
   const resolveEquipoPersonaNombre = useMemo(
     () => buildPersonaSortLabel(equipoNombrePorClave),
@@ -714,7 +857,7 @@ export function useEquipo(options?: UseEquipoOptions) {
 
   const equipoRowsFiltradas = useMemo(() => {
     if (!equipoDetalleRange) return [];
-    let rows = entriesVistaEquipo.filter(
+    let rows = entriesVistaEquipoCliente.filter(
       (e) =>
         e.workDate >= equipoDetalleRange.start && e.workDate <= equipoDetalleRange.end
     );
@@ -722,7 +865,7 @@ export function useEquipo(options?: UseEquipoOptions) {
       rows = rows.filter((e) => entryStablePersonKey(e) === filtroPersonaEquipo);
     }
     return rows;
-  }, [entriesVistaEquipo, filtroPersonaEquipo, equipoDetalleRange]);
+  }, [entriesVistaEquipoCliente, filtroPersonaEquipo, equipoDetalleRange]);
 
   /** Recuento para KPI/dona «registros en periodo»: API summary si existe, si no filas cargadas. */
   const equipoRegistrosPeriodoKpi = useMemo(() => {
@@ -736,11 +879,11 @@ export function useEquipo(options?: UseEquipoOptions) {
   const entriesMesEquipoPorPersona = useMemo(() => {
     if (!equipoDetalleRange) return new Map<string, TimeEntryMock>();
     return indexEquipoEntriesByPersonAndDate(
-      entriesVistaEquipo,
+      entriesVistaEquipoCliente,
       equipoDetalleRange.start,
       equipoDetalleRange.end
     );
-  }, [entriesVistaEquipo, equipoDetalleRange]);
+  }, [entriesVistaEquipoCliente, equipoDetalleRange]);
 
   /**
    * Eje de personas del grid: persona concreta, lista de trabajadores del API,
@@ -752,14 +895,16 @@ export function useEquipo(options?: UseEquipoOptions) {
     }
     if (!equipoDetalleRange) return [];
     if (equipoWorkers.length > 0) {
-      return equipoWorkers.map((w) => w.id);
+      return includeExcludedFromTimeTracking
+        ? equipoWorkers.map((w) => w.id)
+        : equipoWorkers.filter((w) => !w.excludedFromTimeTracking).map((w) => w.id);
     }
     return uniquePersonKeysInRange(
-      entriesVistaEquipo,
+      entriesVistaEquipoCliente,
       equipoDetalleRange.start,
       equipoDetalleRange.end
     );
-  }, [filtroPersonaEquipo, equipoWorkers, entriesVistaEquipo, equipoDetalleRange]);
+  }, [filtroPersonaEquipo, equipoWorkers, entriesVistaEquipoCliente, equipoDetalleRange, includeExcludedFromTimeTracking]);
 
   const diasCalendarioMesEquipo = useMemo(() => {
     if (!equipoDetalleRange) return [];
@@ -973,17 +1118,6 @@ export function useEquipo(options?: UseEquipoOptions) {
   const horasSinImputarTipoFichaje = hDonutFalta;
 
   const partesEquipoStats = useMemo(() => {
-    const ymKey = equipoDetalleRange?.start.slice(0, 7) ?? "";
-    const keyHasPart = new Set<string>();
-    for (const pk of trabajadoresVistaEquipo) {
-      const wid = workerIdFromPersonKey(pk);
-      const list = getWorkPartsForWorker(wid);
-      for (const p of list) {
-        if (!p?.workDate) continue;
-        if (!ymKey || p.workDate.slice(0, 7) !== ymKey) continue;
-        keyHasPart.add(`${wid}-${p.workDate}`);
-      }
-    }
     let diasImputados = 0;
     let diasConParte = 0;
     for (const f of filasEquipoCalendario) {
@@ -992,10 +1126,10 @@ export function useEquipo(options?: UseEquipoOptions) {
       if (isSinJornadaImputableRazon(e.razon)) continue;
       if (!e.checkOutUtc) continue;
       diasImputados += 1;
-      if (keyHasPart.has(`${e.workerId}-${e.workDate}`)) diasConParte += 1;
+      if (timeEntryConParteEnServidor(e)) diasConParte += 1;
     }
     return { diasImputados, diasConParte };
-  }, [filasEquipoCalendario, trabajadoresVistaEquipo, equipoDetalleRange, equipoPartsVersion]);
+  }, [filasEquipoCalendario, equipoPartsVersion]);
 
   /**
    * KPIs rejilla densa: cada fila es un par persona-día en el periodo.
@@ -1079,6 +1213,7 @@ export function useEquipo(options?: UseEquipoOptions) {
     setEquipoSoloSinImputar,
     setEquipoSoloSinParteServidor,
     setEquipoSoloConParteServidor,
+    equipoBorrarFiltrosAlcance,
     opcionesMesEquipo,
     opcionesTrimestre,
     opcionesAnio,
@@ -1087,7 +1222,9 @@ export function useEquipo(options?: UseEquipoOptions) {
     setTeamHistorialEntries,
     equipoWorkers,
     /** Trabajadores para el combo Persona (misma companyId de tenant que ClientCompanies). */
-    equipoWorkersOpciones: equipoWorkers,
+    equipoWorkersOpciones: includeExcludedFromTimeTracking
+      ? equipoWorkers
+      : equipoWorkers.filter((w) => !w.excludedFromTimeTracking),
     /** Mapa userId/legacy → nombre (tabla, CSV, orden). */
     equipoNombrePorClave,
     /** Etiqueta de persona coherente con usuarios API y fichajes. */

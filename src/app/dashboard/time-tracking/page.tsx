@@ -41,6 +41,7 @@ export default function TimeTrackingPage() {
     entries: fichaje.entries,
     setEntries: fichaje.setEntries,
     miWorkerId: panel.miWorkerId,
+    sessionEmail: user?.email,
   });
   const forgotModal = useForgotModal({
     miWorkerId: panel.miWorkerId,
@@ -99,6 +100,7 @@ export default function TimeTrackingPage() {
             companyId: line.clientCompanyId,
             serviceId: line.serviceId,
             areaId: line.workAreaId,
+            notes: typeof line.notes === "string" ? line.notes : "",
           };
         });
         breakModal.setWorkPartLines(
@@ -113,6 +115,7 @@ export default function TimeTrackingPage() {
                   companyId: report.companyId,
                   serviceId: "",
                   areaId: "",
+                  notes: "",
                 },
               ],
         );
@@ -141,6 +144,7 @@ export default function TimeTrackingPage() {
             companyId: entry.companyId ?? "",
             serviceId: "",
             areaId: "",
+            notes: "",
           },
         ]);
         breakModal.setWorkPartOverrideEntry({
@@ -165,6 +169,7 @@ export default function TimeTrackingPage() {
           companyId: entry.companyId ?? "",
           serviceId: "",
           areaId: "",
+          notes: "",
         },
       ]);
       breakModal.setWorkPartOverrideEntry({

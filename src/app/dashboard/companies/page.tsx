@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ApiError } from "@/lib/api-client";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import {
   companiesApi,
   deleteWorkArea,
@@ -11,6 +10,7 @@ import {
   postClientCompanyWithAreas,
 } from "@/services";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { USER_ROLE, type Company as CompanyType, type CompanyArea } from "@/types";
 
@@ -25,7 +25,9 @@ type SortKey = "name" | "taxId" | "address";
 type SortDir = "asc" | "desc";
 
 export default function CompaniesPage() {
+  const { showSuccess } = useFlashSuccess();
   const { user, isReady } = useAuth();
+  const isWorker = user?.role === USER_ROLE.Worker;
   const isAdminLike =
     user?.role === USER_ROLE.Admin ||
     user?.role === USER_ROLE.SuperAdmin ||
@@ -52,8 +54,15 @@ export default function CompaniesPage() {
   const [formAddress, setFormAddress] = useState("");
   const [formAreas, setFormAreas] = useState<CompanyArea[]>([]);
 
+  /** Modal solo lectura (Worker): ver nombre y observaciones de cada área. */
+  const [areasReadOpen, setAreasReadOpen] = useState(false);
+  const [areasReadCompany, setAreasReadCompany] = useState<CompanyType | null>(null);
+  const [areasReadList, setAreasReadList] = useState<CompanyArea[]>([]);
+  const [areasReadLoading, setAreasReadLoading] = useState(false);
+  const [areasReadError, setAreasReadError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (!isReady || !isAdminLike) return;
+    if (!isReady || !user) return;
     const ac = new AbortController();
     (async () => {
       setLoading(true);
@@ -67,14 +76,13 @@ export default function CompaniesPage() {
         setCompanies(full);
       } catch (e) {
         if (ac.signal.aborted) return;
-        const msg = e instanceof ApiError ? e.message : "No se pudieron cargar las empresas.";
-        setError(msg);
+        setError(userVisibleMessageFromUnknown(e, "No se pudieron cargar las empresas."));
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       }
     })();
     return () => ac.abort();
-  }, [isReady, isAdminLike]);
+  }, [isReady, user?.id]);
 
   useEffect(() => {
     if (!isReady || !isAdminLike) return;
@@ -121,11 +129,7 @@ export default function CompaniesPage() {
       setFormAddress(full.address ?? "");
       setFormAreas((full.areas ?? []).map((a) => ({ ...a })));
     } catch (e) {
-      const msg =
-        e instanceof ApiError
-          ? e.message
-          : "No se pudieron cargar las áreas de la empresa.";
-      setError(msg);
+      setError(userVisibleMessageFromUnknown(e, "No se pudieron cargar las áreas de la empresa."));
     } finally {
       setLoadingDetail(false);
     }
@@ -138,6 +142,33 @@ export default function CompaniesPage() {
     setFormTaxId("");
     setFormAddress("");
     setFormAreas([]);
+  };
+
+  const openAreasReadOnly = async (company: CompanyType) => {
+    if (!isWorker) return;
+    setAreasReadCompany(company);
+    setAreasReadOpen(true);
+    setAreasReadList(company.areas ?? []);
+    setAreasReadError(null);
+    setAreasReadLoading(true);
+    try {
+      const full = await getClientCompanyWithAreas(company.id);
+      setAreasReadList(full.areas ?? []);
+    } catch (e) {
+      setAreasReadError(
+        userVisibleMessageFromUnknown(e, "No se pudieron cargar las áreas de la empresa."),
+      );
+    } finally {
+      setAreasReadLoading(false);
+    }
+  };
+
+  const closeAreasReadOnly = () => {
+    setAreasReadOpen(false);
+    setAreasReadCompany(null);
+    setAreasReadList([]);
+    setAreasReadError(null);
+    setAreasReadLoading(false);
   };
 
   const addFormArea = () => {
@@ -153,13 +184,12 @@ export default function CompaniesPage() {
       try {
         await deleteWorkArea(id);
       } catch (e) {
-        const msg =
-          e instanceof ApiError ? e.message : "No se pudo eliminar el área.";
-        setError(msg);
+        setError(userVisibleMessageFromUnknown(e, "No se pudo eliminar el área."));
         setDeletingAreaId(null);
         return;
       }
       setDeletingAreaId(null);
+      showSuccess("Área eliminada correctamente.");
     }
     setFormAreas((prev) => prev.filter((a) => a.id !== id));
   };
@@ -263,9 +293,11 @@ export default function CompaniesPage() {
         setCompanies((prev) => [created, ...prev]);
       }
       closeModal();
+      showSuccess(
+        editingCompany ? "Empresa actualizada correctamente." : "Empresa creada correctamente.",
+      );
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "No se pudo guardar la empresa.";
-      setError(msg);
+      setError(userVisibleMessageFromUnknown(e, "No se pudo guardar la empresa."));
     } finally {
       setSaving(false);
     }
@@ -278,9 +310,9 @@ export default function CompaniesPage() {
       await companiesApi.delete(id);
       setCompanies((prev) => prev.filter((c) => c.id !== id));
       setDeleteConfirm(null);
+      showSuccess("Empresa eliminada correctamente.");
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "No se pudo eliminar la empresa.";
-      setError(msg);
+      setError(userVisibleMessageFromUnknown(e, "No se pudo eliminar la empresa."));
     } finally {
       setDeletingId(null);
     }
@@ -294,40 +326,33 @@ export default function CompaniesPage() {
     );
   }
 
-  if (!isAdminLike) {
-    return (
-      <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Empresas</h1>
-        <p className="text-slate-600 dark:text-slate-400">
-          Solo administradores y managers pueden gestionar el catálogo de empresas.
-        </p>
-        <Link
-          href="/dashboard"
-          className="inline-flex rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
-        >
-          Volver al panel
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Empresas</h1>
           <p className="text-slate-600 dark:text-slate-400">
-            Empresas con las que se puede trabajar (alta, edición y baja). Los trabajadores se vinculan
-            a una empresa al darlos de alta.
+            {isWorker
+              ? "Listado de empresas del tenant. Solo consulta."
+              : "Empresas con las que se puede trabajar (alta, edición y baja). Los trabajadores se vinculan a una empresa al darlos de alta."}
           </p>
+          {isReady && isWorker ? (
+            <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+              Como trabajador/a, esta pantalla es <strong className="font-semibold">solo consulta</strong>
+              : no puedes crear, editar ni eliminar empresas. Puedes abrir el detalle de las áreas con{" "}
+              <strong className="font-semibold">Ver áreas</strong>.
+            </p>
+          ) : null}
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
-        >
-          Nueva empresa
-        </button>
+        {!isWorker ? (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+          >
+            Nueva empresa
+          </button>
+        ) : null}
       </div>
 
       {error && (
@@ -359,38 +384,52 @@ export default function CompaniesPage() {
                   N.º
                 </th>
                 <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("name")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
-                  >
-                    Nombre {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
-                  </button>
+                  {isWorker ? (
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">Nombre</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("name")}
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    >
+                      Nombre {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
+                    </button>
+                  )}
                 </th>
                 <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("taxId")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
-                  >
-                    CIF / NIF {sortKey === "taxId" && (sortDir === "asc" ? "↑" : "↓")}
-                  </button>
+                  {isWorker ? (
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">CIF / NIF</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("taxId")}
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    >
+                      CIF / NIF {sortKey === "taxId" && (sortDir === "asc" ? "↑" : "↓")}
+                    </button>
+                  )}
                 </th>
                 <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("address")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
-                  >
-                    Dirección {sortKey === "address" && (sortDir === "asc" ? "↑" : "↓")}
-                  </button>
+                  {isWorker ? (
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">Dirección</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("address")}
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    >
+                      Dirección {sortKey === "address" && (sortDir === "asc" ? "↑" : "↓")}
+                    </button>
+                  )}
                 </th>
                 <th className="px-4 py-3 text-center font-semibold text-slate-800 dark:text-slate-200">
                   Áreas
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">
-                  Acciones
-                </th>
+                {!isWorker ? (
+                  <th className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">
+                    Acciones
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-600">
@@ -409,48 +448,65 @@ export default function CompaniesPage() {
                     {company.address || "—"}
                   </td>
                   <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-300">
-                    {company.areas?.length ?? 0}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {deleteConfirm === company.id ? (
-                      <span className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">¿Eliminar?</span>
+                    {isWorker ? (
+                      <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
+                        <span className="tabular-nums" title="Número de áreas">
+                          {company.areas?.length ?? 0}
+                        </span>
                         <button
                           type="button"
-                          onClick={() => handleDelete(company.id)}
-                          disabled={deletingId === company.id}
-                          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-500 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+                          onClick={() => void openAreasReadOnly(company)}
+                          className="shrink-0 rounded-lg border border-agro-600 bg-white px-2.5 py-1 text-xs font-medium text-agro-700 shadow-sm transition hover:bg-agro-50 dark:border-agro-500 dark:bg-slate-800 dark:text-agro-300 dark:hover:bg-agro-950/40"
                         >
-                          {deletingId === company.id ? "Eliminando..." : "Sí"}
+                          Ver áreas
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirm(null)}
-                          disabled={deletingId === company.id}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600"
-                        >
-                          No
-                        </button>
-                      </span>
+                      </div>
                     ) : (
-                      <span className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(company)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-600"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirm(company.id)}
-                          className="rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-900/40"
-                        >
-                          Eliminar
-                        </button>
-                      </span>
+                      <span className="tabular-nums">{company.areas?.length ?? 0}</span>
                     )}
                   </td>
+                  {!isWorker ? (
+                    <td className="px-4 py-3 text-right">
+                      {deleteConfirm === company.id ? (
+                        <span className="flex items-center justify-end gap-2">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">¿Eliminar?</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(company.id)}
+                            disabled={deletingId === company.id}
+                            className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-500 dark:bg-red-900/40 dark:text-red-300 dark:hover:bg-red-900/60"
+                          >
+                            {deletingId === company.id ? "Eliminando..." : "Sí"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirm(null)}
+                            disabled={deletingId === company.id}
+                            className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:border-slate-500 dark:text-slate-300 dark:hover:bg-slate-600"
+                          >
+                            No
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(company)}
+                            className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-600"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirm(company.id)}
+                            className="rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-500 dark:text-red-300 dark:hover:bg-red-900/40"
+                          >
+                            Eliminar
+                          </button>
+                        </span>
+                      )}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -462,13 +518,90 @@ export default function CompaniesPage() {
         {!loading && filteredAndSorted.length === 0 && (
           <p className="py-8 text-center text-slate-500 dark:text-slate-400">
             {companies.length === 0
-              ? "No hay empresas. Pulsa «Nueva empresa» para crear una."
+              ? isWorker
+                ? "No hay empresas."
+                : "No hay empresas. Pulsa «Nueva empresa» para crear una."
               : "Ninguna empresa coincide con la búsqueda."}
           </p>
         )}
       </div>
 
-      {modalOpen && (
+      {isWorker && areasReadOpen && areasReadCompany && (
+        <div
+          className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
+          onClick={closeAreasReadOnly}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="company-areas-read-title"
+        >
+          <div
+            className={modalScrollablePanel("md")}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              id="company-areas-read-title"
+              className="text-lg font-semibold text-slate-900 dark:text-slate-100"
+            >
+              Áreas — {areasReadCompany.name}
+            </h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Solo consulta. No puedes crear ni modificar áreas desde aquí.
+            </p>
+            {areasReadError && (
+              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500 dark:bg-red-900/30 dark:text-red-200">
+                {areasReadError}
+              </div>
+            )}
+            <div className="mt-4">
+              {areasReadLoading ? (
+                <div className="flex items-center justify-center gap-2 py-10">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+                  <span className="text-sm text-slate-500 dark:text-slate-400">Cargando áreas…</span>
+                </div>
+              ) : areasReadList.length === 0 ? (
+                <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/80 px-3 py-6 text-center text-sm text-slate-500 dark:border-slate-600 dark:bg-slate-900/40 dark:text-slate-400">
+                  Esta empresa no tiene áreas registradas.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {areasReadList.map((area, idx) => (
+                    <li
+                      key={area.id}
+                      className="rounded-xl border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-600 dark:bg-slate-900/40"
+                    >
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Área {idx + 1}
+                      </p>
+                      <p className="mt-1 font-medium text-slate-900 dark:text-slate-100">
+                        {area.name?.trim() || "—"}
+                      </p>
+                      <div className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-600">
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          Observaciones
+                        </p>
+                        <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-600 dark:text-slate-300">
+                          {(area.observations ?? "").trim() || "—"}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={closeAreasReadOnly}
+                className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modalOpen && !isWorker && (
         <div
           className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
           onClick={closeModal}

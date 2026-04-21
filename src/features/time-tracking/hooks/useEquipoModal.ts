@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
 import {
   checkoutLocalIsoAfterCheckin,
   dateTimeLocalToUtcIso,
@@ -15,7 +16,7 @@ import type {
   ForgotStep,
   TimeEntryMock,
 } from "@/features/time-tracking/types";
-import { ApiError } from "@/lib/api-client";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { breakSummaryFromMinutes, timeTrackingApi } from "@/services/time-tracking.service";
 
 type AuthUser = { id?: string; email?: string | null; role?: string; companyId?: string | null } | null | undefined;
@@ -51,6 +52,7 @@ export function useEquipoModal({
   equipoWorkersCatalog,
   equipoSuperAdminCompanyId,
 }: Params) {
+  const { showSuccess } = useFlashSuccess();
   const [equipoModal, setEquipoModal] = useState<null | {
     workerId: number;
     workDate: string;
@@ -62,6 +64,7 @@ export function useEquipoModal({
   const [equipoModalVista, setEquipoModalVista] = useState<"menu" | "wizard">("menu");
   const [equipoFormError, setEquipoFormError] = useState<string | null>(null);
   const [equipoAbsenceSaving, setEquipoAbsenceSaving] = useState(false);
+  const [equipoFichajeDeleting, setEquipoFichajeDeleting] = useState(false);
 
   const [horarioWizardStep, setHorarioWizardStep] = useState<ForgotStep>("full_start");
   const [horarioWizardTargetDate, setHorarioWizardTargetDate] = useState<string | null>(null);
@@ -116,6 +119,35 @@ export function useEquipoModal({
     return null;
   }, [equipoModal, equipoWorkersCatalog, user?.companyId, equipoSuperAdminCompanyId]);
 
+  /** Abre el asistente de jornada (crear o revisar horario) a partir de `existing` y fecha. */
+  const aplicarEntradaWizardDesde = useCallback(
+    (ex: TimeEntryMock | null, workDate: string) => {
+      setEquipoFormError(null);
+      setHorarioWizardError(null);
+      setHorarioBreakOtro(false);
+      setHorarioFullBreakCustom("");
+      setHorarioWizardStep("full_start");
+      setHorarioWizardTargetDate(workDate);
+      setHorarioWizardForgotMode("full_ayer");
+      if (ex && !isSinJornadaImputableRazon(ex.razon) && ex.checkOutUtc) {
+        setHorarioFullStart(utcToLocalHHMM(ex.checkInUtc));
+        setHorarioFullEnd(utcToLocalHHMM(ex.checkOutUtc));
+        setHorarioFullBreakMins(ex.breakMinutes ?? 30);
+      } else {
+        setHorarioFullStart("09:00");
+        setHorarioFullEnd("18:00");
+        setHorarioFullBreakMins(30);
+      }
+      setEquipoModalVista("wizard");
+    },
+    [],
+  );
+
+  const enterEquipoHorarioWizard = useCallback(() => {
+    if (!equipoModal) return;
+    aplicarEntradaWizardDesde(equipoModal.existing, equipoModal.workDate);
+  }, [equipoModal, aplicarEntradaWizardDesde]);
+
   const openEquipoEditModal = (opts: {
     workerId: number;
     workDate: string;
@@ -123,16 +155,10 @@ export function useEquipoModal({
     isWeekendFila: boolean;
     personaLabel?: string | null;
     targetUserId?: string | null;
+    /** Ir al asistente de entrada/salida (crear jornada) en lugar del menú «Editar día». */
+    irDirectoAlWizard?: boolean;
   }) => {
-    setEquipoModalVista("menu");
     setEquipoFormError(null);
-    resetHorarioWizardFields(
-      setHorarioWizardStep,
-      setHorarioWizardError,
-      setHorarioBreakOtro,
-      setHorarioFullBreakCustom,
-    );
-    setHorarioWizardTargetDate(opts.workDate);
     const ex = opts.existing;
     const targetUserId =
       (typeof opts.targetUserId === "string" && opts.targetUserId.trim()
@@ -147,12 +173,27 @@ export function useEquipoModal({
       personaLabel: opts.personaLabel,
       targetUserId,
     });
+
+    if (opts.irDirectoAlWizard) {
+      aplicarEntradaWizardDesde(ex, opts.workDate);
+      return;
+    }
+
+    setEquipoModalVista("menu");
+    resetHorarioWizardFields(
+      setHorarioWizardStep,
+      setHorarioWizardError,
+      setHorarioBreakOtro,
+      setHorarioFullBreakCustom,
+    );
+    setHorarioWizardTargetDate(opts.workDate);
   };
 
   const cerrarEquipoModal = () => {
     setEquipoModal(null);
     setEquipoFormError(null);
     setEquipoAbsenceSaving(false);
+    setEquipoFichajeDeleting(false);
     setEquipoModalVista("menu");
     resetHorarioWizardFields(
       setHorarioWizardStep,
@@ -163,28 +204,6 @@ export function useEquipoModal({
     setHorarioWizardTargetDate(null);
     setHorarioWizardSaving(false);
   };
-
-  const enterEquipoHorarioWizard = useCallback(() => {
-    if (!equipoModal) return;
-    setEquipoFormError(null);
-    setHorarioWizardError(null);
-    setHorarioBreakOtro(false);
-    setHorarioFullBreakCustom("");
-    setHorarioWizardStep("full_start");
-    setHorarioWizardTargetDate(equipoModal.workDate);
-    setHorarioWizardForgotMode("full_ayer");
-    const ex = equipoModal.existing;
-    if (ex && !isSinJornadaImputableRazon(ex.razon) && ex.checkOutUtc) {
-      setHorarioFullStart(utcToLocalHHMM(ex.checkInUtc));
-      setHorarioFullEnd(utcToLocalHHMM(ex.checkOutUtc));
-      setHorarioFullBreakMins(ex.breakMinutes ?? 30);
-    } else {
-      setHorarioFullStart("09:00");
-      setHorarioFullEnd("18:00");
-      setHorarioFullBreakMins(30);
-    }
-    setEquipoModalVista("wizard");
-  }, [equipoModal]);
 
   const volverEquipoHorarioWizardAMenu = useCallback(() => {
     setHorarioWizardError(null);
@@ -269,14 +288,56 @@ export function useEquipoModal({
 
       refetchEquipoRows();
       cerrarEquipoModal();
+      showSuccess("Ausencia guardada correctamente.");
     } catch (e) {
-      const msg =
-        e instanceof ApiError
-          ? e.message
-          : "No se pudo guardar la ausencia. Revisa permisos y datos.";
-      setEquipoFormError(msg);
+      setEquipoFormError(
+        userVisibleMessageFromUnknown(e, "No se pudo guardar la ausencia. Revisa permisos y datos."),
+      );
     } finally {
       setEquipoAbsenceSaving(false);
+    }
+  };
+
+  const eliminarEquipoFichaje = async () => {
+    if (!equipoModal || equipoFichajeDeleting || equipoAbsenceSaving) return;
+    const { existing } = equipoModal;
+    const timeEntryId =
+      typeof existing?.timeEntryId === "string" && existing.timeEntryId.trim().length > 0
+        ? existing.timeEntryId.trim()
+        : null;
+    if (!timeEntryId) {
+      setEquipoFormError(
+        "Este día no tiene un fichaje guardado en el servidor (solo hueco en calendario). No hay nada que eliminar.",
+      );
+      return;
+    }
+    const ok = window.confirm(
+      "¿Eliminar el fichaje de este día en el servidor? Se borrarán entrada, salida y descanso asociados a esa fila. Esta acción no se puede deshacer desde la web.",
+    );
+    if (!ok) return;
+
+    const tab = equipoTablaScrollRef.current;
+    if (tab) {
+      equipoRestaurarScroll.current = { top: tab.scrollTop, left: tab.scrollLeft };
+      equipoMarcarRestaurarScroll.current = true;
+    }
+
+    setEquipoFormError(null);
+    setEquipoFichajeDeleting(true);
+    try {
+      await timeTrackingApi.deleteTimeEntry(timeEntryId);
+      refetchEquipoRows();
+      cerrarEquipoModal();
+      showSuccess("Fichaje eliminado del servidor.");
+    } catch (e) {
+      setEquipoFormError(
+        userVisibleMessageFromUnknown(
+          e,
+          "No se pudo eliminar el fichaje. Revisa permisos o si el día tiene restricciones en el servidor.",
+        ),
+      );
+    } finally {
+      setEquipoFichajeDeleting(false);
     }
   };
 
@@ -370,10 +431,11 @@ export function useEquipoModal({
 
       refetchEquipoRows();
       cerrarEquipoModal();
+      showSuccess("Horario guardado correctamente.");
     } catch (e) {
-      const msg =
-        e instanceof ApiError ? e.message : "No se pudo guardar el horario. Revisa permisos.";
-      setHorarioWizardError(msg);
+      setHorarioWizardError(
+        userVisibleMessageFromUnknown(e, "No se pudo guardar el horario. Revisa permisos."),
+      );
     } finally {
       setHorarioWizardSaving(false);
     }
@@ -385,9 +447,11 @@ export function useEquipoModal({
     equipoFormError,
     setEquipoFormError,
     equipoAbsenceSaving,
+    equipoFichajeDeleting,
     openEquipoEditModal,
     cerrarEquipoModal,
     guardarEquipoVacacionesOBaja,
+    eliminarEquipoFichaje,
     enterEquipoHorarioWizard,
     volverEquipoHorarioWizardAMenu,
     horarioWizardStep,

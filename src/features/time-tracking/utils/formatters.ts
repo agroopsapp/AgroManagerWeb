@@ -1,6 +1,7 @@
 // Formateadores y helpers de dominio del feature time-tracking.
 
 import type { EquipoTablaFila, TimeEntryMock, TimeEntryRazon } from "@/features/time-tracking/types";
+import type { WorkReportLineDto } from "@/services/work-reports.service";
 import { entryStablePersonKey } from "@/features/time-tracking/utils/equipoGridMerge";
 import { formatTimeEntryStatusForExport } from "@/features/time-tracking/utils/timeEntryApiStatus";
 import { MOCK_APP_USER_EMAIL_BY_WORKER, workerNameById } from "@/mocks/time-tracking.mock";
@@ -50,6 +51,22 @@ export function isAbsenceCalendarApiStatus(
 ): boolean {
   const s = e.timeEntryStatus;
   return s === "SickLeave" || s === "Vacation" || s === "NonWorkingDay";
+}
+
+/** Etiqueta en columna «Estado» (vacaciones / baja / no laboral). Prioriza `timeEntryStatus` del API. */
+export type EquipoAusenciaEtiquetaKind = "vacaciones" | "baja" | "no_laboral";
+
+export function equipoAbsenceEtiquetaKind(
+  e: Pick<TimeEntryMock, "timeEntryStatus" | "razon">,
+): EquipoAusenciaEtiquetaKind | null {
+  const s = e.timeEntryStatus;
+  if (s === "Vacation") return "vacaciones";
+  if (s === "SickLeave") return "baja";
+  if (s === "NonWorkingDay") return "no_laboral";
+  if (e.razon === "ausencia_vacaciones") return "vacaciones";
+  if (e.razon === "ausencia_baja") return "baja";
+  if (e.razon === "dia_no_laboral") return "no_laboral";
+  return null;
 }
 
 /** Entrada/salida/descanso/duración: ocultar por `razon` o por `status` de ausencia en API. */
@@ -109,6 +126,29 @@ export function timeEntryConParteEnServidor(entry: TimeEntryMock): boolean {
   return workReportParteApiSummary(entry).tieneParte;
 }
 
+/**
+ * Texto para «Dónde ha trabajado» a partir de las líneas del parte (with-lines).
+ * Prioriza snapshots de nombre; si no vienen del API, muestra minutos por línea.
+ */
+export function formatWorkReportLinesForUbicacion(lines: WorkReportLineDto[]): string {
+  if (!lines || lines.length === 0) return "";
+  return lines
+    .map((l, idx) => {
+      const bits = [
+        l.clientCompanyNameSnapshot?.trim(),
+        l.serviceNameSnapshot?.trim(),
+        l.workAreaNameSnapshot?.trim(),
+      ].filter(Boolean);
+      if (bits.length) return bits.join(" · ");
+      const mins =
+        typeof l.minutes === "number" && Number.isFinite(l.minutes) && l.minutes > 0
+          ? formatMinutesShort(l.minutes)
+          : null;
+      return mins ? `Línea ${idx + 1}: ${mins}` : `Línea ${idx + 1}`;
+    })
+    .join(" | ");
+}
+
 // ---------------------------------------------------------------------------
 // Lógica de estado de fila en el histórico personal
 // ---------------------------------------------------------------------------
@@ -135,6 +175,34 @@ export function historicoFilaSinImputarPasado(fila: HistoricoPersonalFila): bool
 // ---------------------------------------------------------------------------
 // Cálculo de minutos efectivos trabajados
 // ---------------------------------------------------------------------------
+
+/** Tope diario por defecto para desglose ordinario / extra (misma base que columna «Extra» del equipo). */
+export const DEFAULT_STANDARD_WORKDAY_MINUTES = 8 * 60;
+
+/**
+ * Parte el neto trabajado en tramo hasta el tope diario (p. ej. 8 h) y el resto como extra.
+ * Si trabajó menos del tope, `ordinary === total` y `extra === 0`.
+ */
+export function splitWorkedMinutesOrdinaryAndExtra(
+  workedMinutes: number,
+  capWorkMinutesPerDay: number = DEFAULT_STANDARD_WORKDAY_MINUTES,
+): { ordinary: number; extra: number; total: number } {
+  const total = Math.max(0, Math.round(Number(workedMinutes) || 0));
+  const cap = Math.max(0, Math.round(capWorkMinutesPerDay));
+  const ordinary = Math.min(total, cap);
+  const extra = Math.max(0, total - cap);
+  return { ordinary, extra, total };
+}
+
+/** Nombre legible desde email (PDF del parte, fallback en UI). */
+export function sessionDisplayNameFromEmail(email: string | undefined | null): string {
+  const t = (email ?? "").trim();
+  if (!t) return "Usuario";
+  const at = t.indexOf("@");
+  const local = (at > 0 ? t.slice(0, at) : t).replace(/[._-]+/g, " ").trim();
+  if (!local) return t;
+  return local.replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
 
 /** Minutos trabajados efectivos: prioriza `workedMinutes` del API si existe; si no, bruto − descanso. */
 export function effectiveWorkMinutesEntry(e: TimeEntryMock): number {
@@ -203,15 +271,15 @@ function parteServidorExportCell(e: TimeEntryMock): string {
   return api.detalle ? `Sí · ${api.detalle}` : "Sí";
 }
 
-const DEFAULT_CAP_WORK_MINUTES_PER_DAY = 8 * 60;
-
 /** Cabeceras y filas alineadas con la tabla en pantalla (incl. parte en servidor). */
 export function buildEquipoTableExportRows(
   filas: EquipoTablaFila[],
   nameByPersonKey?: Map<string, string>,
-  capWorkMinutesPerDay: number = DEFAULT_CAP_WORK_MINUTES_PER_DAY,
+  capWorkMinutesPerDay: number = DEFAULT_STANDARD_WORKDAY_MINUTES,
 ): { headers: string[]; rows: string[][] } {
-  const cap = Number.isFinite(capWorkMinutesPerDay) ? capWorkMinutesPerDay : DEFAULT_CAP_WORK_MINUTES_PER_DAY;
+  const cap = Number.isFinite(capWorkMinutesPerDay)
+    ? capWorkMinutesPerDay
+    : DEFAULT_STANDARD_WORKDAY_MINUTES;
   const headers = [
     "Persona",
     "Fecha",

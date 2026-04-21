@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
-import { ApiError } from "@/lib/api-client";
+import { UserExcludedFromTimeTrackingControl } from "@/components/UserExcludedFromTimeTrackingControl";
+import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { rolesApi } from "@/services/roles.service";
 import { usersApi, type UpdateUserPayload } from "@/services/users.service";
 import type { Role, User as UserType } from "@/types";
@@ -10,15 +12,27 @@ import type { Role, User as UserType } from "@/types";
 /** Misma compañía que en el backend de pruebas; luego puede venir de la sesión. */
 const COMPANY_ID = "356d0a75-654a-4d07-b65c-25f97f854178";
 
+/** Solo dígitos para el API (quita espacios, +, guiones, paréntesis). Vacío → undefined. */
+function telefonoParaApi(raw: string): string | undefined {
+  const digits = raw.replace(/\D/g, "");
+  return digits.length > 0 ? digits : undefined;
+}
+
 /* Listado: GET /api/Users (igual que Postman). COMPANY_ID solo para crear usuario. */
 
-type SortKey = "name" | "email" | "role";
+type SortKey = "name" | "email" | "role" | "excluded";
 type SortDir = "asc" | "desc";
 
 export default function UsersPage() {
+  const { showSuccess } = useFlashSuccess();
   const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /** Errores de listado / carga / eliminar (se muestran en la página, no en modales). */
+  const [pageError, setPageError] = useState<string | null>(null);
+  /** Errores al crear o editar usuario (solo dentro del modal de formulario). */
+  const [userModalError, setUserModalError] = useState<string | null>(null);
+  /** Errores al cambiar contraseña (solo dentro de ese modal). */
+  const [passwordModalError, setPasswordModalError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [passwordUser, setPasswordUser] = useState<UserType | null>(null);
@@ -38,16 +52,12 @@ export default function UsersPage() {
   const loadUsers = async (signal?: AbortSignal) => {
     try {
       setLoading(true);
-      setError(null);
-      const data = await usersApi.getAll(undefined, { signal });
+      setPageError(null);
+      const data = await usersApi.getAll({ signal });
       setUsers(data);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      const message =
-        err instanceof ApiError
-          ? err.message
-          : "No se pudieron cargar los trabajadores.";
-      setError(message);
+      setPageError(userVisibleMessageFromUnknown(err, "No se pudieron cargar los trabajadores."));
     } finally {
       setLoading(false);
     }
@@ -74,6 +84,7 @@ export default function UsersPage() {
   const [formPhone, setFormPhone] = useState("");
   const [formPassword, setFormPassword] = useState("");
   const [formRoleId, setFormRoleId] = useState<string>("");
+  const [formExcludedFromTimeTracking, setFormExcludedFromTimeTracking] = useState(false);
 
   useEffect(() => {
     if (!modalOpen || editingUser || !roles.length || formRoleId) return;
@@ -81,22 +92,26 @@ export default function UsersPage() {
   }, [modalOpen, editingUser, roles, formRoleId]);
 
   const openCreate = () => {
+    setUserModalError(null);
     setEditingUser(null);
     setFormName("");
     setFormEmail("");
     setFormPhone("");
     setFormPassword("");
     setFormRoleId(roles[0]?.id ?? "");
+    setFormExcludedFromTimeTracking(false);
     setModalOpen(true);
   };
 
   const openEdit = (user: UserType) => {
+    setUserModalError(null);
     setEditingUser(user);
     setFormName(user.name);
     setFormEmail(user.email);
     setFormPhone(user.phone ?? "");
     setFormPassword("");
     setFormRoleId(user.roleId);
+    setFormExcludedFromTimeTracking(user.excludedFromTimeTracking === true);
     setModalOpen(true);
   };
 
@@ -107,7 +122,8 @@ export default function UsersPage() {
     setFormEmail("");
     setFormPhone("");
     setFormPassword("");
-    setError(null);
+    setFormExcludedFromTimeTracking(false);
+    setUserModalError(null);
   };
 
   const roleLabel = (user: UserType) =>
@@ -133,6 +149,11 @@ export default function UsersPage() {
       if (sortKey === "name") return dir * a.name.localeCompare(b.name);
       if (sortKey === "email") return dir * a.email.localeCompare(b.email);
       if (sortKey === "role") return dir * roleLabel(a).localeCompare(roleLabel(b));
+      if (sortKey === "excluded") {
+        const af = a.excludedFromTimeTracking === true ? 1 : 0;
+        const bf = b.excludedFromTimeTracking === true ? 1 : 0;
+        return dir * (af - bf);
+      }
       return 0;
     });
     return list;
@@ -142,25 +163,29 @@ export default function UsersPage() {
     e.preventDefault();
     const name = formName.trim();
     const email = formEmail.trim();
-    const phone = formPhone.trim();
+    const telefono = telefonoParaApi(formPhone.trim());
     const password = formPassword.trim();
     if (!name || !email) return;
 
     if (editingUser) {
       try {
         setSaving(true);
-        setError(null);
+        setUserModalError(null);
+        const companyIdPut = editingUser.companyId?.trim() || COMPANY_ID;
         const body: UpdateUserPayload = {
+          companyId: companyIdPut,
           name,
           email,
           roleId: formRoleId,
-          telefono: phone || undefined,
+          telefono,
+          excludedFromTimeTracking: formExcludedFromTimeTracking,
         };
         await usersApi.update(editingUser.id, body);
         closeModal();
         await loadUsers();
+        showSuccess("Usuario actualizado correctamente.");
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : "No se pudo guardar el usuario.");
+        setUserModalError(userVisibleMessageFromUnknown(err, "No se pudo guardar el usuario."));
       } finally {
         setSaving(false);
       }
@@ -168,25 +193,27 @@ export default function UsersPage() {
     }
 
     if (!formRoleId || !password) {
-      setError("Para crear el usuario indica rol y contraseña.");
+      setUserModalError("Para crear el usuario indica rol y contraseña.");
       return;
     }
 
     try {
       setSaving(true);
-      setError(null);
+      setUserModalError(null);
       await usersApi.create({
         companyId: COMPANY_ID,
         name,
         email,
         password,
         roleId: formRoleId,
-        telefono: phone || undefined,
+        telefono,
+        ...(formExcludedFromTimeTracking ? { excludedFromTimeTracking: true } : {}),
       });
       closeModal();
       await loadUsers();
+      showSuccess("Usuario creado correctamente.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo crear el usuario.");
+      setUserModalError(userVisibleMessageFromUnknown(err, "No se pudo crear el usuario."));
     } finally {
       setSaving(false);
     }
@@ -195,7 +222,7 @@ export default function UsersPage() {
   const closePasswordModal = () => {
     setPasswordUser(null);
     setNewPassword("");
-    setError(null);
+    setPasswordModalError(null);
   };
 
   const handlePasswordSave = async (e: React.FormEvent) => {
@@ -204,12 +231,13 @@ export default function UsersPage() {
     if (!passwordUser || !pw) return;
     try {
       setPasswordSaving(true);
-      setError(null);
+      setPasswordModalError(null);
       await usersApi.changePassword(passwordUser.id, { password: pw });
       closePasswordModal();
       await loadUsers();
+      showSuccess("Contraseña actualizada correctamente.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo cambiar la contraseña.");
+      setPasswordModalError(userVisibleMessageFromUnknown(err, "No se pudo cambiar la contraseña."));
     } finally {
       setPasswordSaving(false);
     }
@@ -219,12 +247,13 @@ export default function UsersPage() {
   const confirmDeleteUser = async (id: string) => {
     try {
       setDeletingId(id);
-      setError(null);
+      setPageError(null);
       await usersApi.delete(id);
       setDeleteConfirm(null);
       await loadUsers();
+      showSuccess("Usuario eliminado correctamente.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo eliminar el usuario.");
+      setPageError(userVisibleMessageFromUnknown(err, "No se pudo eliminar el usuario."));
       setDeleteConfirm(null);
     } finally {
       setDeletingId(null);
@@ -275,9 +304,9 @@ export default function UsersPage() {
         </div>
       )}
 
-      {error && !loading && (
+      {pageError && !loading && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-sm dark:border-red-500/40 dark:bg-red-900/20 dark:text-red-300">
-          {error}
+          {pageError}
         </div>
       )}
 
@@ -312,6 +341,16 @@ export default function UsersPage() {
                     className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
                   >
                     Rol {sortKey === "role" && (sortDir === "asc" ? "↑" : "↓")}
+                  </button>
+                </th>
+                <th className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("excluded")}
+                    title="Excluido del registro de jornada (fichador)"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                  >
+                    Excl. jornada {sortKey === "excluded" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
                 </th>
                 <th className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200 text-right">
@@ -354,6 +393,17 @@ export default function UsersPage() {
                       {roleLabel(user)}
                     </span>
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {user.excludedFromTimeTracking === true ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-900/50 dark:text-amber-100">
+                        Sí
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-600 dark:text-slate-300">
+                        No
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     {deleteConfirm === user.id ? (
                       <span className="flex items-center justify-end gap-2">
@@ -391,7 +441,7 @@ export default function UsersPage() {
                           onClick={() => {
                             setPasswordUser(user);
                             setNewPassword("");
-                            setError(null);
+                            setPasswordModalError(null);
                           }}
                           className="rounded border border-amber-200 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-200 dark:hover:bg-amber-900/30"
                         >
@@ -427,18 +477,22 @@ export default function UsersPage() {
       {modalOpen && (
         <div
           className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
-          onClick={closeModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="user-form-title"
         >
-          <div
-            className={modalScrollablePanel("md")}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className={modalScrollablePanel("md")}>
             <h2 id="user-form-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {editingUser ? "Editar usuario" : "Nuevo usuario"}
             </h2>
+            {userModalError ? (
+              <div
+                className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+                role="alert"
+              >
+                {userModalError}
+              </div>
+            ) : null}
             <form onSubmit={handleSave} className="mt-4 space-y-4">
               <div>
                 <label htmlFor="user-name" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -514,6 +568,11 @@ export default function UsersPage() {
                   ))}
                 </select>
               </div>
+              <UserExcludedFromTimeTrackingControl
+                id="user-excluded-time-tracking"
+                checked={formExcludedFromTimeTracking}
+                onChange={setFormExcludedFromTimeTracking}
+              />
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -538,21 +597,25 @@ export default function UsersPage() {
       {passwordUser && (
         <div
           className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
-          onClick={closePasswordModal}
           role="dialog"
           aria-modal="true"
           aria-labelledby="password-dialog-title"
         >
-          <div
-            className={modalScrollablePanel("md")}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className={modalScrollablePanel("md")}>
             <h2 id="password-dialog-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Cambiar contraseña
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
               {passwordUser.name} ({passwordUser.email})
             </p>
+            {passwordModalError ? (
+              <div
+                className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200"
+                role="alert"
+              >
+                {passwordModalError}
+              </div>
+            ) : null}
             <form onSubmit={handlePasswordSave} className="mt-4 space-y-4">
               <div>
                 <label htmlFor="new-password" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">

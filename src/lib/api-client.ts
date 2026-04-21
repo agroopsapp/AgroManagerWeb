@@ -5,6 +5,8 @@
  * - Métodos get, post, put, patch, delete con tipado genérico
  */
 
+import { messageFromApiErrorJsonBody } from "@/shared/utils/apiErrorDisplay";
+
 const STORAGE_KEY = "agroops_auth";
 
 function getBaseUrl(): string {
@@ -43,43 +45,6 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
-}
-
-/** ASP.NET / ProblemDetails / validación modelo */
-function messageFromErrorBody(body: unknown, status: number, statusText: string): string {
-  if (body == null || body === "") return `Error ${status}: ${statusText}`;
-  if (typeof body === "string") {
-    const t = body.trim();
-    return t.length > 600 ? `${t.slice(0, 600)}…` : t || `Error ${status}`;
-  }
-  if (typeof body !== "object") return `Error ${status}: ${statusText}`;
-
-  const o = body as Record<string, unknown>;
-  const msg = o.message ?? o.Message;
-  const title = o.title ?? o.Title;
-  const detail = o.detail ?? o.Detail;
-
-  if (typeof msg === "string" && msg.trim()) {
-    if (typeof detail === "string" && detail.trim()) return `${msg.trim()}: ${detail.trim()}`;
-    return msg.trim();
-  }
-  if (typeof detail === "string" && detail.trim()) return detail.trim();
-  if (typeof title === "string" && title.trim()) {
-    if (typeof detail === "string" && detail.trim()) return `${title.trim()}: ${detail.trim()}`;
-    return title.trim();
-  }
-
-  const errors = o.errors ?? o.Errors;
-  if (errors && typeof errors === "object" && !Array.isArray(errors)) {
-    const lines = Object.entries(errors as Record<string, unknown>).flatMap(([key, val]) => {
-      if (Array.isArray(val)) return val.map((x) => `${key}: ${String(x)}`);
-      if (val != null) return [`${key}: ${String(val)}`];
-      return [];
-    });
-    if (lines.length) return lines.join("; ");
-  }
-
-  return `Error ${status}: ${statusText}`;
 }
 
 const DEFAULT_TIMEOUT_MS = 8_000;
@@ -162,7 +127,7 @@ async function request<T>(path: string, init: RequestInitWithBody = {}): Promise
       body = null;
       rawText = "";
     }
-    const message = messageFromErrorBody(body, response.status, response.statusText);
+    const message = messageFromApiErrorJsonBody(body, response.status, response.statusText);
     if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
       console.warn("[api error]", response.status, url, body ?? rawText);
     }

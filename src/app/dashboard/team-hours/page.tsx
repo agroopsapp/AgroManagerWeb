@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { motion, useAnimationControls, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFeatures } from "@/contexts/FeaturesContext";
-import { workerHomePath } from "@/lib/dashboardNavGating";
+import { companiesApi, getClientCompanyWithAreas, workServicesApi } from "@/services";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { USER_ROLE } from "@/types";
 import { useEquipo } from "@/features/time-tracking/hooks/useEquipo";
@@ -23,21 +22,33 @@ import {
   formatTimeLocal,
   localTodayISO,
   workDateIsWeekend,
+  workDateWithinLastNDays,
 } from "@/shared/utils/time";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { ForgotModal } from "@/features/time-tracking/components/ForgotModal";
 import {
   effectiveExtraMinutesEntry,
   effectiveWorkMinutesEntry,
+  equipoAbsenceEtiquetaKind,
   equipoRegistroOcultaHorasEnTabla,
   formatLastModifiedByUser,
   formatRazonTablaEquipo,
   isAbsenceCalendarApiStatus,
   RAZON_NO_LABORAL,
   RAZON_SIN_IMPUTAR,
+  timeEntryConParteEnServidor,
   workReportParteApiSummary,
 } from "@/features/time-tracking/utils/formatters";
+import {
+  equipoTablaEtiquetaBaseClass,
+  equipoTablaEtiquetaAusencia,
+  equipoTablaSinImputarBadgeClass,
+  equipoTablaZebraRowClass,
+  equipoTablaZebraStripeBg,
+} from "@/features/time-tracking/utils/equipoTableAppearance";
+import { timeEntryApiStatusBadgeClass } from "@/features/time-tracking/utils/timeEntryApiStatus";
 import { downloadEquipoTablePdf } from "@/features/time-tracking/utils/equipoTablePdf";
-import { getWorkPartsForWorker } from "@/lib/workPartsStorage";
+import { downloadEquipoPersonaPartesBundlePdf } from "@/features/time-tracking/utils/equipoPersonaPartesPdf";
 import type { EquipoSortKey } from "@/features/time-tracking/types";
 import { EquipoObjetivoMesEncabezado } from "@/features/time-tracking/components/EquipoObjetivoMesEncabezado";
 import { EquipoBarraLaboralesExtra } from "@/features/time-tracking/components/EquipoBarraLaboralesExtra";
@@ -47,9 +58,15 @@ import {
   EquipoKpiStatCard,
 } from "@/features/time-tracking/components/EquipoKpiStatCard";
 import { EquipoPersonaCalendario } from "@/features/time-tracking/components/EquipoPersonaCalendario";
+import {
+  EquipoTablaAccionesDuo,
+  EquipoTablaBotonPrimeraJornada,
+} from "@/features/time-tracking/components/EquipoTablaAccionesIconos";
 import { TimeEntryStatusBadge } from "@/features/time-tracking/components/TimeEntryStatusBadge";
 import { HorasMensualesDonut } from "@/features/time-tracking/components/charts/HorasMensualesDonut";
-import { FichajeTipoDonut } from "@/features/time-tracking/components/charts/FichajeTipoDonut";
+import { FichajeTipoRadialSummary } from "@/features/time-tracking/components/charts/FichajeTipoRadialSummary";
+import { EquipoKpiResumenBarras } from "@/features/time-tracking/components/charts/EquipoKpiResumenBarras";
+import { EquipoRegistrosFiltrosEtiquetas } from "@/features/time-tracking/components/EquipoRegistrosFiltrosEtiquetas";
 
 const EquipoPartModal = dynamic(
   () => import("@/features/time-tracking/components/EquipoPartModal").then((m) => m.EquipoPartModal),
@@ -59,10 +76,13 @@ const EquipoPartModal = dynamic(
 /** Campos de filtro: borde suave, foco discreto (patrón SaaS). */
 /** Tarjeta base: una sola “capa” visual, sin competir con contenido interno. */
 const cardSurfaceClass =
-  "rounded-2xl border border-slate-200/65 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700/75 dark:bg-slate-900/45 dark:shadow-none";
+  "rounded-2xl border border-slate-300 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-600 dark:bg-slate-900/45 dark:shadow-none";
 
 const FILTER_ANIM_EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const FILTER_ANIM_EASE_IN = [0.4, 0, 0.2, 1] as const;
+
+/** Worker: edición en «Horas del equipo» solo en los últimos N días naturales (incluye sábados y domingos). */
+const WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS = 10;
 
 /** Etiqueta de campo en la barra de filtros horizontal. */
 const filterLabelClass =
@@ -77,7 +97,8 @@ function teamHoursScopedSelectClass(scoped: boolean): string {
   const shared =
     "w-full rounded-md border px-2 py-1 text-xs shadow-sm outline-none transition cursor-pointer focus:ring-1 dark:text-slate-100";
   if (scoped) {
-    return `${shared} border-agro-500/90 bg-emerald-50/95 font-semibold text-slate-900 ring-1 ring-agro-500/25 focus:border-agro-600 focus:ring-agro-500/30 dark:border-agro-500 dark:bg-agro-950/55 dark:text-emerald-50 dark:ring-agro-400/30 dark:focus:border-agro-400`;
+    /* Dark: fondo opaco (evita texto claro sobre verde «lavado» por transparencia) */
+    return `${shared} border-agro-500/90 bg-emerald-50/95 font-semibold text-slate-900 ring-1 ring-agro-500/25 focus:border-agro-600 focus:ring-agro-500/30 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-emerald-800/60 dark:focus:border-emerald-500`;
   }
   return `${shared} border-slate-200/80 bg-white text-slate-900 focus:border-agro-600/45 focus:ring-agro-500/15 dark:border-slate-600 dark:bg-slate-950 dark:focus:border-agro-500/70`;
 }
@@ -119,24 +140,33 @@ function SortArrow({
 // Page
 // ---------------------------------------------------------------------------
 export default function TeamHoursPage() {
+  const [parteEquipoValidationError, setParteEquipoValidationError] = useState<string | null>(null);
+  const [exportPartesBundleLoading, setExportPartesBundleLoading] = useState(false);
+  const [exportPartesBundleError, setExportPartesBundleError] = useState<string | null>(null);
+  /** Resumen KPI superior: tarjetas (1) o barras (2). */
+  const [equipoKpiPagina, setEquipoKpiPagina] = useState<0 | 1>(0);
+  // Marcado = comportamiento habitual: ocultar excluidos del fichaje.
+  const [ocultarExcluidosFichaje, setOcultarExcluidosFichaje] = useState(true);
   const { user, isReady } = useAuth();
-  const { enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const router = useRouter();
 
   useEffect(() => {
     if (!isReady) return;
     if (!user) router.replace("/login");
-    if (user?.role === USER_ROLE.Worker) {
-      router.replace(workerHomePath(enableTimeTracking, enableOperativaYAnalisisMenu));
-    }
-  }, [user, isReady, router, enableOperativaYAnalisisMenu, enableTimeTracking]);
+  }, [user, isReady, router]);
 
   const eq = useEquipo({
     enableEquipoCompanyFilter:
       user?.role === USER_ROLE.SuperAdmin ||
       user?.role === USER_ROLE.Manager ||
       user?.role === USER_ROLE.Admin,
+    includeExcludedFromTimeTracking: !ocultarExcluidosFichaje,
   });
+
+  useEffect(() => {
+    // Evita quedarse con una persona que ya no existe en el combo al cambiar el modo.
+    eq.setFiltroPersonaEquipo("todas");
+  }, [ocultarExcluidosFichaje]);
 
   useWheelScrollChain(eq.equipoTablaScrollRef, eq.diasCalendarioMesEquipo.length > 0);
 
@@ -152,7 +182,32 @@ export default function TeamHoursPage() {
 
   const part = useEquipoPart({
     setEquipoPartsVersion: eq.setEquipoPartsVersion,
+    refetchEquipoRows: eq.refetchEquipoRows,
+    onValidationError: setParteEquipoValidationError,
   });
+
+  useEffect(() => {
+    if (part.equipoPartModal) setParteEquipoValidationError(null);
+  }, [part.equipoPartModal]);
+
+  /** PDF agrupado: solo con persona concreta y periodo acotado (≤ un mes: día / semana / mes). */
+  const puedeExportarPdfPartesPersona = useMemo(() => {
+    if (eq.filtroPersonaEquipo === "todas") return false;
+    return (
+      eq.equipoPeriodo === "dia" ||
+      eq.equipoPeriodo === "semana" ||
+      eq.equipoPeriodo === "mes"
+    );
+  }, [eq.filtroPersonaEquipo, eq.equipoPeriodo]);
+
+  const equipoVistaTieneRegistrosJornada = useMemo(
+    () => eq.equipoFilasVista.some((f) => f.kind === "registro"),
+    [eq.equipoFilasVista],
+  );
+
+  useEffect(() => {
+    if (!puedeExportarPdfPartesPersona) setExportPartesBundleError(null);
+  }, [puedeExportarPdfPartesPersona]);
 
   const periodoEtiqueta = useMemo(() => {
     switch (eq.equipoPeriodo) {
@@ -185,6 +240,51 @@ export default function TeamHoursPage() {
     eq.opcionesTrimestre,
     eq.trimestreEquipo,
   ]);
+
+  const handleExportPartesYFichajesPdf = async () => {
+    if (!puedeExportarPdfPartesPersona) return;
+    setExportPartesBundleError(null);
+    setExportPartesBundleLoading(true);
+    try {
+      const personaNombre =
+        eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
+        String(eq.filtroPersonaEquipo);
+      const [companiesList, svcList] = await Promise.all([
+        companiesApi.getAll(),
+        workServicesApi.getAll(),
+      ]);
+      const companiesWithAreas = await Promise.all(
+        companiesList.map((c) => getClientCompanyWithAreas(c.id).catch(() => c)),
+      );
+      const periodSlug =
+        eq.equipoPeriodo === "dia"
+          ? `dia-${eq.equipoDia}`
+          : eq.equipoPeriodo === "semana"
+            ? `sem-${eq.equipoSemana}`
+            : `mes-${eq.mesEquipo}`;
+      const personaSlug =
+        personaNombre
+          .replace(/[/\\?%*:|"<>]+/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 48) || "persona";
+      await downloadEquipoPersonaPartesBundlePdf({
+        filas: eq.equipoFilasVista,
+        workerDisplayName: personaNombre,
+        periodLabel: periodoEtiqueta,
+        companies: companiesWithAreas,
+        services: svcList,
+        fileBaseName: `partes-fichajes-${personaSlug}-${periodSlug}`,
+      });
+    } catch (e) {
+      setExportPartesBundleError(
+        userVisibleMessageFromUnknown(e, "No se pudo generar el PDF."),
+      );
+    } finally {
+      setExportPartesBundleLoading(false);
+    }
+  };
 
   /** Firma estable al cambiar filtros / vista: animación suave del bloque de datos (sin remontar la tabla). */
   const equipoVistaSignature = useMemo(
@@ -343,6 +443,10 @@ export default function TeamHoursPage() {
 
   if (!isReady || !user) return null;
 
+  const isWorker = user.role === USER_ROLE.Worker;
+  const workerTeamHoursCanEditDate = (workDate: string) =>
+    workDateWithinLastNDays(workDate, WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS);
+
   const mesTablaDetalleNombre =
     eq.equipoPeriodo === "anio"
       ? eq.opcionesMesDentroAnioEquipo.find((o) => o.value === eq.equipoAnioMesPagina)?.label ??
@@ -353,6 +457,21 @@ export default function TeamHoursPage() {
     <div className="min-w-0 max-w-full pb-4">
       <header className="space-y-2 pb-3">
         <div className="space-y-1">
+          {parteEquipoValidationError ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/35 dark:text-amber-100"
+            >
+              <span>{parteEquipoValidationError}</span>{" "}
+              <button
+                type="button"
+                className="ml-2 font-semibold underline"
+                onClick={() => setParteEquipoValidationError(null)}
+              >
+                Cerrar
+              </button>
+            </div>
+          ) : null}
           <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
             Historial del equipo
           </p>
@@ -363,6 +482,15 @@ export default function TeamHoursPage() {
             <span className="font-medium text-slate-800 dark:text-slate-200">{periodoEtiqueta}</span>
             {" · "}Resumen operativo del periodo seleccionado.
           </p>
+          {isWorker ? (
+            <p className="mt-2 max-w-2xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+              Como trabajador/a puedes filtrar y revisar el equipo. Los botones{" "}
+              <strong className="font-semibold">Editar hora</strong> y{" "}
+              <strong className="font-semibold">Añadir / Editar parte</strong> solo aparecen en filas de los{" "}
+              <strong className="font-semibold">últimos {WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS} días naturales</strong>{" "}
+              (incluye fines de semana). Fuera de esa ventana la API puede rechazar la edición.
+            </p>
+          ) : null}
         </div>
 
         <details className="group max-w-2xl rounded-lg border border-slate-200/65 bg-slate-50/40 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/25">
@@ -406,7 +534,23 @@ export default function TeamHoursPage() {
           >
           <div className="space-y-2.5">
             <div>
-              <h2 className="text-xs font-semibold text-slate-900 dark:text-white">Filtros</h2>
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="text-xs font-semibold text-slate-900 dark:text-white">Filtros</h2>
+                <button
+                  type="button"
+                  onClick={() => eq.equipoBorrarFiltrosAlcance()}
+                  disabled={
+                    eq.filtroPersonaEquipo === "todas" &&
+                    !eq.equipoSuperAdminCompanyId?.trim() &&
+                    !eq.equipoServiceId?.trim() &&
+                    eq.equipoTablaFiltroExtra === "ninguno"
+                  }
+                  className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:bg-slate-800 dark:hover:text-white"
+                  title="Quitar empresa, persona, servicio y vista rápida (el periodo no cambia)"
+                >
+                  Borrar filtros
+                </button>
+              </div>
               <p className="mt-0.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
                 Periodo, alcance y vistas rápidas.
               </p>
@@ -578,22 +722,35 @@ export default function TeamHoursPage() {
             >
               Persona
             </label>
-            <select
-              id="persona-team-hours"
-              value={eq.filtroPersonaEquipo === "todas" ? "" : String(eq.filtroPersonaEquipo)}
-              onChange={(e) => {
-                const v = e.target.value;
-                eq.setFiltroPersonaEquipo(v === "" ? "todas" : v);
-              }}
-              className={teamHoursScopedSelectClass(eq.filtroPersonaEquipo !== "todas")}
-            >
-              <option value="">Todos</option>
-              {eq.equipoWorkersOpciones.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-1.5">
+              <select
+                id="persona-team-hours"
+                value={eq.filtroPersonaEquipo === "todas" ? "" : String(eq.filtroPersonaEquipo)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  eq.setFiltroPersonaEquipo(v === "" ? "todas" : v);
+                }}
+                className={teamHoursScopedSelectClass(eq.filtroPersonaEquipo !== "todas")}
+              >
+                <option value="">Todos</option>
+                {eq.equipoWorkersOpciones.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+              <label
+                className="inline-flex items-center gap-2 text-[10px] font-semibold text-slate-600 dark:text-slate-300 select-none"
+                title="Oculta a los empleados con «Excluir del registro de jornada» activado."
+              >
+                <input
+                  type="checkbox"
+                  checked={ocultarExcluidosFichaje}
+                  onChange={(e) => setOcultarExcluidosFichaje(e.target.checked)}
+                />
+                Ocultar excl.
+              </label>
+            </div>
           </div>
 
           {user.role === USER_ROLE.SuperAdmin ||
@@ -677,6 +834,36 @@ export default function TeamHoursPage() {
                 </button>
               </div>
             </div>
+
+            {puedeExportarPdfPartesPersona && !isWorker ? (
+              <div className="space-y-1.5 border-t border-slate-100 pt-2.5 dark:border-slate-800">
+                <span className={filterLabelClass}>Exportar partes</span>
+                <p className="text-[10px] leading-snug text-slate-500 dark:text-slate-400">
+                  Un solo PDF: cada día con el fichaje y el parte en servidor (si existe). Solo con{" "}
+                  <strong className="font-medium text-slate-600 dark:text-slate-300">persona</strong>{" "}
+                  elegida y periodo <strong className="font-medium text-slate-600 dark:text-slate-300">día</strong>,{" "}
+                  <strong className="font-medium text-slate-600 dark:text-slate-300">semana</strong> o{" "}
+                  <strong className="font-medium text-slate-600 dark:text-slate-300">mes</strong>.
+                </p>
+                <button
+                  type="button"
+                  disabled={
+                    exportPartesBundleLoading ||
+                    eq.equipoRowsLoading ||
+                    !equipoVistaTieneRegistrosJornada
+                  }
+                  onClick={() => void handleExportPartesYFichajesPdf()}
+                  className="w-full rounded-md border border-agro-600/80 bg-agro-50 px-2 py-2 text-xs font-semibold text-agro-900 shadow-sm transition hover:bg-agro-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-50 dark:hover:bg-emerald-900"
+                >
+                  {exportPartesBundleLoading ? "Generando PDF…" : "PDF partes + fichajes"}
+                </button>
+                {exportPartesBundleError ? (
+                  <p className="text-[10px] font-medium leading-snug text-rose-600 dark:text-rose-400">
+                    {exportPartesBundleError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </aside>
         </div>
@@ -689,6 +876,59 @@ export default function TeamHoursPage() {
         initial={{ opacity: 1, y: 0 }}
         animate={kpiBlockAnim}
       >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+            Mismos datos del periodo: elige vista.
+          </p>
+          <nav
+            className="flex items-center gap-2 self-end sm:self-auto"
+            aria-label="Paginación vista resumen KPI"
+          >
+            <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
+              Vista
+            </span>
+            <div className="flex items-center gap-1 rounded-full border border-slate-200/90 bg-slate-50/90 p-0.5 dark:border-slate-600 dark:bg-slate-800/80">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={equipoKpiPagina === 0}
+                aria-controls="equipo-kpi-panel"
+                id="equipo-kpi-tab-tarjetas"
+                onClick={() => setEquipoKpiPagina(0)}
+                className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-bold transition ${
+                  equipoKpiPagina === 0
+                    ? "bg-agro-600 text-white shadow-sm dark:bg-emerald-600"
+                    : "text-slate-600 hover:bg-white/80 dark:text-slate-300 dark:hover:bg-slate-700/80"
+                }`}
+                title="Tarjetas"
+              >
+                1
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={equipoKpiPagina === 1}
+                aria-controls="equipo-kpi-panel"
+                id="equipo-kpi-tab-grafico"
+                onClick={() => setEquipoKpiPagina(1)}
+                className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-bold transition ${
+                  equipoKpiPagina === 1
+                    ? "bg-agro-600 text-white shadow-sm dark:bg-emerald-600"
+                    : "text-slate-600 hover:bg-white/80 dark:text-slate-300 dark:hover:bg-slate-700/80"
+                }`}
+                title="Gráfico (barras)"
+              >
+                2
+              </button>
+            </div>
+            <span className="hidden text-[10px] text-slate-400 dark:text-slate-500 sm:inline" aria-hidden>
+              {equipoKpiPagina === 0 ? "· tarjetas" : "· barras"}
+            </span>
+          </nav>
+        </div>
+
+        <div id="equipo-kpi-panel" role="tabpanel" aria-labelledby={equipoKpiPagina === 0 ? "equipo-kpi-tab-tarjetas" : "equipo-kpi-tab-grafico"}>
+          {equipoKpiPagina === 0 ? (
         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-5 xl:items-stretch">
           <EquipoKpiStatCard
             accent="emerald"
@@ -765,6 +1005,21 @@ export default function TeamHoursPage() {
             }
             pie="Celdas laborables sin fichaje (coherente con la tabla)."
           />
+        </div>
+          ) : (
+            <EquipoKpiResumenBarras
+              totalMinutosImputados={eq.totalMinutosImputadosMes}
+              totalHorasDecimal={eq.totalHorasDecimalMes}
+              registros={eq.equipoRegistrosPeriodoKpi}
+              horasObjetivoTeorico={eq.horasObjetivoMesTeorico}
+              fichajeCon={eq.equipoJornadasFichajeStats.conFichaje}
+              fichajeJornadasLaborables={eq.equipoJornadasFichajeStats.jornadasLaborables}
+              parteCon={eq.equipoRejillaParteStats.conFichajeYParte}
+              parteJornadasRegistradas={eq.equipoRejillaParteStats.conFichajeCerrado}
+              registradasSinParte={eq.equipoRejillaParteStats.conFichajeSinParte}
+              diasSinImputar={eq.diasSinImputarEquipo}
+            />
+          )}
         </div>
       </motion.section>
 
@@ -910,7 +1165,7 @@ export default function TeamHoursPage() {
                     fileBaseName,
                   });
                 }}
-                className="inline-flex items-center justify-center gap-1.5 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                className="inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-slate-800 dark:border-slate-600 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"
               >
                 <span aria-hidden className="opacity-80">
                   ⬇
@@ -920,10 +1175,42 @@ export default function TeamHoursPage() {
             </div>
           </div>
 
+          <EquipoRegistrosFiltrosEtiquetas
+            periodo={eq.equipoPeriodo}
+            periodoRangoTexto={periodoEtiqueta}
+            vistaTablaMesNombre={
+              eq.equipoPeriodo === "anio" && mesTablaDetalleNombre.trim()
+                ? mesTablaDetalleNombre
+                : null
+            }
+            vistaTablaAnioTexto={
+              eq.equipoPeriodo === "anio"
+                ? (eq.opcionesAnio.find((o) => o.value === eq.anioEquipo)?.label ?? eq.anioEquipo)
+                : null
+            }
+            empresaNombre={
+              eq.equipoSuperAdminCompanyId
+                ? eq.equipoCompaniesCatalog.find((c) => c.id === eq.equipoSuperAdminCompanyId)?.name ??
+                  null
+                : null
+            }
+            personaNombre={
+              eq.filtroPersonaEquipo !== "todas"
+                ? eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ?? null
+                : null
+            }
+            servicioNombre={
+              eq.equipoServiceId
+                ? eq.equipoServicesCatalog.find((s) => s.id === eq.equipoServiceId)?.name ?? null
+                : null
+            }
+            filtroExtra={eq.equipoTablaFiltroExtra}
+          />
+
           {/* Tabla scroll */}
           <div
             ref={eq.equipoTablaScrollRef}
-            className="isolate max-h-[min(80vh,calc(100dvh-11.5rem))] w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto border-t border-slate-100 bg-slate-50/20 [-webkit-overflow-scrolling:touch] [touch-action:pan-x_pan-y] dark:border-slate-800 dark:bg-slate-950/15 lg:max-h-[min(82vh,calc(100dvh-12.5rem))]"
+            className="team-hours-table-scroll isolate max-h-[min(80vh,calc(100dvh-11.5rem))] w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto border-t border-slate-100 bg-slate-50/20 [-webkit-overflow-scrolling:touch] [touch-action:pan-x_pan-y] dark:border-slate-800 dark:bg-slate-950/15 lg:max-h-[min(82vh,calc(100dvh-12.5rem))]"
             style={{
               overscrollBehaviorY: "auto",
               overscrollBehaviorX: "contain",
@@ -1058,25 +1345,30 @@ export default function TeamHoursPage() {
                     </td>
                   </tr>
                 ) : (
-                  eq.equipoFilasVista.map((fila) => {
+                  eq.equipoFilasVista.map((fila, rowIndex) => {
                   /* ── Fin de semana (no laboral) ── */
                   if (fila.kind === "noLaboral") {
+                    const zebra = equipoTablaZebraRowClass(rowIndex);
+                    const stripe = equipoTablaZebraStripeBg(rowIndex);
                     return (
-                      <tr
-                        key={`nl-${fila.userId}-${fila.workDate}`}
-                        className="border-t border-slate-200 bg-slate-100/95 text-slate-600 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300"
-                      >
-                        <td className="whitespace-nowrap px-2 py-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      <tr key={`nl-${fila.userId}-${fila.workDate}`} className={zebra}>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-sm font-semibold text-slate-800 dark:text-slate-100">
                           {eq.resolveEquipoPersonaNombre(fila)}
                         </td>
-                        <td className="px-2 py-1.5 text-sm text-slate-600 dark:text-slate-300">
+                        <td className="px-2 py-1.5 text-sm text-slate-700 dark:text-slate-200">
                           {formatDateEsWeekdayDdMmYyyy(fila.workDate)}
                         </td>
                         <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
-                        <td className="max-w-[11rem] px-2 py-1.5 text-sm italic text-sky-700 dark:text-sky-400">
+                        <td className="px-2 py-1.5 text-sm align-middle">
+                          <span
+                            className={`${equipoTablaEtiquetaBaseClass} ${timeEntryApiStatusBadgeClass("NonWorkingDay")}`}
+                          >
+                            No laboral
+                          </span>
+                        </td>
+                        <td className="max-w-[11rem] px-2 py-1.5 text-sm text-slate-600 dark:text-slate-300">
                           {RAZON_NO_LABORAL}
                         </td>
                         <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
@@ -1084,23 +1376,31 @@ export default function TeamHoursPage() {
                         <td className="px-2 py-1.5 text-right text-sm text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-2 py-1.5 text-right text-sm text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
-                        <td className="sticky right-0 z-[1] border-l border-slate-200/80 bg-slate-100 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-600 dark:bg-slate-800/55">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              modal.openEquipoEditModal({
-                                workerId: fila.workerId,
-                                workDate: fila.workDate,
-                                existing: null,
-                                isWeekendFila: true,
-                                personaLabel: eq.resolveEquipoPersonaNombre(fila),
-                                targetUserId: fila.userId,
-                              })
-                            }
-                            className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
-                          >
-                            Editar
-                          </button>
+                        <td
+                          className={`sticky right-0 z-[1] align-middle border-l border-slate-200/80 px-1 py-1.5 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-700 ${stripe}`}
+                        >
+                          {!isWorker || workerTeamHoursCanEditDate(fila.workDate) ? (
+                            <EquipoTablaBotonPrimeraJornada
+                              onCrearJornada={() =>
+                                modal.openEquipoEditModal({
+                                  workerId: fila.workerId,
+                                  workDate: fila.workDate,
+                                  existing: null,
+                                  isWeekendFila: true,
+                                  personaLabel: eq.resolveEquipoPersonaNombre(fila),
+                                  targetUserId: fila.userId,
+                                  irDirectoAlWizard: true,
+                                })
+                              }
+                            />
+                          ) : (
+                            <span
+                              className="text-xs text-slate-400 dark:text-slate-500"
+                              title={`Solo editable en los últimos ${WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS} días naturales.`}
+                            >
+                              —
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1108,46 +1408,59 @@ export default function TeamHoursPage() {
 
                   /* ── Día laboral sin imputar ── */
                   if (fila.kind === "sinImputar") {
+                    const zebra = equipoTablaZebraRowClass(rowIndex);
+                    const stripe = equipoTablaZebraStripeBg(rowIndex);
                     return (
-                      <tr
-                        key={`si-${fila.userId}-${fila.workDate}`}
-                        className="border-t border-rose-200 bg-rose-50/95 text-rose-950 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-50"
-                      >
-                        <td className="whitespace-nowrap px-2 py-1.5 text-sm font-semibold text-rose-900 dark:text-rose-100">
+                      <tr key={`si-${fila.userId}-${fila.workDate}`} className={zebra}>
+                        <td className="whitespace-nowrap px-2 py-1.5 text-sm font-semibold text-slate-800 dark:text-slate-100">
                           {eq.resolveEquipoPersonaNombre(fila)}
                         </td>
-                        <td className="px-2 py-1.5 text-sm font-semibold text-rose-900 dark:text-rose-100">
+                        <td className="px-2 py-1.5 text-sm font-medium text-slate-800 dark:text-slate-100">
                           {formatDateEsWeekdayDdMmYyyy(fila.workDate)}
                         </td>
-                        <td className="px-2 py-1.5 text-sm text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-2 py-1.5 text-sm text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-2 py-1.5 text-sm text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-2 py-1.5 text-sm text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="max-w-[11rem] px-2 py-1.5 text-sm font-semibold text-rose-800 dark:text-rose-200">
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-sm align-middle">
+                          <span
+                            className={`${equipoTablaEtiquetaBaseClass} ${equipoTablaSinImputarBadgeClass}`}
+                          >
+                            Sin imputar
+                          </span>
+                        </td>
+                        <td className="max-w-[11rem] px-2 py-1.5 text-sm text-slate-700 dark:text-slate-200">
                           {RAZON_SIN_IMPUTAR}
                         </td>
-                        <td className="px-2 py-1.5 text-sm text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-2 py-1.5 text-sm text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="px-2 py-1.5 text-right text-sm font-semibold text-rose-800 dark:text-rose-200">—</td>
-                        <td className="px-2 py-1.5 text-right text-sm font-semibold text-rose-800 dark:text-rose-200">—</td>
-                        <td className="px-2 py-1.5 text-sm text-rose-800/90 dark:text-rose-200/90">—</td>
-                        <td className="sticky right-0 z-[1] border-l border-rose-200/80 bg-rose-50 px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-rose-800 dark:bg-rose-950/45">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              modal.openEquipoEditModal({
-                                workerId: fila.workerId,
-                                workDate: fila.workDate,
-                                existing: null,
-                                isWeekendFila: false,
-                                personaLabel: eq.resolveEquipoPersonaNombre(fila),
-                                targetUserId: fila.userId,
-                              })
-                            }
-                            className="rounded-lg border border-rose-400 bg-white px-2 py-1 text-sm font-semibold text-rose-900 hover:bg-rose-100 dark:border-rose-600 dark:bg-rose-900/50 dark:text-rose-100 dark:hover:bg-rose-900/80"
-                          >
-                            Editar
-                          </button>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-right text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-right text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td
+                          className={`sticky right-0 z-[1] align-middle border-l border-slate-200/80 px-1 py-1.5 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-700 ${stripe}`}
+                        >
+                          {!isWorker || workerTeamHoursCanEditDate(fila.workDate) ? (
+                            <EquipoTablaBotonPrimeraJornada
+                              onCrearJornada={() =>
+                                modal.openEquipoEditModal({
+                                  workerId: fila.workerId,
+                                  workDate: fila.workDate,
+                                  existing: null,
+                                  isWeekendFila: false,
+                                  personaLabel: eq.resolveEquipoPersonaNombre(fila),
+                                  targetUserId: fila.userId,
+                                  irDirectoAlWizard: true,
+                                })
+                              }
+                            />
+                          ) : (
+                            <span
+                              className="text-xs text-slate-400 dark:text-slate-500"
+                              title={`Solo editable en los últimos ${WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS} días naturales.`}
+                            >
+                              —
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1156,55 +1469,22 @@ export default function TeamHoursPage() {
                   /* ── Registro normal ── */
                   const e = fila.e;
                   const ausenciaPorApiStatus = isAbsenceCalendarApiStatus(e);
+                  const ausenciaEtiqueta = equipoAbsenceEtiquetaKind(e);
+                  const ausenciaEtiquetaVisual = ausenciaEtiqueta
+                    ? equipoTablaEtiquetaAusencia(ausenciaEtiqueta)
+                    : null;
                   const ocultaHoras = equipoRegistroOcultaHorasEnTabla(e);
                   const apiParte = workReportParteApiSummary(e);
-                  const hasPart =
-                    !ocultaHoras &&
-                    getWorkPartsForWorker(e.workerId).some((p) => p.workDate === e.workDate);
-                  const rowVac = ausenciaPorApiStatus
-                    ? e.timeEntryStatus === "Vacation"
-                      ? "border-t border-sky-200 bg-sky-50/95 text-sky-950 dark:border-sky-800 dark:bg-sky-950/45 dark:text-sky-50"
-                      : e.timeEntryStatus === "SickLeave"
-                        ? "border-t border-violet-200 bg-violet-50/95 text-violet-950 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-50"
-                        : "border-t border-stone-200 bg-stone-50/95 text-stone-950 dark:border-stone-600 dark:bg-stone-900/35 dark:text-stone-100"
-                    : e.razon === "ausencia_vacaciones"
-                      ? "border-t border-sky-200 bg-sky-50/95 text-sky-950 dark:border-sky-800 dark:bg-sky-950/45 dark:text-sky-50"
-                      : e.razon === "ausencia_baja"
-                        ? "border-t border-violet-200 bg-violet-50/95 text-violet-950 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-50"
-                        : e.razon === "dia_no_laboral"
-                          ? "border-t border-stone-200 bg-stone-50/95 text-stone-950 dark:border-stone-600 dark:bg-stone-900/35 dark:text-stone-100"
-                          : "border-t border-slate-100/90 bg-white transition-colors hover:bg-slate-50/90 dark:border-slate-800 dark:bg-slate-900/40 dark:hover:bg-slate-800/70";
-                  const stickyBg = ausenciaPorApiStatus
-                    ? e.timeEntryStatus === "Vacation"
-                      ? "bg-sky-50/98 dark:bg-sky-950/50"
-                      : e.timeEntryStatus === "SickLeave"
-                        ? "bg-violet-50/98 dark:bg-violet-950/45"
-                        : "bg-stone-50/98 dark:bg-stone-900/45"
-                    : e.razon === "ausencia_vacaciones"
-                      ? "bg-sky-50/98 dark:bg-sky-950/50"
-                      : e.razon === "ausencia_baja"
-                        ? "bg-violet-50/98 dark:bg-violet-950/45"
-                        : e.razon === "dia_no_laboral"
-                          ? "bg-stone-50/98 dark:bg-stone-900/45"
-                          : "bg-white dark:bg-slate-900/85";
-                  const razonClass = ausenciaPorApiStatus
-                    ? e.timeEntryStatus === "Vacation"
-                      ? "rounded-md bg-sky-200/80 px-1.5 py-0.5 font-semibold text-sky-950 dark:bg-sky-800/60 dark:text-sky-100"
-                      : e.timeEntryStatus === "SickLeave"
-                        ? "rounded-md bg-violet-200/80 px-1.5 py-0.5 font-semibold text-violet-950 dark:bg-violet-300/30 dark:text-violet-100"
-                        : "rounded-md bg-stone-200/80 px-1.5 py-0.5 font-semibold text-stone-900 dark:bg-stone-600/50 dark:text-stone-100"
-                    : e.razon === "imputacion_manual_error"
+                  const hasPart = !ocultaHoras && timeEntryConParteEnServidor(e);
+                  const zebra = equipoTablaZebraRowClass(rowIndex);
+                  const stripe = equipoTablaZebraStripeBg(rowIndex);
+                  const razonClass =
+                    e.razon === "imputacion_manual_error"
                       ? "rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-900 dark:bg-amber-900/30 dark:text-amber-100"
-                      : e.razon === "ausencia_vacaciones"
-                        ? "rounded-md bg-sky-200/80 px-1.5 py-0.5 font-semibold text-sky-950 dark:bg-sky-800/60 dark:text-sky-100"
-                        : e.razon === "ausencia_baja"
-                          ? "rounded-md bg-violet-200/80 px-1.5 py-0.5 font-semibold text-violet-950 dark:bg-violet-300/30 dark:text-violet-100"
-                          : e.razon === "dia_no_laboral"
-                            ? "rounded-md bg-stone-200/80 px-1.5 py-0.5 font-semibold text-stone-900 dark:bg-stone-600/50 dark:text-stone-100"
-                            : "text-slate-700 dark:text-slate-200";
+                      : "text-slate-700 dark:text-slate-200";
 
                   return (
-                    <tr key={`${e.id}-${e.workerId}-${e.workDate}`} className={rowVac}>
+                    <tr key={`${e.id}-${e.workerId}-${e.workDate}`} className={zebra}>
                       <td className="whitespace-nowrap px-2 py-1.5 text-sm font-semibold text-slate-800 dark:text-slate-100">
                         {eq.resolveEquipoPersonaNombre(fila)}
                       </td>
@@ -1221,8 +1501,12 @@ export default function TeamHoursPage() {
                         {ocultaHoras ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
                       </td>
                       <td className="px-2 py-1.5 text-sm align-middle">
-                        {ausenciaPorApiStatus ? (
-                          <span className="text-slate-400 dark:text-slate-500">—</span>
+                        {ausenciaEtiquetaVisual ? (
+                          <span
+                            className={`${equipoTablaEtiquetaBaseClass} ${ausenciaEtiquetaVisual.badgeClass}`}
+                          >
+                            {ausenciaEtiquetaVisual.label}
+                          </span>
                         ) : (
                           <TimeEntryStatusBadge
                             className="text-xs"
@@ -1288,12 +1572,11 @@ export default function TeamHoursPage() {
                         )}
                       </td>
                       <td
-                        className={`sticky right-0 z-[1] px-1 py-1 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] ${stickyBg}`}
+                        className={`sticky right-0 z-[1] align-middle border-l border-slate-200/80 px-1 py-1.5 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-700 ${stripe}`}
                       >
-                        <div className="flex flex-col gap-1">
-                          <button
-                            type="button"
-                            onClick={() =>
+                        {!isWorker || workerTeamHoursCanEditDate(e.workDate) ? (
+                          <EquipoTablaAccionesDuo
+                            onEditarHora={() =>
                               modal.openEquipoEditModal({
                                 workerId: e.workerId,
                                 workDate: e.workDate,
@@ -1303,19 +1586,21 @@ export default function TeamHoursPage() {
                                 targetUserId: e.userId ?? null,
                               })
                             }
-                            className="rounded-md border border-agro-500/60 bg-agro-50 px-2 py-1 text-xs font-semibold text-agro-800 hover:bg-agro-100 dark:border-agro-600 dark:bg-agro-950/50 dark:text-agro-100 dark:hover:bg-agro-900/60"
+                            onEditarParte={() => {
+                              setParteEquipoValidationError(null);
+                              return part.openEquipoPartEditor(e);
+                            }}
+                            parteDisabled={ocultaHoras || !e.checkOutUtc}
+                            tieneParte={hasPart}
+                          />
+                        ) : (
+                          <span
+                            className="text-xs text-slate-400 dark:text-slate-500"
+                            title={`Solo editable en los últimos ${WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS} días naturales.`}
                           >
-                            Editar hora
-                          </button>
-                          <button
-                            type="button"
-                            disabled={ocultaHoras || !e.checkOutUtc}
-                            onClick={() => part.openEquipoPartEditor(e)}
-                            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-500 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                          >
-                            {hasPart ? "Editar parte" : "Añadir parte"}
-                          </button>
-                        </div>
+                            —
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1368,7 +1653,7 @@ export default function TeamHoursPage() {
               */}
               <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
                 <div className="border-b border-slate-100 pb-2 dark:border-slate-800">
-                  <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-agro-600 dark:text-agro-400">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-blue-700 dark:text-sky-300">
                     Resumen visual
                   </h2>
                   <p className="mt-1 text-xs leading-snug text-slate-500 dark:text-slate-400">
@@ -1380,14 +1665,14 @@ export default function TeamHoursPage() {
                     </p>
                   ) : null}
                   {eq.equipoSummaryLoading ? (
-                    <p className="mt-2 text-sm font-medium text-agro-700 dark:text-agro-300">
+                    <p className="mt-2 text-sm font-medium text-blue-800 dark:text-sky-200">
                       Cargando resumen para gráficos…
                     </p>
                   ) : null}
                 </div>
                 <div className="mt-2 space-y-2">
-                  <div className="min-h-0 min-w-0 rounded-lg bg-slate-50/80 px-1.5 py-2 dark:bg-slate-950/35 sm:px-2">
-                    <FichajeTipoDonut
+                  <div className="min-h-0 min-w-0 rounded-xl border border-slate-200/90 bg-slate-50/50 px-2 py-2.5 dark:border-slate-600/60 dark:bg-slate-900/40 sm:px-2.5">
+                    <FichajeTipoRadialSummary
                       bare
                       bareStack
                       horasNormal={eq.fichajeTipoStats.horasNormal}
@@ -1419,7 +1704,8 @@ export default function TeamHoursPage() {
       </div>
 
       {/* ── Modal: editar día del equipo ───────────────────────── */}
-      {modal.equipoModal && (
+      {modal.equipoModal &&
+        (!isWorker || workerTeamHoursCanEditDate(modal.equipoModal.workDate)) && (
         <div
           className={`fixed inset-0 z-[100] ${MODAL_BACKDROP_CENTER}`}
           role="dialog"
@@ -1472,7 +1758,7 @@ export default function TeamHoursPage() {
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <button
                       type="button"
-                      disabled={modal.equipoAbsenceSaving}
+                      disabled={modal.equipoAbsenceSaving || modal.equipoFichajeDeleting}
                       onClick={() => void modal.guardarEquipoVacacionesOBaja("vacaciones")}
                       className="flex-1 rounded-xl border-2 border-sky-400 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-900 shadow-sm transition hover:bg-sky-100 disabled:opacity-60 dark:border-sky-600 dark:bg-sky-950/50 dark:text-sky-100 dark:hover:bg-sky-900/40"
                     >
@@ -1480,7 +1766,7 @@ export default function TeamHoursPage() {
                     </button>
                     <button
                       type="button"
-                      disabled={modal.equipoAbsenceSaving}
+                      disabled={modal.equipoAbsenceSaving || modal.equipoFichajeDeleting}
                       onClick={() => void modal.guardarEquipoVacacionesOBaja("baja")}
                       className="flex-1 rounded-xl border-2 border-violet-400 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-900 shadow-sm transition hover:bg-violet-100 disabled:opacity-60 dark:border-violet-600 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:bg-violet-900/35"
                     >
@@ -1489,7 +1775,7 @@ export default function TeamHoursPage() {
                   </div>
                   <button
                     type="button"
-                    disabled={modal.equipoAbsenceSaving}
+                    disabled={modal.equipoAbsenceSaving || modal.equipoFichajeDeleting}
                     onClick={() => void modal.guardarEquipoVacacionesOBaja("dia_no_laboral")}
                     className="mt-2 w-full rounded-xl border-2 border-stone-400 bg-stone-50 px-4 py-3 text-sm font-semibold text-stone-900 shadow-sm transition hover:bg-stone-100 disabled:opacity-60 dark:border-stone-500 dark:bg-stone-900/40 dark:text-stone-100 dark:hover:bg-stone-800/50"
                   >
@@ -1507,8 +1793,9 @@ export default function TeamHoursPage() {
                   </p>
                   <button
                     type="button"
+                    disabled={modal.equipoAbsenceSaving || modal.equipoFichajeDeleting}
                     onClick={() => modal.enterEquipoHorarioWizard()}
-                    className="w-full rounded-xl border-2 border-agro-500 bg-agro-50 px-4 py-3 text-sm font-semibold text-agro-900 shadow-sm transition hover:bg-agro-100 dark:border-agro-600 dark:bg-agro-950/40 dark:text-agro-100 dark:hover:bg-agro-900/50"
+                    className="w-full rounded-xl border-2 border-agro-500 bg-agro-50 px-4 py-3 text-sm font-semibold text-agro-900 shadow-sm transition hover:bg-agro-100 disabled:opacity-60 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-50 dark:hover:bg-emerald-900"
                   >
                     Modificar horario (imputación manual)
                   </button>
@@ -1516,10 +1803,35 @@ export default function TeamHoursPage() {
                     Mismo asistente que en <strong>Registro de jornada</strong> (entrada, salida,
                     descanso). Al finalizar se guarda en el servidor como jornada cerrada (RRHH).
                   </p>
+                  <button
+                    type="button"
+                    disabled={
+                      modal.equipoAbsenceSaving ||
+                      modal.equipoFichajeDeleting ||
+                      !(
+                        typeof modal.equipoModal.existing?.timeEntryId === "string" &&
+                        modal.equipoModal.existing.timeEntryId.trim().length > 0
+                      )
+                    }
+                    title={
+                      typeof modal.equipoModal.existing?.timeEntryId === "string" &&
+                      modal.equipoModal.existing.timeEntryId.trim().length > 0
+                        ? undefined
+                        : "No hay fila de fichaje en el servidor para este día"
+                    }
+                    onClick={() => void modal.eliminarEquipoFichaje()}
+                    className="mt-2 w-full rounded-xl border-2 border-red-400 bg-red-50 px-4 py-3 text-sm font-semibold text-red-900 shadow-sm transition hover:bg-red-100 disabled:opacity-60 dark:border-red-700 dark:bg-red-950/40 dark:text-red-100 dark:hover:bg-red-900/45"
+                  >
+                    {modal.equipoFichajeDeleting ? "Eliminando…" : "Eliminar fichaje"}
+                  </button>
+                  <p className="mt-2 text-sm leading-snug text-slate-500 dark:text-slate-400">
+                    Borra la fila de fichaje del día en el servidor (por ejemplo, si se imputó por error).
+                    Si el backend exige condiciones adicionales, verás el mensaje de error arriba.
+                  </p>
                 </div>
                 <button
                   type="button"
-                  disabled={modal.equipoAbsenceSaving}
+                  disabled={modal.equipoAbsenceSaving || modal.equipoFichajeDeleting}
                   onClick={modal.cerrarEquipoModal}
                   className="w-full rounded-xl border border-slate-300 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700/50"
                 >
@@ -1568,7 +1880,8 @@ export default function TeamHoursPage() {
       )}
 
       {/* ── Modal: editar parte de trabajo ─────────────────────── */}
-      {part.equipoPartModal && (
+      {part.equipoPartModal &&
+        (!isWorker || workerTeamHoursCanEditDate(part.equipoPartModal.workDate)) && (
         <EquipoPartModal
           modal={part.equipoPartModal}
           companies={part.equipoPartCompanies}

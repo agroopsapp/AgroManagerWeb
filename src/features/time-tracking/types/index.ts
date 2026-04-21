@@ -31,6 +31,11 @@ export interface TimeEntryMock {
   workReportStatus?: string | null;
   /** Número de líneas del parte en servidor. */
   workReportLineCount?: number | null;
+  /**
+   * Texto legible de imputación (empresa · servicio · área por línea), rellenado al cargar
+   * `GET /api/WorkReports/with-lines/{id}` tras traer las filas de fichaje.
+   */
+  workReportLinesSummary?: string | null;
   userName?: string | null;
   userEmail?: string | null;
   workDate: string; // YYYY-MM-DD
@@ -98,6 +103,8 @@ export interface EquipoWorkerOption {
   id: string;
   name: string;
   companyId?: string | null;
+  /** Si true, no se muestran sus fichajes en el grid de equipo (ni en «Todas»). */
+  excludedFromTimeTracking?: boolean;
 }
 
 /** Filtro extra de la tabla equipo: solo uno activo (comportamiento tipo radio). */

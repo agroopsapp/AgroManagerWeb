@@ -2,14 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
-import { ApiError } from "@/lib/api-client";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
+import { useAuth } from "@/contexts/AuthContext";
+import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
 import { getCompaniesFromApi, workServicesApi } from "@/services";
-import type { WorkService } from "@/types";
+import { USER_ROLE, type WorkService } from "@/types";
 
 type SortKey = "name";
 type SortDir = "asc" | "desc";
 
 export default function ServicesPage() {
+  const { showSuccess } = useFlashSuccess();
+  const { user, isReady } = useAuth();
+  const isWorker = user?.role === USER_ROLE.Worker;
   const [rows, setRows] = useState<WorkService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +41,7 @@ export default function ServicesPage() {
         setRows(list ?? []);
       } catch (e) {
         if (ac.signal.aborted) return;
-        setError(e instanceof ApiError ? e.message : "No se pudieron cargar los servicios.");
+        setError(userVisibleMessageFromUnknown(e, "No se pudieron cargar los servicios."));
       } finally {
         if (ac.signal.aborted) return;
         setLoading(false);
@@ -128,8 +133,11 @@ export default function ServicesPage() {
         setRows((prev) => [created, ...prev]);
       }
       closeModal();
+      showSuccess(
+        editing ? "Servicio actualizado correctamente." : "Servicio creado correctamente.",
+      );
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo guardar.");
+      setError(userVisibleMessageFromUnknown(err, "No se pudo guardar."));
     } finally {
       setSaving(false);
     }
@@ -142,8 +150,9 @@ export default function ServicesPage() {
       await workServicesApi.delete(id);
       setRows((prev) => prev.filter((r) => r.id !== id));
       setDeleteConfirm(null);
+      showSuccess("Servicio eliminado correctamente.");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "No se pudo eliminar.");
+      setError(userVisibleMessageFromUnknown(err, "No se pudo eliminar."));
     } finally {
       setDeletingId(null);
     }
@@ -157,14 +166,22 @@ export default function ServicesPage() {
           <p className="mt-1 text-slate-600 dark:text-slate-400">
             Servicios que puede ofrecer una empresa.
           </p>
+          {isReady && isWorker ? (
+            <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+              Como trabajador/a, esta pantalla es <strong className="font-semibold">solo consulta</strong>
+              : no puedes crear, editar ni eliminar servicios.
+            </p>
+          ) : null}
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
-        >
-          Nuevo servicio
-        </button>
+        {!isWorker ? (
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+          >
+            Nuevo servicio
+          </button>
+        ) : null}
       </div>
 
       {error && (
@@ -196,17 +213,23 @@ export default function ServicesPage() {
                   N.º
                 </th>
                 <th className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => toggleSort("name")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
-                  >
-                    Servicio {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
-                  </button>
+                  {isWorker ? (
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">Servicio</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("name")}
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    >
+                      Servicio {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
+                    </button>
+                  )}
                 </th>
-                <th className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">
-                  Acciones
-                </th>
+                {!isWorker ? (
+                  <th className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">
+                    Acciones
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-600">
@@ -218,46 +241,48 @@ export default function ServicesPage() {
                   <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
                     {row.name}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    {deleteConfirm === row.id ? (
-                      <span className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-slate-500 dark:text-slate-400">¿Eliminar?</span>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(row.id)}
-                          disabled={deletingId === row.id}
-                          className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-500 dark:bg-red-900/40 dark:text-red-300"
-                        >
-                          {deletingId === row.id ? "…" : "Sí"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirm(null)}
-                          disabled={deletingId === row.id}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 dark:border-slate-500 dark:text-slate-300"
-                        >
-                          No
-                        </button>
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(row)}
-                          className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-600"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirm(row.id)}
-                          className="rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-600 dark:border-red-500 dark:text-red-300"
-                        >
-                          Eliminar
-                        </button>
-                      </span>
-                    )}
-                  </td>
+                  {!isWorker ? (
+                    <td className="px-4 py-3 text-right">
+                      {deleteConfirm === row.id ? (
+                        <span className="flex items-center justify-end gap-2">
+                          <span className="text-xs text-slate-500 dark:text-slate-400">¿Eliminar?</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(row.id)}
+                            disabled={deletingId === row.id}
+                            className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-500 dark:bg-red-900/40 dark:text-red-300"
+                          >
+                            {deletingId === row.id ? "…" : "Sí"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirm(null)}
+                            disabled={deletingId === row.id}
+                            className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 dark:border-slate-500 dark:text-slate-300"
+                          >
+                            No
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(row)}
+                            className="rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-500 dark:text-slate-200 dark:hover:bg-slate-600"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirm(row.id)}
+                            className="rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-600 dark:border-red-500 dark:text-red-300"
+                          >
+                            Eliminar
+                          </button>
+                        </span>
+                      )}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
@@ -269,13 +294,15 @@ export default function ServicesPage() {
         {!loading && filteredSorted.length === 0 && (
           <p className="py-8 text-center text-slate-500 dark:text-slate-400">
             {rows.length === 0
-              ? "No hay servicios. Pulsa «Nuevo servicio»."
+              ? isWorker
+                ? "No hay servicios."
+                : "No hay servicios. Pulsa «Nuevo servicio»."
               : "Nada coincide con la búsqueda."}
           </p>
         )}
       </div>
 
-      {modalOpen && (
+      {modalOpen && !isWorker && (
         <div
           className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
           onClick={closeModal}

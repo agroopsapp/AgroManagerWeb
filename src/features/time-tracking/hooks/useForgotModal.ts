@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useState } from "react";
+import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
 import {
   checkoutLocalIsoAfterCheckin,
   dateTimeLocalToUtcIso,
@@ -7,7 +8,7 @@ import {
   parseForgotBreakCustom,
 } from "@/shared/utils/time";
 import type { ForgotMode, ForgotStep, TimeEntryMock } from "@/features/time-tracking/types";
-import { ApiError } from "@/lib/api-client";
+import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { getMyCompanyProfile } from "@/lib/myCompanyProfile";
 import { usersApi } from "@/services/users.service";
 import { breakSummaryFromMinutes, timeTrackingApi } from "@/services/time-tracking.service";
@@ -39,7 +40,7 @@ interface Params {
   >;
   setWorkPartLines: React.Dispatch<
     React.SetStateAction<
-      { lineId: string; companyId: string; serviceId: string; areaId: string }[]
+      { lineId: string; companyId: string; serviceId: string; areaId: string; notes: string }[]
     >
   >;
   setRestModalStep: React.Dispatch<
@@ -56,6 +57,7 @@ export function useForgotModal({
   setWorkPartLines,
   setRestModalStep,
 }: Params) {
+  const { showSuccess } = useFlashSuccess();
   const [forgotStep, setForgotStep] = useState<ForgotStep>("closed");
   const [forgotTargetDate, setForgotTargetDate] = useState<string | null>(null);
   const [forgotSoloTime, setForgotSoloTime] = useState("09:00");
@@ -249,7 +251,7 @@ export function useForgotModal({
       ]);
     } catch (e) {
       const msg =
-        e instanceof ApiError ? e.message : "No se pudo registrar la jornada completa.";
+        userVisibleMessageFromUnknown(e, "No se pudo registrar la jornada completa.");
       setForgotError(msg);
       return;
     }
@@ -257,6 +259,7 @@ export function useForgotModal({
       setForgotError("No se pudo registrar la jornada completa.");
       return;
     }
+    showSuccess("Jornada guardada correctamente.");
     setWorkPartOverrideEntry({
       workDate: createdEntry.workDate,
       workerId: miWorkerId,
@@ -272,7 +275,7 @@ export function useForgotModal({
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
         : `ln-${Date.now()}`;
-    setWorkPartLines([{ lineId: lid, companyId, serviceId: "", areaId: "" }]);
+    setWorkPartLines([{ lineId: lid, companyId, serviceId: "", areaId: "", notes: "" }]);
     resetForgotModal();
     setRestModalStep("workPart");
   };
