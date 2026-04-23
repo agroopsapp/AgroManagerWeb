@@ -8,6 +8,14 @@ const fieldClass =
 
 const HTTP_METHODS = ["", "GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
+/** `dd/mm/aaaa hh:mm` en UTC (24 h), sin depender del locale del navegador. */
+function formatFechaHoraUtcEs(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+}
+
 export function SuperadminApiErrorsPanel({ active }: { active: boolean }) {
   const er = useSuperadminApiErrors(active);
 
@@ -122,7 +130,7 @@ export function SuperadminApiErrorsPanel({ active }: { active: boolean }) {
                   onClick={() => er.openDetail(row.id)}
                 >
                   <td className="px-3 py-2 text-xs whitespace-nowrap text-slate-600 dark:text-slate-300">
-                    {row.fechaHoraUtc ? new Date(row.fechaHoraUtc).toLocaleString() : "—"}
+                    {row.fechaHoraUtc ? formatFechaHoraUtcEs(row.fechaHoraUtc) : "—"}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">{row.codigoHttp}</td>
                   <td className="px-3 py-2 font-mono text-xs">{row.metodoHttp}</td>
@@ -220,7 +228,9 @@ export function SuperadminApiErrorsPanel({ active }: { active: boolean }) {
                 ).map(([k, v]) => (
                   <div key={k} className="grid gap-1 sm:grid-cols-[10rem_1fr]">
                     <dt className="font-semibold text-slate-500 dark:text-slate-400">{k}</dt>
-                    <dd className="break-all text-slate-900 dark:text-slate-100">{v}</dd>
+                    <dd className="break-all text-slate-900 dark:text-slate-100">
+                      {k === "fechaHoraUtc" && typeof v === "string" && v !== "—" ? formatFechaHoraUtcEs(v) : v}
+                    </dd>
                   </div>
                 ))}
               </dl>
