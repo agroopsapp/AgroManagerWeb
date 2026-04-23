@@ -38,6 +38,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
   const [passwordUser, setPasswordUser] = useState<UserType | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formPassword, setFormPassword] = useState("");
+  const [formPasswordConfirm, setFormPasswordConfirm] = useState("");
   const [formRoleId, setFormRoleId] = useState<string>("");
   const [formExcludedFromTimeTracking, setFormExcludedFromTimeTracking] = useState(false);
 
@@ -81,6 +83,9 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
     setDeleteConfirm(null);
     setModalOpen(false);
     setPasswordUser(null);
+    setNewPassword("");
+    setNewPasswordConfirm("");
+    setPasswordModalError(null);
     return () => ac.abort();
   }, [company, loadUsers]);
 
@@ -104,6 +109,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
     setFormEmail("");
     setFormPhone("");
     setFormPassword("");
+    setFormPasswordConfirm("");
     setFormRoleId(roles[0]?.id ?? "");
     setFormExcludedFromTimeTracking(false);
     setModalOpen(true);
@@ -116,6 +122,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
     setFormEmail(user.email);
     setFormPhone(user.phone ?? "");
     setFormPassword("");
+    setFormPasswordConfirm("");
     setFormRoleId(user.roleId);
     setFormExcludedFromTimeTracking(user.excludedFromTimeTracking === true);
     setModalOpen(true);
@@ -128,6 +135,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
     setFormEmail("");
     setFormPhone("");
     setFormPassword("");
+    setFormPasswordConfirm("");
     setFormExcludedFromTimeTracking(false);
     setUserModalError(null);
   };
@@ -173,6 +181,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
     const email = formEmail.trim();
     const telefono = telefonoParaApi(formPhone.trim());
     const password = formPassword.trim();
+    const passwordConfirm = formPasswordConfirm.trim();
     if (!name || !email || !company) return;
 
     if (editingUser) {
@@ -203,6 +212,10 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
       setUserModalError("Para crear el usuario indica rol y contraseña.");
       return;
     }
+    if (password !== passwordConfirm) {
+      setUserModalError("Las contraseñas no coinciden.");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -229,13 +242,19 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
   const closePasswordModal = () => {
     setPasswordUser(null);
     setNewPassword("");
+    setNewPasswordConfirm("");
     setPasswordModalError(null);
   };
 
   const handlePasswordSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const pw = newPassword.trim();
+    const pwConfirm = newPasswordConfirm.trim();
     if (!passwordUser || !pw) return;
+    if (pw !== pwConfirm) {
+      setPasswordModalError("Las contraseñas no coinciden.");
+      return;
+    }
     try {
       setPasswordSaving(true);
       setPasswordModalError(null);
@@ -487,6 +506,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                                 onClick={() => {
                                   setPasswordUser(user);
                                   setNewPassword("");
+                                  setNewPasswordConfirm("");
                                   setPasswordModalError(null);
                                 }}
                                 className="rounded border border-amber-200 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-200 dark:hover:bg-amber-900/30"
@@ -575,19 +595,36 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                 />
               </div>
               {!editingUser && (
-                <div>
-                  <label htmlFor="sa-user-password" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Contraseña
-                  </label>
-                  <input
-                    id="sa-user-password"
-                    type="password"
-                    value={formPassword}
-                    onChange={(e) => setFormPassword(e.target.value)}
-                    required
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
-                  />
-                </div>
+                <>
+                  <div>
+                    <label htmlFor="sa-user-password" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Contraseña
+                    </label>
+                    <input
+                      id="sa-user-password"
+                      type="password"
+                      value={formPassword}
+                      onChange={(e) => setFormPassword(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="sa-user-password-confirm" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                      Repetir contraseña
+                    </label>
+                    <input
+                      id="sa-user-password-confirm"
+                      type="password"
+                      value={formPasswordConfirm}
+                      onChange={(e) => setFormPasswordConfirm(e.target.value)}
+                      required
+                      autoComplete="new-password"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                    />
+                  </div>
+                </>
               )}
               <div>
                 <label htmlFor="sa-user-role" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
@@ -661,6 +698,20 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label htmlFor="sa-new-password-confirm" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Repetir contraseña
+                </label>
+                <input
+                  id="sa-new-password-confirm"
+                  type="password"
+                  value={newPasswordConfirm}
+                  onChange={(e) => setNewPasswordConfirm(e.target.value)}
                   required
                   autoComplete="new-password"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
