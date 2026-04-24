@@ -255,19 +255,24 @@ export default function TimeTrackingPage() {
 
       {ayerCompleta.hayDiasSinCuadrarEnHistorico && (
         <div
-          className="sticky top-2 z-30 flex min-w-0 max-w-full gap-3 rounded-2xl border border-rose-200/80 bg-rose-50/90 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-rose-800/60 dark:bg-rose-950/50 sm:px-5 sm:py-3.5"
+          className="sticky top-2 z-30 flex min-w-0 max-w-full gap-3 rounded-2xl border border-slate-200/90 bg-slate-50/95 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/70 sm:px-5 sm:py-3.5"
           role="status"
         >
           <span
-            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-lg dark:bg-rose-900/50"
+            className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-200/90 text-sm font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-200"
             aria-hidden
           >
-            ⚠
+            i
           </span>
-          <p className="min-w-0 text-sm leading-relaxed text-rose-950 dark:text-rose-100">
-            <span className="font-semibold">Histórico:</span> hay días laborables sin fichaje correcto
-            (aparecen en rojo en la tabla).{" "}
-            <strong>Habla con el administrador</strong> para cuadrar las horas laborales.
+          <p className="min-w-0 text-sm leading-relaxed text-slate-700 dark:text-slate-200">
+            Para ajustar días o fichajes, entra en{" "}
+            <Link
+              href="/dashboard/team-hours"
+              className="font-semibold text-agro-700 underline-offset-2 hover:underline dark:text-agro-400"
+            >
+              Horas del equipo
+            </Link>{" "}
+            o habla con el administrador.
           </p>
         </div>
       )}

@@ -5,7 +5,9 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFeatures } from "@/contexts/FeaturesContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { appHomePath } from "@/lib/dashboardNavGating";
+import { USER_ROLE } from "@/types";
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -15,8 +17,11 @@ interface HeaderProps {
 export default function Header({ onToggleMobileSidebar, onToggleQuickMenu }: HeaderProps) {
   const { user, logout } = useAuth();
   const { enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
+  const { theme, setTheme } = useTheme();
   const router = useRouter();
   const panelHref = appHomePath(user?.role, enableTimeTracking, enableOperativaYAnalisisMenu);
+  /** Ajustes globales solo en `/dashboard/settings` (SuperAdmin); el resto cambia tema aquí. */
+  const showHeaderThemeToggle = user?.role !== USER_ROLE.SuperAdmin;
 
   const handleLogout = () => {
     logout();
@@ -64,6 +69,38 @@ export default function Header({ onToggleMobileSidebar, onToggleQuickMenu }: Hea
         </Link>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
+        {showHeaderThemeToggle ? (
+          <div
+            className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-600 dark:bg-slate-800/80"
+            role="group"
+            aria-label="Tema claro u oscuro"
+          >
+            <button
+              type="button"
+              onClick={() => setTheme("light")}
+              className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${
+                theme === "light"
+                  ? "bg-white text-agro-800 shadow-sm dark:bg-slate-700 dark:text-agro-200"
+                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+              }`}
+              aria-pressed={theme === "light"}
+            >
+              Claro
+            </button>
+            <button
+              type="button"
+              onClick={() => setTheme("dark")}
+              className={`rounded-md px-2 py-1.5 text-xs font-semibold transition ${
+                theme === "dark"
+                  ? "bg-white text-agro-800 shadow-sm dark:bg-slate-700 dark:text-agro-200"
+                  : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+              }`}
+              aria-pressed={theme === "dark"}
+            >
+              Oscuro
+            </button>
+          </div>
+        ) : null}
         <div className="hidden items-center gap-2 text-slate-600 dark:text-slate-300 sm:flex">
           <span className="text-sm font-medium">{user?.email ?? "Usuario"}</span>
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-agro-100 text-agro-700 font-semibold dark:bg-agro-900/50 dark:text-agro-300">

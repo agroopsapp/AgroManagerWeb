@@ -59,7 +59,7 @@ const navSections: NavSection[] = [
     title: "Sistema",
     items: [
       { href: "/dashboard/superadmin", label: "Superadmin", icon: "🛡", superAdminOnly: true },
-      { href: "/dashboard/settings", label: "Ajustes", icon: "⚙" },
+      { href: "/dashboard/settings", label: "Ajustes", icon: "⚙", superAdminOnly: true },
     ],
   },
 ];

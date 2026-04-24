@@ -33,7 +33,7 @@ const QUICK_MENU_ITEMS = [
   // Fila 3
   { href: "/dashboard/stats", label: "Estadísticas", icon: "📈" },
   { href: "/dashboard/superadmin", label: "Superadmin", icon: "🛡", superAdminOnly: true },
-  { href: "/dashboard/settings", label: "Ajustes", icon: "⚙" },
+  { href: "/dashboard/settings", label: "Ajustes", icon: "⚙", superAdminOnly: true },
 ];
 
 export default function DashboardLayout({
