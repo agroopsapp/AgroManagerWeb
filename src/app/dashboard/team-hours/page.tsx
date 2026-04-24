@@ -82,7 +82,7 @@ const FILTER_ANIM_EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const FILTER_ANIM_EASE_IN = [0.4, 0, 0.2, 1] as const;
 
 /** Worker: edición en «Horas del equipo» solo en los últimos N días naturales (incluye sábados y domingos). */
-const WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS = 10;
+const WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS = 7;
 
 /** Etiqueta de campo en la barra de filtros horizontal. */
 const filterLabelClass =
@@ -1389,7 +1389,6 @@ export default function TeamHoursPage() {
                                   isWeekendFila: true,
                                   personaLabel: eq.resolveEquipoPersonaNombre(fila),
                                   targetUserId: fila.userId,
-                                  irDirectoAlWizard: true,
                                 })
                               }
                             />
@@ -1449,7 +1448,6 @@ export default function TeamHoursPage() {
                                   isWeekendFila: false,
                                   personaLabel: eq.resolveEquipoPersonaNombre(fila),
                                   targetUserId: fila.userId,
-                                  irDirectoAlWizard: true,
                                 })
                               }
                             />

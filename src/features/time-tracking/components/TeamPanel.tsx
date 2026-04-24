@@ -1123,7 +1123,6 @@ export function TeamPanel({
                                 isWeekendFila: true,
                                 personaLabel: resolvePersonaNombre(fila),
                                 targetUserId: fila.userId,
-                                irDirectoAlWizard: true,
                               })
                             }
                           />
@@ -1178,7 +1177,6 @@ export function TeamPanel({
                                 isWeekendFila: false,
                                 personaLabel: resolvePersonaNombre(fila),
                                 targetUserId: fila.userId,
-                                irDirectoAlWizard: true,
                               })
                             }
                           />

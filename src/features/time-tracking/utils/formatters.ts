@@ -271,7 +271,27 @@ function parteServidorExportCell(e: TimeEntryMock): string {
   return api.detalle ? `Sí · ${api.detalle}` : "Sí";
 }
 
-/** Cabeceras y filas alineadas con la tabla en pantalla (incl. parte en servidor). */
+/** Suma duración y extra (solo filas `registro` con horas visibles en tabla), mismo criterio que la exportación. */
+export function computeEquipoTableExportTotals(
+  filas: EquipoTablaFila[],
+  capWorkMinutesPerDay: number = DEFAULT_STANDARD_WORKDAY_MINUTES,
+): { duracionMinutos: number; extraMinutos: number } {
+  const cap = Number.isFinite(capWorkMinutesPerDay)
+    ? capWorkMinutesPerDay
+    : DEFAULT_STANDARD_WORKDAY_MINUTES;
+  let duracionMinutos = 0;
+  let extraMinutos = 0;
+  for (const f of filas) {
+    if (f.kind !== "registro") continue;
+    const e = f.e;
+    if (equipoRegistroOcultaHorasEnTabla(e)) continue;
+    duracionMinutos += effectiveWorkMinutesEntry(e);
+    extraMinutos += Math.max(0, effectiveExtraMinutesEntry(e, cap));
+  }
+  return { duracionMinutos, extraMinutos };
+}
+
+/** Cabeceras y filas alineadas con la tabla en pantalla (incl. parte en servidor). Primera columna: índice de fila. */
 export function buildEquipoTableExportRows(
   filas: EquipoTablaFila[],
   nameByPersonKey?: Map<string, string>,
@@ -281,6 +301,7 @@ export function buildEquipoTableExportRows(
     ? capWorkMinutesPerDay
     : DEFAULT_STANDARD_WORKDAY_MINUTES;
   const headers = [
+    "#",
     "Persona",
     "Fecha",
     "Entrada",
@@ -294,13 +315,15 @@ export function buildEquipoTableExportRows(
     "Extra",
     "Parte en servidor",
   ];
-  const rows = filas.map((f) => {
+  const rows = filas.map((f, rowIndex) => {
+    const n = String(rowIndex + 1);
     if (f.kind === "registro") {
       const e = f.e;
       const ocultaHoras = equipoRegistroOcultaHorasEnTabla(e);
       const ocultaMetaPorStatusAusencia = isAbsenceCalendarApiStatus(e);
       const extraM = effectiveExtraMinutesEntry(e, cap);
       return [
+        n,
         csvPersonaCell(f, nameByPersonKey),
         formatDateEsWeekdayDdMmYyyy(e.workDate),
         ocultaHoras ? "—" : formatTimeLocal(e.checkInUtc),
@@ -317,6 +340,7 @@ export function buildEquipoTableExportRows(
     }
     if (f.kind === "noLaboral") {
       return [
+        n,
         csvPersonaCell(f, nameByPersonKey),
         formatDateEsWeekdayDdMmYyyy(f.workDate),
         "—",
@@ -332,6 +356,7 @@ export function buildEquipoTableExportRows(
       ];
     }
     return [
+      n,
       csvPersonaCell(f, nameByPersonKey),
       formatDateEsWeekdayDdMmYyyy(f.workDate),
       "—",

@@ -97,8 +97,8 @@ function IconoMas({ className }: { className?: string }) {
 }
 
 /**
- * Día sin fichaje aún: un solo control — abre el asistente para crear la jornada (fichar).
- * Cuando ya exista registro, la tabla usa `EquipoTablaAccionesDuo` (fichar/horario + parte).
+ * Día sin fichaje aún: un solo control — abre «Editar día» (ausencias o imputación manual).
+ * Cuando ya exista registro, la tabla usa `EquipoTablaAccionesDuo` (horario + parte).
  */
 export const EquipoTablaBotonPrimeraJornada = memo(function EquipoTablaBotonPrimeraJornada({
   onCrearJornada,
@@ -114,8 +114,8 @@ export const EquipoTablaBotonPrimeraJornada = memo(function EquipoTablaBotonPrim
         disabled={disabled}
         onClick={onCrearJornada}
         className="flex h-9 w-full min-w-0 items-center justify-center bg-blue-50 text-blue-800 transition hover:bg-blue-100 focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-agro-500/40 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-blue-950/45 dark:text-blue-100 dark:hover:bg-blue-900/55"
-        title="Fichar: crear jornada (entrada, salida y descanso)"
-        aria-label="Fichar: crear jornada con el asistente de horario"
+        title="Opciones del día: vacaciones, baja, no laboral o imputar horario"
+        aria-label="Abrir menú del día: ausencias o jornada"
       >
         <IconoMas className="h-5 w-5" />
       </button>

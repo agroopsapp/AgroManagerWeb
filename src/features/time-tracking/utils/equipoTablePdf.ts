@@ -1,7 +1,11 @@
 import autoTable from "jspdf-autotable";
 import { jsPDF } from "jspdf";
 import type { EquipoTablaFila } from "@/features/time-tracking/types";
-import { buildEquipoTableExportRows } from "@/features/time-tracking/utils/formatters";
+import {
+  buildEquipoTableExportRows,
+  computeEquipoTableExportTotals,
+} from "@/features/time-tracking/utils/formatters";
+import { formatMinutesShort } from "@/shared/utils/time";
 
 /**
  * Descarga un PDF en horizontal con la misma rejilla que la exportación CSV/PDF del equipo.
@@ -17,6 +21,13 @@ export function downloadEquipoTablePdf(opts: {
 }): void {
   const { filas, nameByPersonKey, capWorkMinutesPerDay, title, fileBaseName } = opts;
   const { headers, rows } = buildEquipoTableExportRows(filas, nameByPersonKey, capWorkMinutesPerDay);
+  const { duracionMinutos, extraMinutos } = computeEquipoTableExportTotals(filas, capWorkMinutesPerDay);
+  const footLabel = "TOTALES";
+  const footRow: string[] = headers.map(() => "");
+  footRow[0] = "";
+  footRow[1] = footLabel;
+  footRow[10] = formatMinutesShort(duracionMinutos);
+  footRow[11] = extraMinutos > 0 ? formatMinutesShort(extraMinutos) : "—";
 
   const doc = new jsPDF({
     orientation: "landscape",
@@ -38,6 +49,7 @@ export function downloadEquipoTablePdf(opts: {
     startY: 19,
     head: [headers],
     body: rows,
+    foot: [footRow],
     styles: {
       fontSize: 6,
       cellPadding: 0.8,
@@ -50,9 +62,16 @@ export function downloadEquipoTablePdf(opts: {
       fontStyle: "bold",
       fontSize: 6.5,
     },
+    footStyles: {
+      fillColor: [236, 253, 245],
+      textColor: [15, 23, 42],
+      fontStyle: "bold",
+      fontSize: 6.5,
+    },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     margin: { left: 10, right: 10, top: 19 },
     showHead: "everyPage",
+    showFoot: "lastPage",
     tableLineColor: [226, 232, 240],
     tableLineWidth: 0.1,
   });

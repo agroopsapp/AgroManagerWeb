@@ -121,15 +121,6 @@ function FichajeTipoRadialChartSvg({
           />
         )}
       </g>
-      <text
-        x={cx}
-        y={cy}
-        textAnchor="middle"
-        dominantBaseline="central"
-        className="fill-blue-800 text-[1.75rem] font-bold tabular-nums dark:fill-sky-200 sm:text-[2rem]"
-      >
-        {t > 0.01 ? `${pctImputadoVsPotencial}%` : "—"}
-      </text>
     </svg>
   );
 }
@@ -398,9 +389,8 @@ export const FichajeTipoRadialSummary = memo(function FichajeTipoRadialSummary({
                   Tipo de fichaje
                 </h2>
                 <p className="mt-1 text-sm leading-snug text-slate-600 dark:text-slate-300">
-                  Reparto de horas del periodo (correcto, manual y falta frente al potencial). El porcentaje
-                  central es la parte <strong className="text-blue-800 dark:text-sky-300">imputada</strong> sobre
-                  el total considerado.
+                  Reparto de horas del periodo (correcto, manual y falta frente al potencial). Los tres arcos
+                  muestran la proporción de cada categoría; abajo verás el resumen numérico.
                 </p>
               </div>
               <button
