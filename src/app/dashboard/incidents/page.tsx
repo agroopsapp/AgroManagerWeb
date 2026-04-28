@@ -5,6 +5,7 @@ import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalS
 import { MOCK_ANIMAL_CASES, MOCK_ANIMALS, INCIDENT_TEMPLATES } from "@/data/mock";
 import type { AnimalCase as AnimalCaseType, IncidentStatus } from "@/types";
 import IncidentCard from "@/components/IncidentCard";
+import { MockBadge } from "@/components/MockBadge";
 
 type IncidentFormMode = "template" | "custom";
 
@@ -132,7 +133,10 @@ export default function IncidentsPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Incidentes</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Incidentes</h1>
+            <MockBadge />
+          </div>
           <p className="text-slate-600 dark:text-slate-400">
             Casos por animal. Añade incidentes vinculados a un animal; no todos tienen que tener uno. El estado avanza según evolucione (reportado → en tratamiento → resuelto).
           </p>

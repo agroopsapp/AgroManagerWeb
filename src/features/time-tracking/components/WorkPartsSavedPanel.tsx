@@ -96,7 +96,7 @@ export function WorkPartsSavedPanel({
     setEditLines(
       tasks.length > 0
         ? tasksToLines(tasks)
-        : [{ lineId: newLineId(), companyId: "", serviceId: "", areaId: "" }]
+        : [{ lineId: newLineId(), companyId: "", serviceId: "", areaId: "" }],
     );
     setEditLoading(true);
     (async () => {
@@ -125,9 +125,7 @@ export function WorkPartsSavedPanel({
         const valid = editCompanies.find((x) => x.id === l.companyId);
         const c = valid ?? editCompanies[0];
         const areaId =
-          l.areaId && c.areas.some((a) => a.id === l.areaId)
-            ? l.areaId
-            : c.areas[0]?.id ?? "";
+          l.areaId && c.areas.some((a) => a.id === l.areaId) ? l.areaId : c.areas[0]?.id ?? "";
         return { ...l, companyId: c.id, areaId };
       });
     });
@@ -140,9 +138,7 @@ export function WorkPartsSavedPanel({
       return prev.map((l) => ({
         ...l,
         serviceId:
-          l.serviceId && editServices.some((s) => s.id === l.serviceId)
-            ? l.serviceId
-            : editServices[0].id,
+          l.serviceId && editServices.some((s) => s.id === l.serviceId) ? l.serviceId : editServices[0].id,
       }));
     });
   }, [editing?.id, editServices]);
@@ -168,10 +164,7 @@ export function WorkPartsSavedPanel({
     setEditLines((prev) => {
       const last = prev[prev.length - 1];
       const fallback = editCompanies[0];
-      const cid =
-        last && editCompanies.some((x) => x.id === last.companyId)
-          ? last.companyId
-          : fallback?.id ?? "";
+      const cid = last && editCompanies.some((x) => x.id === last.companyId) ? last.companyId : fallback?.id ?? "";
       const c = editCompanies.find((x) => x.id === cid) ?? fallback;
       return [
         ...prev,
@@ -191,11 +184,9 @@ export function WorkPartsSavedPanel({
 
   const patchLine = (
     lineId: string,
-    patch: Partial<{ companyId: string; serviceId: string; areaId: string }>
+    patch: Partial<{ companyId: string; serviceId: string; areaId: string }>,
   ) => {
-    setEditLines((prev) =>
-      prev.map((l) => (l.lineId === lineId ? { ...l, ...patch } : l))
-    );
+    setEditLines((prev) => prev.map((l) => (l.lineId === lineId ? { ...l, ...patch } : l)));
   };
 
   const buildTasksFromLines = (): WorkPartTask[] | null => {
@@ -263,8 +254,7 @@ export function WorkPartsSavedPanel({
           Partes de trabajo guardados
         </p>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-          Cuando fichés la salida y guardes un parte, aparecerá aquí para consultarlo o corregir las
-          tareas.
+          Cuando fichés la salida y guardes un parte, aparecerá aquí para consultarlo o corregir las tareas.
         </p>
       </section>
     );
@@ -276,12 +266,9 @@ export function WorkPartsSavedPanel({
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Partes de trabajo guardados
         </p>
-        <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">
-          Tus partes recientes
-        </h2>
+        <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">Tus partes recientes</h2>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-          Puedes ver el resumen del fichaje y editar únicamente las tareas (empresa, servicio y
-          área).
+          Puedes ver el resumen del fichaje y editar únicamente las tareas (empresa, servicio y área).
         </p>
         <ul className="mt-3 space-y-2">
           {parts.map((p) => {
@@ -292,12 +279,9 @@ export function WorkPartsSavedPanel({
                 className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 dark:border-slate-600 dark:bg-slate-900/40 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0 text-sm">
-                  <p className="font-medium text-slate-900 dark:text-slate-50">
-                    {formatWorkDateLabel(p.workDate)}
-                  </p>
+                  <p className="font-medium text-slate-900 dark:text-slate-50">{formatWorkDateLabel(p.workDate)}</p>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    {p.entradaDisplay} – {p.salidaDisplay} · Descanso{" "}
-                    {formatMinutesShort(p.breakMinutes)} · Trabajado{" "}
+                    {p.entradaDisplay} – {p.salidaDisplay} · Descanso {formatMinutesShort(p.breakMinutes)} · Trabajado{" "}
                     {formatMinutesShort(p.workedMinutes)}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
@@ -327,10 +311,7 @@ export function WorkPartsSavedPanel({
             aria-modal="true"
             aria-labelledby="work-part-edit-title"
           >
-            <h2
-              id="work-part-edit-title"
-              className="text-base font-semibold text-slate-900 dark:text-slate-50"
-            >
+            <h2 id="work-part-edit-title" className="text-base font-semibold text-slate-900 dark:text-slate-50">
               Parte del {formatWorkDateLabel(editing.workDate)}
             </h2>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -346,8 +327,7 @@ export function WorkPartsSavedPanel({
                 <span className="font-semibold">{editing.salidaDisplay}</span>
               </p>
               <p>
-                Descanso:{" "}
-                <span className="font-semibold">{formatMinutesShort(editing.breakMinutes)}</span>
+                Descanso: <span className="font-semibold">{formatMinutesShort(editing.breakMinutes)}</span>
               </p>
               {(() => {
                 const { ordinary, extra, total } = splitWorkedMinutesOrdinaryAndExtra(
@@ -363,12 +343,10 @@ export function WorkPartsSavedPanel({
                       <span className="font-semibold">{formatMinutesShort(ordinary)}</span>
                     </p>
                     <p>
-                      Horas extra:{" "}
-                      <span className="font-semibold">{formatMinutesShort(extra)}</span>
+                      Horas extra: <span className="font-semibold">{formatMinutesShort(extra)}</span>
                     </p>
                     <p>
-                      Total trabajado:{" "}
-                      <span className="font-semibold">{formatMinutesShort(total)}</span>
+                      Total trabajado: <span className="font-semibold">{formatMinutesShort(total)}</span>
                     </p>
                   </div>
                 );
@@ -376,15 +354,11 @@ export function WorkPartsSavedPanel({
             </div>
 
             {editLoading ? (
-              <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
-                Cargando empresas y servicios…
-              </p>
+              <p className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">Cargando empresas y servicios…</p>
             ) : (
               <div className="mt-4 space-y-3">
                 <div className="flex flex-col gap-2 border-b border-slate-200 pb-3 dark:border-slate-600 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    Tareas
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Tareas</p>
                   <button
                     type="button"
                     onClick={addLine}
@@ -403,9 +377,7 @@ export function WorkPartsSavedPanel({
                         className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-600 dark:bg-slate-900/40"
                       >
                         <div className="mb-2 flex items-center justify-between gap-2">
-                          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
-                            Tarea {idx + 1}
-                          </span>
+                          <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Tarea {idx + 1}</span>
                           {editLines.length > 1 && (
                             <button
                               type="button"
@@ -460,9 +432,7 @@ export function WorkPartsSavedPanel({
                             <select
                               id={`edit-svc-${line.lineId}`}
                               value={line.serviceId}
-                              onChange={(e) =>
-                                patchLine(line.lineId, { serviceId: e.target.value })
-                              }
+                              onChange={(e) => patchLine(line.lineId, { serviceId: e.target.value })}
                               disabled={editServices.length === 0}
                               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                             >
@@ -483,9 +453,7 @@ export function WorkPartsSavedPanel({
                             <select
                               id={`edit-area-${line.lineId}`}
                               value={line.areaId}
-                              onChange={(e) =>
-                                patchLine(line.lineId, { areaId: e.target.value })
-                              }
+                              onChange={(e) => patchLine(line.lineId, { areaId: e.target.value })}
                               disabled={!lineCompany || lineCompany.areas.length === 0}
                               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
                             >
@@ -493,7 +461,9 @@ export function WorkPartsSavedPanel({
                                 <option key={a.id} value={a.id}>
                                   {a.name}
                                   {a.observations
-                                    ? ` — ${a.observations.slice(0, 28)}${a.observations.length > 28 ? "…" : ""}`
+                                    ? ` — ${a.observations.slice(0, 28)}${
+                                        a.observations.length > 28 ? "…" : ""
+                                      }`
                                     : ""}
                                 </option>
                               ))}
@@ -507,9 +477,7 @@ export function WorkPartsSavedPanel({
               </div>
             )}
 
-            {editError && (
-              <p className="mt-3 text-sm text-red-600 dark:text-red-400">{editError}</p>
-            )}
+            {editError && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{editError}</p>}
 
             {editing.signaturePngDataUrl ? (
               <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-600 dark:bg-slate-900/40">
@@ -552,17 +520,14 @@ export function WorkPartsSavedPanel({
                         {
                           ...editing,
                           companyId: tasks[0].companyId,
-                          companyName:
-                            nEmp === 1
-                              ? tasks[0].companyName
-                              : `Varias empresas (${nEmp})`,
+                          companyName: nEmp === 1 ? tasks[0].companyName : `Varias empresas (${nEmp})`,
                           tasks,
                         },
                         tasks,
                         {
                           workerDisplayName,
                           companies: editCompanies,
-                        }
+                        },
                       );
                       setEditError(null);
                     } catch {

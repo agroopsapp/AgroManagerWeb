@@ -22,6 +22,63 @@ export function isDashboardPathOperativaYAnalisis(pathname: string | null): path
 }
 
 /**
+ * Rutas permitidas en el "modo fichador" (cuando el menú debe quedarse solo con Jornada).
+ * Nota: algunas pantallas del fichador cuelgan como subrutas de `/dashboard/time-tracking/*`.
+ */
+export const DASHBOARD_ALLOWED_PATHS_FICHADOR = [
+  "/dashboard/time-tracking",
+  "/dashboard/time-tracking/vacaciones-y-festivos",
+  "/dashboard/time-tracking/partes-multidia",
+  "/dashboard/team-hours",
+] as const;
+
+export type DashboardAllowedPathFichador = (typeof DASHBOARD_ALLOWED_PATHS_FICHADOR)[number];
+
+export function isDashboardAllowedPathFichador(pathname: string | null): pathname is DashboardAllowedPathFichador {
+  if (!pathname) return false;
+  return (DASHBOARD_ALLOWED_PATHS_FICHADOR as readonly string[]).includes(pathname);
+}
+
+export function isDashboardAllowedPathFichadorOrChild(pathname: string | null): boolean {
+  if (!pathname) return false;
+  if (pathname === "/dashboard/team-hours") return true;
+  if (pathname === "/dashboard/time-tracking") return true;
+  return pathname.startsWith("/dashboard/time-tracking/");
+}
+
+/** Rutas de administración típicas del ámbito fichador (no operativa/tareas). */
+const FICHADOR_ADMIN_LIKE_PATH_PREFIXES = [
+  "/dashboard/my-company",
+  "/dashboard/companies",
+  "/dashboard/services",
+  "/dashboard/users",
+] as const;
+
+function matchesFichadorAdminLikePath(pathname: string): boolean {
+  return FICHADOR_ADMIN_LIKE_PATH_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+/**
+ * Rutas permitidas cuando el dashboard está acotado al fichador:
+ * - Worker: solo jornada (`time-tracking` + hijos) y horas del equipo.
+ * - Admin / Manager: lo anterior más Mi empresa, empresas, servicios y trabajadores.
+ * - SuperAdmin: no usar esta función para bloquear (el layout no redirige a SA).
+ */
+export function isDashboardPathAccessibleInFichadorShell(
+  role: UserRole | undefined,
+  pathname: string | null,
+): boolean {
+  if (!pathname) return false;
+  if (isDashboardAllowedPathFichadorOrChild(pathname)) return true;
+  if (role === USER_ROLE.Admin || role === USER_ROLE.Manager) {
+    return matchesFichadorAdminLikePath(pathname);
+  }
+  return false;
+}
+
+/**
  * Ruta de inicio tras login / logo «panel».
  * Con fichaje activo, **todos** los roles entran en Registro de jornada (`/dashboard/time-tracking`).
  */

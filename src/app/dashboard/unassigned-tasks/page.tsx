@@ -9,6 +9,7 @@ import type { Task, TaskFamily } from "@/types";
 import DatePicker from "@/components/DatePicker";
 import CreateTaskModal from "@/components/CreateTaskModal";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
+import { MockBadge } from "@/components/MockBadge";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -105,9 +106,12 @@ export default function UnassignedTasksPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-            Tareas sin asignar
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+              Tareas sin asignar
+            </h1>
+            <MockBadge />
+          </div>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
             Puedes cambiar granja y fecha sin asignar; la tarea solo sale de esta lista cuando asignas un responsable (trabajador).
           </p>

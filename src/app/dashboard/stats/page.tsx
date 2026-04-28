@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import dynamic from "next/dynamic";
+import { MockBadge } from "@/components/MockBadge";
 
 // Recharts se carga en diferido: no bloquea el render inicial de la página de estadísticas.
 const ResponsiveContainer = dynamic(
@@ -230,7 +231,10 @@ export default function StatsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Estadísticas</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Estadísticas</h1>
+          <MockBadge />
+        </div>
         <p className="text-slate-600 dark:text-slate-400">
           Resumen visual de tareas, animales, incidentes y trabajadores. Tareas e incidentes se pueden ver por día o por semana.
         </p>

@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useFeatures } from "@/contexts/FeaturesContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { DASHBOARD_PATHS_OPERATIVA_Y_ANALISIS } from "@/lib/dashboardNavGating";
+import {
+  DASHBOARD_PATHS_OPERATIVA_Y_ANALISIS,
+  isDashboardPathAccessibleInFichadorShell,
+} from "@/lib/dashboardNavGating";
 import { USER_ROLE } from "@/types";
 
 const PATHS_OCULTOS_SIN_OPERATIVA = new Set<string>(DASHBOARD_PATHS_OPERATIVA_Y_ANALISIS);
@@ -37,6 +40,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
       { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: "📅" },
+      { href: "/dashboard/time-tracking/partes-multidia", label: "Partes multi-día", icon: "📑" },
       { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥" },
       { href: "/dashboard/my-company", label: "Mi empresa", icon: "🏷️" },
       { href: "/dashboard/companies", label: "Empresas", icon: "🏢" },
@@ -90,12 +94,15 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
   const { enableAnimals, enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const { user } = useAuth();
   const role = user?.role;
+  const isSuperAdmin = role === USER_ROLE.SuperAdmin;
   const isAdminLike =
     role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin || role === USER_ROLE.Manager;
   const canSeeAnimals = enableAnimals && isAdminLike;
 
   const isNavItemVisible = (item: NavItem): boolean => {
     if (item.href === "/dashboard" && role === USER_ROLE.Worker) return false;
+    // Modo "solo fichador" para cualquier rol no SuperAdmin: se permite únicamente Jornada.
+    if (!isSuperAdmin && !isDashboardPathAccessibleInFichadorShell(role, item.href)) return false;
     if (item.superAdminOnly && role !== USER_ROLE.SuperAdmin) return false;
     if (item.adminOnly && !isAdminLike) return false;
     if (!enableTimeTracking && item.href === "/dashboard/time-tracking") return false;

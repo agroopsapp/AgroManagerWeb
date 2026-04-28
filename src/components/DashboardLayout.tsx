@@ -11,7 +11,11 @@ import { USER_ROLE } from "@/types";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { MODAL_BACKDROP_CENTER, MODAL_SURFACE, MODAL_SURFACE_PAD } from "@/components/modalShell";
-import { appHomePath, isDashboardPathOperativaYAnalisis } from "@/lib/dashboardNavGating";
+import {
+  appHomePath,
+  isDashboardPathAccessibleInFichadorShell,
+  isDashboardPathOperativaYAnalisis,
+} from "@/lib/dashboardNavGating";
 
 const SIDEBAR_STORAGE_KEY = "agroops_sidebar_collapsed";
 
@@ -23,7 +27,9 @@ const QUICK_MENU_ITEMS = [
   { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
   { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
   { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: "📅" },
+  { href: "/dashboard/time-tracking/partes-multidia", label: "Partes multi-día", icon: "📑" },
   { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥" },
+  { href: "/dashboard/my-company", label: "Mi empresa", icon: "🏷️" },
   { href: "/dashboard/companies", label: "Empresas", icon: "🏢" },
   { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
   // Fila 2 (después de operativa)
@@ -54,6 +60,18 @@ export default function DashboardLayout({
     if (!isReady) return;
     if (!user) router.replace("/login");
   }, [user, isReady, router]);
+
+  useEffect(() => {
+    if (!isReady || !user) return;
+    // Cierre del dashboard: si NO es SuperAdmin, solo fichador (+ gestión típica para Admin/Manager).
+    if (
+      user.role !== USER_ROLE.SuperAdmin &&
+      !isDashboardPathAccessibleInFichadorShell(user.role, pathname)
+    ) {
+      const dest = appHomePath(user.role, enableTimeTracking, enableOperativaYAnalisisMenu);
+      if (pathname !== dest) router.replace(dest);
+    }
+  }, [isReady, user, pathname, enableTimeTracking, enableOperativaYAnalisisMenu, router]);
 
   useEffect(() => {
     if (!isReady || !user) return;
@@ -152,6 +170,14 @@ export default function DashboardLayout({
                     user?.role === USER_ROLE.Admin ||
                     user?.role === USER_ROLE.SuperAdmin ||
                     user?.role === USER_ROLE.Manager;
+
+                  // Modo fichador: Worker estricto; Admin/Manager también ven gestión (empresa, etc.).
+                  if (
+                    user?.role !== USER_ROLE.SuperAdmin &&
+                    !isDashboardPathAccessibleInFichadorShell(user?.role, href)
+                  ) {
+                    return null;
+                  }
 
                   if (href === "/dashboard" && user?.role === USER_ROLE.Worker) {
                     return null;

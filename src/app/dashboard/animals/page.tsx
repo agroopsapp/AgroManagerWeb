@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { MOCK_ANIMALS, MOCK_FARMS, MOCK_SPECIES } from "@/data/mock";
 import type { Animal as AnimalType, AnimalSex } from "@/types";
+import { MockBadge } from "@/components/MockBadge";
 
 type SortKey = "name" | "farm" | "species" | "sex" | "birthDate" | "identification";
 type SortDir = "asc" | "desc";
@@ -143,7 +144,10 @@ export default function AnimalsPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Animales</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Animales</h1>
+            <MockBadge />
+          </div>
           <p className="text-slate-600 dark:text-slate-400">
             Añadir y gestionar animales. Nombre, granja, especie, sexo, fecha de nacimiento e identificación.
           </p>

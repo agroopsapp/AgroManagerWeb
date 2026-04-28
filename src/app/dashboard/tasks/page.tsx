@@ -33,6 +33,7 @@ import { useTasks } from "@/contexts/TasksContext";
 import TaskCard from "@/components/TaskCard";
 import CreateTaskModal from "@/components/CreateTaskModal";
 import DashboardAvisos from "@/components/DashboardAvisos";
+import { MockBadge } from "@/components/MockBadge";
 
 /** Semana en español: lunes = primer día */
 const WEEKDAY_NAMES_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -426,7 +427,10 @@ export default function TasksPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Tareas</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Tareas</h1>
+            <MockBadge />
+          </div>
           <p className="text-slate-600 dark:text-slate-400">
             Elige un día en el calendario para ver sus tareas. Crea tareas para hoy o para fechas futuras.
           </p>
