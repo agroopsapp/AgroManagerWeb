@@ -40,7 +40,7 @@ interface Params {
   >;
   setWorkPartLines: React.Dispatch<
     React.SetStateAction<
-      { lineId: string; companyId: string; serviceId: string; areaId: string; notes: string }[]
+      { lineId: string; companyId: string; serviceId: string; areaId: string; notes: string; minutes: number }[]
     >
   >;
   setRestModalStep: React.Dispatch<
@@ -275,7 +275,7 @@ export function useForgotModal({
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
         : `ln-${Date.now()}`;
-    setWorkPartLines([{ lineId: lid, companyId, serviceId: "", areaId: "", notes: "" }]);
+    setWorkPartLines([{ lineId: lid, companyId, serviceId: "", areaId: "", notes: "", minutes: 0 }]);
     resetForgotModal();
     setRestModalStep("workPart");
   };

@@ -18,6 +18,7 @@ type EquipoPartLine = {
   serviceId: string;
   areaId: string;
   notes: string;
+  minutes: number;
 };
 
 interface EquipoPartModalProps {
@@ -78,6 +79,8 @@ export function EquipoPartModal({
   const accionesParteDeshabilitadas = sinTareas || loading;
   const puedeQuitarLinea =
     lines.length > 1 || (esCreacionParte && lines.length >= 1);
+  const totalImputadoMin = lines.reduce((acc, l) => acc + Math.max(0, Math.round(Number(l.minutes) || 0)), 0);
+  const diffMin = totalImputadoMin - Math.max(0, Math.round(Number(netoMin) || 0));
 
   return (
     <>
@@ -106,8 +109,8 @@ export function EquipoPartModal({
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             {workerNameById(modal.workerId)} ·{" "}
             {esCreacionParte
-              ? "Añade las tareas del día (horas en solo lectura)."
-              : "Edita solo tareas y firma (horas en solo lectura)."}
+              ? "Añade las tareas del día e indica las horas de cada una."
+              : "Edita tareas, horas y firma del parte."}
           </p>
 
           <div className="mt-3 space-y-1 rounded-xl bg-slate-100 p-3 text-sm text-slate-700 dark:bg-slate-700/60 dark:text-slate-100">
@@ -151,6 +154,18 @@ export function EquipoPartModal({
             </p>
           ) : (
             <div className="mt-4 space-y-3">
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/30 dark:text-slate-200">
+                Total imputado en tareas:{" "}
+                <span className="font-semibold">{formatMinutesShort(totalImputadoMin)}</span>
+                {" · "}
+                Diferencia vs trabajado:{" "}
+                <span
+                  className={`font-semibold ${Math.abs(diffMin) <= 1 ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}
+                >
+                  {diffMin > 0 ? "+" : ""}
+                  {diffMin} min
+                </span>
+              </div>
               <div className="flex flex-col gap-2 border-b border-slate-200 pb-3 dark:border-slate-600 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Tareas
@@ -194,6 +209,77 @@ export function EquipoPartModal({
                         )}
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
+                          <label
+                            htmlFor={`eqp-min-${line.lineId}`}
+                            className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300"
+                          >
+                            Tiempo de la tarea
+                          </label>
+                          {(() => {
+                            const safe = Number.isFinite(line.minutes) ? Math.max(0, Math.round(line.minutes)) : 0;
+                            const h = Math.floor(safe / 60);
+                            const m = safe % 60;
+                            return (
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <div>
+                                  <label
+                                    htmlFor={`eqp-h-${line.lineId}`}
+                                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400"
+                                  >
+                                    Horas
+                                  </label>
+                                  <input
+                                    id={`eqp-h-${line.lineId}`}
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={0}
+                                    step={1}
+                                    value={String(h)}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const nextH = raw === "" ? 0 : Number(raw);
+                                      const hh = Number.isFinite(nextH) ? Math.max(0, Math.floor(nextH)) : 0;
+                                      onPatchLine(line.lineId, { minutes: hh * 60 + m });
+                                    }}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                                    placeholder="0"
+                                  />
+                                </div>
+                                <div>
+                                  <label
+                                    htmlFor={`eqp-m-${line.lineId}`}
+                                    className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400"
+                                  >
+                                    Minutos
+                                  </label>
+                                  <input
+                                    id={`eqp-m-${line.lineId}`}
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={0}
+                                    max={59}
+                                    step={1}
+                                    value={String(m)}
+                                    onChange={(e) => {
+                                      const raw = e.target.value;
+                                      const nextM = raw === "" ? 0 : Number(raw);
+                                      const mm = Number.isFinite(nextM)
+                                        ? Math.min(59, Math.max(0, Math.floor(nextM)))
+                                        : 0;
+                                      onPatchLine(line.lineId, { minutes: h * 60 + mm });
+                                    }}
+                                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                                    placeholder="0"
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })()}
+                          <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                            La suma de todas las tareas debe cuadrar con el total trabajado.
+                          </p>
+                        </div>
                         <div className="sm:col-span-2">
                           <label
                             htmlFor={`eqp-co-${line.lineId}`}

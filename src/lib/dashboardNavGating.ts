@@ -28,7 +28,7 @@ export function isDashboardPathOperativaYAnalisis(pathname: string | null): path
 export const DASHBOARD_ALLOWED_PATHS_FICHADOR = [
   "/dashboard/time-tracking",
   "/dashboard/time-tracking/vacaciones-y-festivos",
-  "/dashboard/time-tracking/partes-multidia",
+  "/dashboard/time-tracking/partes-de-obra",
   "/dashboard/team-hours",
 ] as const;
 

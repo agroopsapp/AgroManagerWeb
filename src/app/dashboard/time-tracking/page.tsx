@@ -101,6 +101,7 @@ export default function TimeTrackingPage() {
             serviceId: line.serviceId,
             areaId: line.workAreaId,
             notes: typeof line.notes === "string" ? line.notes : "",
+            minutes: Math.max(0, Math.round(Number(line.minutes) || 0)),
           };
         });
         breakModal.setWorkPartLines(
@@ -116,6 +117,7 @@ export default function TimeTrackingPage() {
                   serviceId: "",
                   areaId: "",
                   notes: "",
+                  minutes: 0,
                 },
               ],
         );
@@ -145,6 +147,7 @@ export default function TimeTrackingPage() {
             serviceId: "",
             areaId: "",
             notes: "",
+            minutes: 0,
           },
         ]);
         breakModal.setWorkPartOverrideEntry({
@@ -170,6 +173,7 @@ export default function TimeTrackingPage() {
           serviceId: "",
           areaId: "",
           notes: "",
+          minutes: 0,
         },
       ]);
       breakModal.setWorkPartOverrideEntry({

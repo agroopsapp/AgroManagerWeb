@@ -30,21 +30,6 @@ interface Params {
   onValidationError?: (message: string) => void;
 }
 
-function splitMinutes(totalMinutes: number, count: number): number[] {
-  if (count <= 0) return [];
-  if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) {
-    return Array.from({ length: count }, () => 0);
-  }
-  const safeTotal = Math.floor(totalMinutes);
-  const base = Math.floor(safeTotal / count);
-  let remainder = safeTotal % count;
-  return Array.from({ length: count }, () => {
-    const extra = remainder > 0 ? 1 : 0;
-    if (remainder > 0) remainder -= 1;
-    return base + extra;
-  });
-}
-
 export function useEquipoPart({
   setEquipoPartsVersion,
   refetchEquipoRows,
@@ -57,7 +42,7 @@ export function useEquipoPart({
   const [equipoPartCompanies, setEquipoPartCompanies] = useState<Company[]>([]);
   const [equipoPartServices, setEquipoPartServices] = useState<WorkService[]>([]);
   const [equipoPartLines, setEquipoPartLines] = useState<
-    { lineId: string; companyId: string; serviceId: string; areaId: string; notes: string }[]
+    { lineId: string; companyId: string; serviceId: string; areaId: string; notes: string; minutes: number }[]
   >([]);
   const [equipoPartLoading, setEquipoPartLoading] = useState(false);
   const [equipoPartSaving, setEquipoPartSaving] = useState(false);
@@ -154,6 +139,7 @@ export function useEquipoPart({
               serviceId: line.serviceId,
               areaId: line.workAreaId,
               notes: typeof line.notes === "string" ? line.notes : "",
+              minutes: Math.max(0, Math.round(Number(line.minutes) || 0)),
             }));
             setEquipoPartLines(
               reportLines.length > 0
@@ -165,6 +151,7 @@ export function useEquipoPart({
                       serviceId: s[0]?.id ?? "",
                       areaId: c.find((x) => x.id === report.companyId)?.areas[0]?.id ?? "",
                       notes: "",
+                      minutes: 0,
                     },
                   ],
             );
@@ -183,6 +170,7 @@ export function useEquipoPart({
                 serviceId: s[0]?.id ?? "",
                 areaId: co?.areas[0]?.id ?? "",
                 notes: "",
+                minutes: 0,
               },
             ]);
           }
@@ -218,7 +206,7 @@ export function useEquipoPart({
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `ln-${Date.now()}-${prev.length}`;
-      return [...prev, { lineId: lid, companyId: cid, serviceId: sid, areaId: aid, notes: "" }];
+      return [...prev, { lineId: lid, companyId: cid, serviceId: sid, areaId: aid, notes: "", minutes: 0 }];
     });
   }, [equipoPartCompanies, equipoPartServices]);
 
@@ -233,7 +221,7 @@ export function useEquipoPart({
   const patchEquipoPartLine = useCallback(
     (
       lineId: string,
-      patch: Partial<{ companyId: string; serviceId: string; areaId: string; notes: string }>,
+      patch: Partial<{ companyId: string; serviceId: string; areaId: string; notes: string; minutes: number }>,
     ) => {
       setEquipoPartLines((prev) =>
         prev.map((l) => (l.lineId === lineId ? { ...l, ...patch } : l)),
@@ -252,6 +240,7 @@ export function useEquipoPart({
       const svc = equipoPartServices.find((s) => s.id === line.serviceId);
       const ar = company.areas.find((a) => a.id === line.areaId);
       if (!svc || !ar) return null;
+      const safeMinutes = Number.isFinite(line.minutes) ? Math.max(0, Math.round(line.minutes)) : 0;
       tasks.push({
         companyId: company.id,
         companyName: company.name,
@@ -260,6 +249,7 @@ export function useEquipoPart({
         areaId: ar.id,
         areaName: ar.name,
         areaObservations: ar.observations ?? "",
+        minutes: safeMinutes,
         lineNotes: (line.notes ?? "").trim(),
       });
     }
@@ -285,12 +275,27 @@ export function useEquipoPart({
     }
 
     const workedMinutes = Math.max(0, effectiveWorkMinutesEntry(entry));
-    const distributed = splitMinutes(workedMinutes, tasks.length);
+    const assignedMinutes = tasks.reduce((acc, t) => acc + Math.max(0, Math.round(Number(t.minutes) || 0)), 0);
+    if (tasks.some((t) => !Number.isFinite(t.minutes) || t.minutes < 0)) {
+      setEquipoPartError("Revisa las horas por tarea: no pueden ser negativas.");
+      return;
+    }
+    if (assignedMinutes <= 0) {
+      setEquipoPartError("Indica las horas de cada tarea (la suma debe ser mayor que 0).");
+      return;
+    }
+    if (Math.abs(assignedMinutes - workedMinutes) > 1) {
+      const diff = assignedMinutes - workedMinutes;
+      setEquipoPartError(
+        `Las horas imputadas por tarea no cuadran con el total trabajado. Diferencia: ${diff > 0 ? "+" : ""}${diff} min.`,
+      );
+      return;
+    }
     const linesPayload = tasks.map((task, idx) => ({
       clientCompanyId: task.companyId,
       serviceId: task.serviceId,
       workAreaId: task.areaId,
-      minutes: distributed[idx] ?? 0,
+      minutes: Math.max(0, Math.round(Number(task.minutes) || 0)),
       clientCompanyNameSnapshot: task.companyName,
       serviceNameSnapshot: task.serviceName,
       workAreaNameSnapshot: task.areaName,

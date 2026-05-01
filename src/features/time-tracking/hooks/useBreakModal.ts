@@ -59,7 +59,7 @@ export function useBreakModal({
   const [workPartCompanies, setWorkPartCompanies] = useState<Company[]>([]);
   const [workPartServices, setWorkPartServices] = useState<WorkService[]>([]);
   const [workPartLines, setWorkPartLines] = useState<
-    { lineId: string; companyId: string; serviceId: string; areaId: string; notes: string }[]
+    { lineId: string; companyId: string; serviceId: string; areaId: string; notes: string; minutes: number }[]
   >([]);
   const [workPartOverrideEntry, setWorkPartOverrideEntry] = useState<null | {
     workDate: string;
@@ -174,7 +174,7 @@ export function useBreakModal({
         workPartCompanies.find((x) => x.id === preferredCompanyId) ?? workPartCompanies[0];
       const sid = workPartServices[0]?.id ?? "";
       const aid = c?.areas[0]?.id ?? "";
-      return [{ lineId: lid, companyId: c?.id ?? "", serviceId: sid, areaId: aid, notes: "" }];
+      return [{ lineId: lid, companyId: c?.id ?? "", serviceId: sid, areaId: aid, notes: "", minutes: 0 }];
     });
   }, [
     restModalStep,
@@ -313,6 +313,7 @@ export function useBreakModal({
         );
         return;
       }
+      const safeMinutes = Number.isFinite(line.minutes) ? Math.max(0, Math.round(line.minutes)) : 0;
       tasks.push({
         companyId: company.id,
         companyName: company.name,
@@ -321,6 +322,7 @@ export function useBreakModal({
         areaId: ar.id,
         areaName: ar.name,
         areaObservations: ar.observations ?? "",
+        minutes: safeMinutes,
         lineNotes: (line.notes ?? "").trim(),
       });
     }
@@ -353,12 +355,24 @@ export function useBreakModal({
           : 0;
       const breakMin = Math.max(0, source.breakMinutes ?? target.breakMinutes ?? 0);
       const workedMinutes = Math.max(0, grossMinutes - breakMin);
-      const distributed = splitMinutes(workedMinutes, tasks.length);
+      const assignedMinutes = tasks.reduce(
+        (acc, t) => acc + Math.max(0, Math.round(Number(t.minutes) || 0)),
+        0,
+      );
+      if (tasks.some((t) => !Number.isFinite(t.minutes) || t.minutes < 0)) {
+        throw new Error("Horas negativas");
+      }
+      if (assignedMinutes <= 0) {
+        throw new Error("Horas vacías");
+      }
+      if (Math.abs(assignedMinutes - workedMinutes) > 1) {
+        throw new Error("Horas no cuadran");
+      }
       const linesPayload = tasks.map((task, idx) => ({
         clientCompanyId: task.companyId,
         serviceId: task.serviceId,
         workAreaId: task.areaId,
-        minutes: distributed[idx] ?? 0,
+        minutes: Math.max(0, Math.round(Number(task.minutes) || 0)),
         clientCompanyNameSnapshot: task.companyName,
         serviceNameSnapshot: task.serviceName,
         workAreaNameSnapshot: task.areaName,
@@ -420,7 +434,18 @@ export function useBreakModal({
           );
         }
       } catch (e) {
-        setWorkPartError(userVisibleMessageFromUnknown(e, "No se pudo guardar el parte."));
+        const base = userVisibleMessageFromUnknown(e, "No se pudo guardar el parte.");
+        const msg =
+          base === "No se pudo guardar el parte." && e instanceof Error
+            ? e.message === "Horas no cuadran"
+              ? "Las horas imputadas por tarea no cuadran con el total trabajado."
+              : e.message === "Horas vacías"
+                ? "Indica las horas de cada tarea (la suma debe ser mayor que 0)."
+                : e.message === "Horas negativas"
+                  ? "Revisa las horas por tarea: no pueden ser negativas."
+                  : base
+            : base;
+        setWorkPartError(msg);
         return;
       }
       showSuccess("Parte guardado correctamente.");
@@ -438,7 +463,18 @@ export function useBreakModal({
     try {
       reportId = await saveWorkReport(target, finished);
     } catch (e) {
-      setWorkPartError(userVisibleMessageFromUnknown(e, "No se pudo guardar el parte."));
+      const base = userVisibleMessageFromUnknown(e, "No se pudo guardar el parte.");
+      const msg =
+        base === "No se pudo guardar el parte." && e instanceof Error
+          ? e.message === "Horas no cuadran"
+            ? "Las horas imputadas por tarea no cuadran con el total trabajado."
+            : e.message === "Horas vacías"
+              ? "Indica las horas de cada tarea (la suma debe ser mayor que 0)."
+              : e.message === "Horas negativas"
+                ? "Revisa las horas por tarea: no pueden ser negativas."
+                : base
+          : base;
+      setWorkPartError(msg);
       return;
     }
     if (reportId) {
@@ -476,7 +512,7 @@ export function useBreakModal({
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `ln-${Date.now()}-${prev.length}`;
-      return [...prev, { lineId: lid, companyId: cid, serviceId: sid, areaId: aid, notes: "" }];
+      return [...prev, { lineId: lid, companyId: cid, serviceId: sid, areaId: aid, notes: "", minutes: 0 }];
     });
   };
 
@@ -488,7 +524,7 @@ export function useBreakModal({
 
   const patchWorkPartLine = (
     lineId: string,
-    patch: Partial<{ companyId: string; serviceId: string; areaId: string; notes: string }>,
+    patch: Partial<{ companyId: string; serviceId: string; areaId: string; notes: string; minutes: number }>,
   ) => {
     setWorkPartLines((prev) =>
       prev.map((l) => (l.lineId === lineId ? { ...l, ...patch } : l))
@@ -537,6 +573,7 @@ export function useBreakModal({
         areaId: area.id,
         areaName: area.name,
         areaObservations: area.observations ?? "",
+        minutes: Number.isFinite(line.minutes) ? Math.max(0, Math.round(line.minutes)) : 0,
         lineNotes: (line.notes ?? "").trim(),
       });
     }

@@ -14,6 +14,7 @@ export {
   type TimeEntryRowsSummaryDto,
   type TimeEntryRowsSummaryQuery,
 } from "./time-tracking.service";
+export { kioskTimeTrackingApi, type KioskPunchResultDto } from "./kiosk-time-tracking.service";
 export { tasksApi } from "./tasks.service";
 export { farmsApi } from "./farms.service";
 export { usersApi } from "./users.service";

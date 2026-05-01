@@ -24,11 +24,22 @@ interface FeaturesContextType extends FeaturesState {
 
 const STORAGE_KEY = "agromanager_features";
 
+/**
+ * Si es `false`, no se muestra ni se puede activar desde Ajustes el menú operativo (panel, tareas,
+ * incidencias, animales, granjas, estadísticas). Ponlo en `true` cuando quieras publicar ese bloque.
+ */
+export const OPERATIVA_MENU_RELEASED = false;
+
 const DEFAULT_FEATURES: FeaturesState = {
   enableAnimals: true,
   enableTimeTracking: true,
-  enableOperativaYAnalisisMenu: true,
+  enableOperativaYAnalisisMenu: false,
 };
+
+function clampOperativaIfNotReleased(state: FeaturesState): FeaturesState {
+  if (OPERATIVA_MENU_RELEASED) return state;
+  return { ...state, enableOperativaYAnalisisMenu: false };
+}
 
 const FeaturesContext = createContext<FeaturesContextType | undefined>(undefined);
 
@@ -36,10 +47,10 @@ function readStored(): FeaturesState {
   if (typeof window === "undefined") return DEFAULT_FEATURES;
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (!stored) return DEFAULT_FEATURES;
+    if (!stored) return clampOperativaIfNotReleased(DEFAULT_FEATURES);
     const parsed = JSON.parse(stored) as Partial<FeaturesState> | null;
-    if (!parsed || typeof parsed !== "object") return DEFAULT_FEATURES;
-    return {
+    if (!parsed || typeof parsed !== "object") return clampOperativaIfNotReleased(DEFAULT_FEATURES);
+    return clampOperativaIfNotReleased({
       enableAnimals:
         typeof parsed.enableAnimals === "boolean"
           ? parsed.enableAnimals
@@ -52,16 +63,16 @@ function readStored(): FeaturesState {
         typeof parsed.enableOperativaYAnalisisMenu === "boolean"
           ? parsed.enableOperativaYAnalisisMenu
           : DEFAULT_FEATURES.enableOperativaYAnalisisMenu,
-    };
+    });
   } catch {
-    return DEFAULT_FEATURES;
+    return clampOperativaIfNotReleased(DEFAULT_FEATURES);
   }
 }
 
 function persist(state: FeaturesState) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(clampOperativaIfNotReleased(state)));
   } catch {
     /* ignore */
   }
@@ -91,6 +102,7 @@ export function FeaturesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setEnableOperativaYAnalisisMenu = useCallback((value: boolean) => {
+    if (!OPERATIVA_MENU_RELEASED) return;
     setState((s) => {
       const next = { ...s, enableOperativaYAnalisisMenu: value };
       persist(next);

@@ -40,7 +40,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
       { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: "📅" },
-      { href: "/dashboard/time-tracking/partes-multidia", label: "Partes multi-día", icon: "📑" },
+      { href: "/dashboard/time-tracking/partes-de-obra", label: "Partes de obra", icon: "📑" },
       { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥" },
       { href: "/dashboard/my-company", label: "Mi empresa", icon: "🏷️" },
       { href: "/dashboard/companies", label: "Empresas", icon: "🏢" },

@@ -10,6 +10,8 @@ export type WorkPartTask = {
   areaId: string;
   areaName: string;
   areaObservations: string;
+  /** Minutos imputados a esta tarea (API `WorkReportLine.minutes`). */
+  minutes: number;
   /** Notas de la línea de parte (API `WorkReportLine.notes`). */
   lineNotes?: string;
 };
@@ -51,6 +53,7 @@ export function getTasksFromRecord(r: WorkPartRecord): WorkPartTask[] {
       areaId: t.areaId,
       areaName: t.areaName ?? "",
       areaObservations: t.areaObservations ?? "",
+      minutes: Number.isFinite(t.minutes) ? Math.max(0, Math.round(t.minutes)) : 0,
       lineNotes: typeof t.lineNotes === "string" ? t.lineNotes : undefined,
     }));
   }
@@ -64,6 +67,7 @@ export function getTasksFromRecord(r: WorkPartRecord): WorkPartTask[] {
         areaId: r.areaId,
         areaName: r.areaName ?? "",
         areaObservations: r.areaObservations ?? "",
+        minutes: 0,
       },
     ];
   }

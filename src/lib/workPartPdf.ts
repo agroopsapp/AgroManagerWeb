@@ -328,9 +328,10 @@ export async function downloadWorkPartPdf(
   } else {
     autoTable(doc, {
       startY: y,
-      head: [["#", "Empresa", "Servicio", "Área", "Obs. área", "Notas"]],
+      head: [["#", "Tiempo", "Empresa", "Servicio", "Área", "Obs. área", "Notas"]],
       body: tasks.map((t, i) => [
         String(i + 1),
+        formatMinutesShort(Math.max(0, Math.round(Number(t.minutes) || 0))),
         t.companyName,
         t.serviceName,
         t.areaName,
@@ -341,11 +342,12 @@ export async function downloadWorkPartPdf(
       headStyles: { fillColor: [22, 101, 52], textColor: 255 },
       columnStyles: {
         0: { cellWidth: 10 },
-        1: { cellWidth: 30 },
+        1: { cellWidth: 16 },
         2: { cellWidth: 28 },
-        3: { cellWidth: 28 },
-        4: { cellWidth: 32 },
-        5: { cellWidth: "auto" },
+        3: { cellWidth: 26 },
+        4: { cellWidth: 24 },
+        5: { cellWidth: 30 },
+        6: { cellWidth: "auto" },
       },
       margin: { left: margin, right: margin },
     });

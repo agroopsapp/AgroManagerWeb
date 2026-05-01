@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useFeatures } from "@/contexts/FeaturesContext";
+import { OPERATIVA_MENU_RELEASED, useFeatures } from "@/contexts/FeaturesContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { appHomePath } from "@/lib/dashboardNavGating";
 import { USER_ROLE } from "@/types";
@@ -117,75 +117,93 @@ export default function SettingsPage() {
         </label>
       </div>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
-        <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-200">Tareas, datos y análisis</h2>
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200">
-          Solo superadministrador
-        </p>
-        <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
-          Si lo desactivas, desaparecen del menú y del acceso rápido:{" "}
-          <strong className="font-semibold text-slate-700 dark:text-slate-300">Panel</strong>,{" "}
-          <strong className="font-semibold text-slate-700 dark:text-slate-300">Tareas</strong>,{" "}
-          <strong className="font-semibold text-slate-700 dark:text-slate-300">Tareas sin asignar</strong>,{" "}
-          <strong className="font-semibold text-slate-700 dark:text-slate-300">Incidencias</strong>,{" "}
-          <strong className="font-semibold text-slate-700 dark:text-slate-300">Animales</strong>,{" "}
-          <strong className="font-semibold text-slate-700 dark:text-slate-300">Granjas</strong> y{" "}
-          <strong className="font-semibold text-slate-700 dark:text-slate-300">Estadísticas</strong>. Los trabajadores
-          pasan a entrar por tareas, registro de jornada o{" "}
-          <strong className="font-semibold text-slate-700 dark:text-slate-300">Mi empresa</strong> si todo lo demás
-          está desactivado. Las URLs directas redirigen al panel principal.
-        </p>
-        <label className="inline-flex items-center gap-3">
-          <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-agro-500 dark:bg-slate-600">
-            <input
-              type="checkbox"
-              checked={enableOperativaYAnalisisMenu}
-              onChange={(e) => setEnableOperativaYAnalisisMenu(e.target.checked)}
-              className="peer sr-only"
-            />
-            <span
-              className={`absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                enableOperativaYAnalisisMenu ? "translate-x-5" : "translate-x-0"
-              }`}
-            />
-          </span>
-          <span className="text-sm text-slate-700 dark:text-slate-200">
-            Mostrar <strong>Panel</strong>, <strong>tareas</strong>, <strong>incidencias</strong>,{" "}
-            <strong>animales</strong>, <strong>granjas</strong> y <strong>estadísticas</strong> en la aplicación
-          </span>
-        </label>
-      </div>
+      {!OPERATIVA_MENU_RELEASED ? (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 shadow-sm dark:border-slate-600 dark:bg-slate-800/80">
+          <h2 className="mb-2 font-semibold text-slate-800 dark:text-slate-200">
+            Tareas, panel, animales y estadísticas
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            En esta versión esas secciones{" "}
+            <strong className="font-semibold text-slate-700 dark:text-slate-300">no están publicadas</strong>: no
+            aparecen en el menú y no se pueden activar desde aquí. Cuando toque habilitarlas, un desarrollador debe
+            poner <code className="rounded bg-slate-200 px-1 text-xs dark:bg-slate-700">OPERATIVA_MENU_RELEASED</code> en{" "}
+            <code className="rounded bg-slate-200 px-1 text-xs dark:bg-slate-700">true</code> en{" "}
+            <code className="rounded bg-slate-200 px-1 text-xs dark:bg-slate-700">FeaturesContext</code>.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-6 shadow-sm dark:border-amber-900/40 dark:bg-amber-950/20">
+            <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-200">Tareas, datos y análisis</h2>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200">
+              Solo superadministrador
+            </p>
+            <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
+              Si lo desactivas, desaparecen del menú y del acceso rápido:{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">Panel</strong>,{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">Tareas</strong>,{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">Tareas sin asignar</strong>,{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">Incidencias</strong>,{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">Animales</strong>,{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">Granjas</strong> y{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">Estadísticas</strong>. Los
+              trabajadores pasan a entrar por tareas, registro de jornada o{" "}
+              <strong className="font-semibold text-slate-700 dark:text-slate-300">Mi empresa</strong> si todo lo demás
+              está desactivado. Las URLs directas redirigen al panel principal.
+            </p>
+            <label className="inline-flex items-center gap-3">
+              <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-agro-500 dark:bg-slate-600">
+                <input
+                  type="checkbox"
+                  checked={enableOperativaYAnalisisMenu}
+                  onChange={(e) => setEnableOperativaYAnalisisMenu(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <span
+                  className={`absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    enableOperativaYAnalisisMenu ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </span>
+              <span className="text-sm text-slate-700 dark:text-slate-200">
+                Mostrar <strong>Panel</strong>, <strong>tareas</strong>, <strong>incidencias</strong>,{" "}
+                <strong>animales</strong>, <strong>granjas</strong> y <strong>estadísticas</strong> en la aplicación
+              </span>
+            </label>
+          </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-200">Funcionalidad de animales</h2>
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200 dark:text-amber-300/90">
-          Solo superadministrador
-        </p>
-        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-          Decide si quieres usar seguimiento específico de animales (fichas e incidentes) o solo gestión de tareas
-          generales.
-        </p>
-        <label className="inline-flex items-center gap-3">
-          <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-agro-500 dark:bg-slate-600">
-            <input
-              type="checkbox"
-              checked={enableAnimals}
-              onChange={(e) => setEnableAnimals(e.target.checked)}
-              className="peer sr-only"
-            />
-            <span
-              className={`absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                enableAnimals ? "translate-x-5" : "translate-x-0"
-              }`}
-            />
-          </span>
-          <span className="text-sm text-slate-700 dark:text-slate-200">
-            Activar seguimiento de animales (se muestran los menús de <strong>Animales</strong>,{" "}
-            <strong>Incidencias animales</strong> y la pestaña de <strong>Animales con incidentes</strong> en el
-            panel).
-          </span>
-        </label>
-      </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <h2 className="mb-1 font-semibold text-slate-800 dark:text-slate-200">Funcionalidad de animales</h2>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-amber-800 dark:text-amber-200 dark:text-amber-300/90">
+              Solo superadministrador
+            </p>
+            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+              Decide si quieres usar seguimiento específico de animales (fichas e incidentes) o solo gestión de tareas
+              generales.
+            </p>
+            <label className="inline-flex items-center gap-3">
+              <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-agro-500 dark:bg-slate-600">
+                <input
+                  type="checkbox"
+                  checked={enableAnimals}
+                  onChange={(e) => setEnableAnimals(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <span
+                  className={`absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    enableAnimals ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </span>
+              <span className="text-sm text-slate-700 dark:text-slate-200">
+                Activar seguimiento de animales (se muestran los menús de <strong>Animales</strong>,{" "}
+                <strong>Incidencias animales</strong> y la pestaña de <strong>Animales con incidentes</strong> en el
+                panel).
+              </span>
+            </label>
+          </div>
+        </>
+      )}
     </div>
   );
 }

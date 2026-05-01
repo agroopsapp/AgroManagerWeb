@@ -21,7 +21,7 @@ import {
   splitWorkedMinutesOrdinaryAndExtra,
 } from "@/features/time-tracking/utils/formatters";
 
-type Line = { lineId: string; companyId: string; serviceId: string; areaId: string };
+type Line = { lineId: string; companyId: string; serviceId: string; areaId: string; minutes: number };
 
 function newLineId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -55,6 +55,7 @@ function tasksToLines(tasks: WorkPartTask[]): Line[] {
     companyId: t.companyId,
     serviceId: t.serviceId,
     areaId: t.areaId,
+    minutes: Number.isFinite(t.minutes) ? Math.max(0, Math.round(t.minutes)) : 0,
   }));
 }
 
@@ -96,7 +97,7 @@ export function WorkPartsSavedPanel({
     setEditLines(
       tasks.length > 0
         ? tasksToLines(tasks)
-        : [{ lineId: newLineId(), companyId: "", serviceId: "", areaId: "" }],
+        : [{ lineId: newLineId(), companyId: "", serviceId: "", areaId: "", minutes: 0 }],
     );
     setEditLoading(true);
     (async () => {
@@ -155,6 +156,7 @@ export function WorkPartsSavedPanel({
           companyId: c?.id ?? "",
           serviceId: editServices[0]?.id ?? "",
           areaId: c?.areas[0]?.id ?? "",
+          minutes: 0,
         },
       ];
     });
@@ -173,6 +175,7 @@ export function WorkPartsSavedPanel({
           companyId: cid,
           serviceId: editServices[0]?.id ?? "",
           areaId: c?.areas[0]?.id ?? "",
+          minutes: 0,
         },
       ];
     });
@@ -184,7 +187,7 @@ export function WorkPartsSavedPanel({
 
   const patchLine = (
     lineId: string,
-    patch: Partial<{ companyId: string; serviceId: string; areaId: string }>,
+    patch: Partial<{ companyId: string; serviceId: string; areaId: string; minutes: number }>,
   ) => {
     setEditLines((prev) => prev.map((l) => (l.lineId === lineId ? { ...l, ...patch } : l)));
   };
@@ -207,6 +210,7 @@ export function WorkPartsSavedPanel({
         areaId: ar.id,
         areaName: ar.name,
         areaObservations: ar.observations ?? "",
+        minutes: Number.isFinite(line.minutes) ? Math.max(0, Math.round(line.minutes)) : 0,
       });
     }
     return tasks;
