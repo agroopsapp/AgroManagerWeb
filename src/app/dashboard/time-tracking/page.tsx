@@ -274,7 +274,7 @@ export default function TimeTrackingPage() {
               href="/dashboard/team-hours"
               className="font-semibold text-agro-700 underline-offset-2 hover:underline dark:text-agro-400"
             >
-              Horas del equipo
+              Fichajes y partes
             </Link>{" "}
             o habla con el administrador.
           </p>
@@ -287,7 +287,7 @@ export default function TimeTrackingPage() {
           className="h-1 w-full bg-gradient-to-r from-agro-500 via-emerald-500 to-teal-500"
           aria-hidden
         />
-        <div className="grid min-w-0 lg:grid-cols-[minmax(280px,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(300px,21rem)_minmax(0,1fr)]">
+        <div className="grid min-h-0 min-w-0 lg:grid-cols-[minmax(280px,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(300px,21rem)_minmax(0,1fr)]">
           <aside
             aria-label="Fichaje y resumen del día"
             className="min-w-0 border-b border-slate-100 bg-gradient-to-b from-slate-50/90 to-slate-50/40 p-4 sm:p-5 lg:border-b-0 lg:border-r dark:border-slate-800 dark:from-slate-950/50 dark:to-slate-950/25"
@@ -314,7 +314,7 @@ export default function TimeTrackingPage() {
             />
           </aside>
 
-          <div className="min-w-0 bg-white dark:bg-slate-900/95">
+          <div className="min-h-0 min-w-0 bg-white dark:bg-slate-900/95">
             <HistorialPersonal
               loading={fichaje.loading}
               historicoPersonalFilas={fichaje.historicoPersonalFilas}

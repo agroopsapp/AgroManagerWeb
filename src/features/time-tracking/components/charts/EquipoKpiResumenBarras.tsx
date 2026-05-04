@@ -32,7 +32,7 @@ type BarRow = {
 };
 
 /**
- * Misma información que las cinco tarjetas KPI de Horas del equipo, en barras horizontales.
+ * Misma información que las cinco tarjetas KPI de «Fichajes y partes», en barras horizontales.
  * Cada barra usa una escala acotada al propio indicador (0–100 % del contexto del dato).
  */
 export const EquipoKpiResumenBarras = memo(function EquipoKpiResumenBarras({

@@ -81,7 +81,7 @@ const cardSurfaceClass =
 const FILTER_ANIM_EASE_OUT = [0.16, 1, 0.3, 1] as const;
 const FILTER_ANIM_EASE_IN = [0.4, 0, 0.2, 1] as const;
 
-/** Worker: edición en «Horas del equipo» solo en los últimos N días naturales (incluye sábados y domingos). */
+/** Worker: edición en «Fichajes y partes» solo en los últimos N días naturales (incluye sábados y domingos). */
 const WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS = 7;
 
 /** Etiqueta de campo en la barra de filtros horizontal. */
@@ -147,6 +147,10 @@ export default function TeamHoursPage() {
   const [equipoKpiPagina, setEquipoKpiPagina] = useState<0 | 1>(0);
   // Marcado = comportamiento habitual: ocultar excluidos del fichaje.
   const [ocultarExcluidosFichaje, setOcultarExcluidosFichaje] = useState(true);
+  /** Solo escritorio (lg+): montar filtros en columna lateral; en móvil van en `<details>` para priorizar la tabla. */
+  const [teamHoursIsLgLayout, setTeamHoursIsLgLayout] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false,
+  );
   const { user, isReady } = useAuth();
   const router = useRouter();
 
@@ -154,6 +158,14 @@ export default function TeamHoursPage() {
     if (!isReady) return;
     if (!user) router.replace("/login");
   }, [user, isReady, router]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setTeamHoursIsLgLayout(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   const eq = useEquipo({
     enableEquipoCompanyFilter:
@@ -170,6 +182,12 @@ export default function TeamHoursPage() {
 
   useWheelScrollChain(eq.equipoTablaScrollRef, eq.diasCalendarioMesEquipo.length > 0);
 
+  const part = useEquipoPart({
+    setEquipoPartsVersion: eq.setEquipoPartsVersion,
+    refetchEquipoRows: eq.refetchEquipoRows,
+    onValidationError: setParteEquipoValidationError,
+  });
+
   const modal = useEquipoModal({
     user,
     equipoTablaScrollRef: eq.equipoTablaScrollRef,
@@ -178,12 +196,10 @@ export default function TeamHoursPage() {
     refetchEquipoRows: eq.refetchEquipoRows,
     equipoWorkersCatalog: eq.equipoWorkersOpciones,
     equipoSuperAdminCompanyId: eq.equipoSuperAdminCompanyId,
-  });
-
-  const part = useEquipoPart({
-    setEquipoPartsVersion: eq.setEquipoPartsVersion,
-    refetchEquipoRows: eq.refetchEquipoRows,
-    onValidationError: setParteEquipoValidationError,
+    onHorarioJornadaCompletaGuardada: async (entry) => {
+      setParteEquipoValidationError(null);
+      await part.openEquipoPartEditor(entry);
+    },
   });
 
   useEffect(() => {
@@ -453,86 +469,9 @@ export default function TeamHoursPage() {
         `Mes ${eq.equipoAnioMesPagina}`
       : "";
 
-  return (
-    <div className="min-w-0 max-w-full pb-4">
-      <header className="space-y-2 pb-3">
-        <div className="space-y-1">
-          {parteEquipoValidationError ? (
-            <div
-              role="alert"
-              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/35 dark:text-amber-100"
-            >
-              <span>{parteEquipoValidationError}</span>{" "}
-              <button
-                type="button"
-                className="ml-2 font-semibold underline"
-                onClick={() => setParteEquipoValidationError(null)}
-              >
-                Cerrar
-              </button>
-            </div>
-          ) : null}
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-            Historial del equipo
-          </p>
-          <h1 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white sm:text-xl sm:leading-snug">
-            Horas imputadas por trabajadores
-          </h1>
-          <p className="max-w-2xl text-xs leading-snug text-slate-600 dark:text-slate-400">
-            <span className="font-medium text-slate-800 dark:text-slate-200">{periodoEtiqueta}</span>
-            {" · "}Resumen operativo del periodo seleccionado.
-          </p>
-          {isWorker ? (
-            <p className="mt-2 max-w-2xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
-              Como trabajador/a puedes filtrar y revisar el equipo. Los botones{" "}
-              <strong className="font-semibold">Editar hora</strong> y{" "}
-              <strong className="font-semibold">Añadir / Editar parte</strong> solo aparecen en filas de los{" "}
-              <strong className="font-semibold">últimos {WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS} días naturales</strong>{" "}
-              (incluye fines de semana). Fuera de esa ventana la API puede rechazar la edición.
-            </p>
-          ) : null}
-        </div>
-
-        <details className="group max-w-2xl rounded-lg border border-slate-200/65 bg-slate-50/40 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/25">
-          <summary className="cursor-pointer select-none text-xs font-medium text-slate-700 outline-none marker:text-slate-400 dark:text-slate-200">
-            Interpretación del periodo y los gráficos
-          </summary>
-          <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-snug text-slate-600 marker:text-slate-400 dark:text-slate-400">
-            <li>
-              Mes en curso: del 1 al día de hoy. Meses anteriores: mes completo (lun–dom en rejilla).
-            </li>
-            <li>Fin de semana: tratado como no laboral salvo correcciones manuales.</li>
-            <li>
-              <span className="font-medium text-rose-700 dark:text-rose-400">
-                Laborable sin fichaje
-              </span>{" "}
-              se resalta en la tabla para revisión rápida.
-            </li>
-            <li>
-              En pantallas anchas, el resumen con donas queda a la <strong>derecha</strong> de la tabla y del
-              bloque de objetivo (misma anchura que la rejilla de registros).
-            </li>
-            <li>
-              Si el periodo es <span className="font-medium text-slate-800 dark:text-slate-200">Año</span>
-              , los gráficos usan el año completo y la tabla solo el mes que elijas encima de
-              «Registros».
-            </li>
-          </ul>
-        </details>
-      </header>
-
-      {/* ── Rejilla: panel de filtros + contenido ────────────────── */}
-      {/* `items-stretch` + wrapper alto completo: sin esto `items-start` deja la celda del aside
-          tan baja como el propio panel y `sticky` no tiene recorrido dentro del scroll de `main`. */}
-      <div className="grid grid-cols-1 gap-4 pt-3 lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-stretch">
-
-        {/* ── Panel de filtros lateral (sticky en desktop) ───────── */}
-        <div className="min-h-0 min-w-0">
-          <aside
-            aria-label="Filtros de la vista"
-            className={`${cardSurfaceClass} p-3 lg:sticky lg:top-3`}
-          >
-          <div className="space-y-2.5">
+  function TeamHoursFiltrosInner() {
+    return (
+      <div className="space-y-2.5">
             <div>
               <div className="flex items-start justify-between gap-2">
                 <h2 className="text-xs font-semibold text-slate-900 dark:text-white">Filtros</h2>
@@ -686,9 +625,9 @@ export default function TeamHoursPage() {
             </div>
           )}
 
-          {user.role === USER_ROLE.SuperAdmin ||
-          user.role === USER_ROLE.Manager ||
-          user.role === USER_ROLE.Admin ? (
+          {user!.role === USER_ROLE.SuperAdmin ||
+          user!.role === USER_ROLE.Manager ||
+          user!.role === USER_ROLE.Admin ? (
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="empresa-team-hours-filtro"
@@ -753,9 +692,9 @@ export default function TeamHoursPage() {
             </div>
           </div>
 
-          {user.role === USER_ROLE.SuperAdmin ||
-          user.role === USER_ROLE.Manager ||
-          user.role === USER_ROLE.Admin ? (
+          {user!.role === USER_ROLE.SuperAdmin ||
+          user!.role === USER_ROLE.Manager ||
+          user!.role === USER_ROLE.Admin ? (
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="servicio-team-hours-filtro"
@@ -865,12 +804,14 @@ export default function TeamHoursPage() {
               </div>
             ) : null}
           </div>
-        </aside>
-        </div>
+    );
+  }
 
-        {/* ── Contenido principal: KPI a ancho útil; objetivo+tabla comparten ancho con donas a la derecha (xl+) ── */}
-        <div className="min-h-0 min-w-0 space-y-3">
-      {/* KPI: todo el ancho de la columna principal */}
+  function TeamHoursEquipoKpiSection({ idSuffix }: { idSuffix: string }) {
+    const panelId = `equipo-kpi-panel${idSuffix}`;
+    const tabTarjetasId = `equipo-kpi-tab-tarjetas${idSuffix}`;
+    const tabGraficoId = `equipo-kpi-tab-grafico${idSuffix}`;
+    return (
       <motion.section
         className="space-y-2"
         initial={{ opacity: 1, y: 0 }}
@@ -892,8 +833,8 @@ export default function TeamHoursPage() {
                 type="button"
                 role="tab"
                 aria-selected={equipoKpiPagina === 0}
-                aria-controls="equipo-kpi-panel"
-                id="equipo-kpi-tab-tarjetas"
+                aria-controls={panelId}
+                id={tabTarjetasId}
                 onClick={() => setEquipoKpiPagina(0)}
                 className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-bold transition ${
                   equipoKpiPagina === 0
@@ -908,8 +849,8 @@ export default function TeamHoursPage() {
                 type="button"
                 role="tab"
                 aria-selected={equipoKpiPagina === 1}
-                aria-controls="equipo-kpi-panel"
-                id="equipo-kpi-tab-grafico"
+                aria-controls={panelId}
+                id={tabGraficoId}
                 onClick={() => setEquipoKpiPagina(1)}
                 className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-bold transition ${
                   equipoKpiPagina === 1
@@ -927,85 +868,85 @@ export default function TeamHoursPage() {
           </nav>
         </div>
 
-        <div id="equipo-kpi-panel" role="tabpanel" aria-labelledby={equipoKpiPagina === 0 ? "equipo-kpi-tab-tarjetas" : "equipo-kpi-tab-grafico"}>
+        <div id={panelId} role="tabpanel" aria-labelledby={equipoKpiPagina === 0 ? tabTarjetasId : tabGraficoId}>
           {equipoKpiPagina === 0 ? (
-        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-5 xl:items-stretch">
-          <EquipoKpiStatCard
-            accent="emerald"
-            titulo="Horas imputadas"
-            valorPrincipal={
-              <span className="text-xl font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white sm:text-2xl">
-                {formatMinutesShort(eq.totalMinutosImputadosMes)}
-              </span>
-            }
-            detalle={
-              <span className="tabular-nums text-slate-600 dark:text-slate-400">
-                <span className="font-medium text-slate-800 dark:text-slate-200">
-                  {eq.totalHorasDecimalMes.toLocaleString("es-ES", {
-                    minimumFractionDigits: eq.totalHorasDecimalMes % 1 ? 1 : 0,
-                    maximumFractionDigits: 1,
-                  })}{" "}
-                  h dec.
-                </span>
-              </span>
-            }
-            pie={
-              <>
-                {eq.equipoRegistrosPeriodoKpi.toLocaleString("es-ES")}{" "}
-                {eq.equipoRegistrosPeriodoKpi === 1 ? "registro" : "registros"}
-                {eq.filtroPersonaEquipo !== "todas" ? (
-                  <>
-                    {" · "}
-                    <span className="font-medium text-slate-600 dark:text-slate-300">
-                      {eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)
-                        ?.name ?? eq.filtroPersonaEquipo}
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-5 xl:items-stretch">
+              <EquipoKpiStatCard
+                accent="emerald"
+                titulo="Horas imputadas"
+                valorPrincipal={
+                  <span className="text-xl font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white sm:text-2xl">
+                    {formatMinutesShort(eq.totalMinutosImputadosMes)}
+                  </span>
+                }
+                detalle={
+                  <span className="tabular-nums text-slate-600 dark:text-slate-400">
+                    <span className="font-medium text-slate-800 dark:text-slate-200">
+                      {eq.totalHorasDecimalMes.toLocaleString("es-ES", {
+                        minimumFractionDigits: eq.totalHorasDecimalMes % 1 ? 1 : 0,
+                        maximumFractionDigits: 1,
+                      })}{" "}
+                      h dec.
                     </span>
+                  </span>
+                }
+                pie={
+                  <>
+                    {eq.equipoRegistrosPeriodoKpi.toLocaleString("es-ES")}{" "}
+                    {eq.equipoRegistrosPeriodoKpi === 1 ? "registro" : "registros"}
+                    {eq.filtroPersonaEquipo !== "todas" ? (
+                      <>
+                        {" · "}
+                        <span className="font-medium text-slate-600 dark:text-slate-300">
+                          {eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
+                            eq.filtroPersonaEquipo}
+                        </span>
+                      </>
+                    ) : null}
                   </>
-                ) : null}
-              </>
-            }
-          />
-          <EquipoKpiStatCard
-            accent="violet"
-            titulo="Fichaje en jornadas"
-            valorPrincipal={
-              <EquipoKpiFraccionFichaje
-                conFichaje={eq.equipoJornadasFichajeStats.conFichaje}
-                jornadasLaborables={eq.equipoJornadasFichajeStats.jornadasLaborables}
+                }
               />
-            }
-          />
-          <EquipoKpiStatCard
-            accent="sky"
-            titulo="Parte vs jornadas registradas"
-            valorPrincipal={
-              <EquipoKpiFraccionParte
-                conParte={eq.equipoRejillaParteStats.conFichajeYParte}
-                jornadasRegistradas={eq.equipoRejillaParteStats.conFichajeCerrado}
+              <EquipoKpiStatCard
+                accent="violet"
+                titulo="Fichaje en jornadas"
+                valorPrincipal={
+                  <EquipoKpiFraccionFichaje
+                    conFichaje={eq.equipoJornadasFichajeStats.conFichaje}
+                    jornadasLaborables={eq.equipoJornadasFichajeStats.jornadasLaborables}
+                  />
+                }
               />
-            }
-          />
-          <EquipoKpiStatCard
-            accent="amber"
-            titulo="Registradas pero sin parte"
-            valorPrincipal={
-              <span className="text-xl font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white sm:text-2xl">
-                {eq.equipoRejillaParteStats.conFichajeSinParte.toLocaleString("es-ES")}
-              </span>
-            }
-            pie="Jornada cerrada sin parte en servidor."
-          />
-          <EquipoKpiStatCard
-            accent="rose"
-            titulo="Días sin imputar"
-            valorPrincipal={
-              <span className="text-xl font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white sm:text-2xl">
-                {eq.diasSinImputarEquipo.toLocaleString("es-ES")}
-              </span>
-            }
-            pie="Celdas laborables sin fichaje (coherente con la tabla)."
-          />
-        </div>
+              <EquipoKpiStatCard
+                accent="sky"
+                titulo="Parte vs jornadas registradas"
+                valorPrincipal={
+                  <EquipoKpiFraccionParte
+                    conParte={eq.equipoRejillaParteStats.conFichajeYParte}
+                    jornadasRegistradas={eq.equipoRejillaParteStats.conFichajeCerrado}
+                  />
+                }
+              />
+              <EquipoKpiStatCard
+                accent="amber"
+                titulo="Registradas pero sin parte"
+                valorPrincipal={
+                  <span className="text-xl font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white sm:text-2xl">
+                    {eq.equipoRejillaParteStats.conFichajeSinParte.toLocaleString("es-ES")}
+                  </span>
+                }
+                pie="Jornada cerrada sin parte en servidor."
+              />
+              <EquipoKpiStatCard
+                accent="rose"
+                titulo="Días sin imputar"
+                valorPrincipal={
+                  <span className="text-xl font-semibold tracking-tight text-slate-900 tabular-nums dark:text-white sm:text-2xl">
+                    {eq.diasSinImputarEquipo.toLocaleString("es-ES")}
+                  </span>
+                }
+                pie="Celdas laborables sin fichaje (coherente con la tabla)."
+              />
+            </div>
           ) : (
             <EquipoKpiResumenBarras
               totalMinutosImputados={eq.totalMinutosImputadosMes}
@@ -1022,31 +963,219 @@ export default function TeamHoursPage() {
           )}
         </div>
       </motion.section>
+    );
+  }
+
+  function TeamHoursObjetivoCard() {
+    return (
+      <motion.div
+        className={`${cardSurfaceClass} p-3 sm:p-3.5`}
+        initial={{ opacity: 1, y: 0 }}
+        animate={objetivoBlockAnim}
+      >
+        <EquipoObjetivoMesEncabezado
+          diasLaborables={eq.diasLaborablesMesEquipo}
+          personasEnObjetivo={eq.personasEnObjetivo}
+          horasObjetivo={eq.horasObjetivoMesTeorico}
+          filtroTodasPersonas={eq.filtroPersonaEquipo === "todas"}
+          periodo={eq.equipoPeriodo}
+        />
+        <div className="mt-2">
+          <EquipoBarraLaboralesExtra
+            horasObjetivo={eq.horasObjetivoMesTeorico}
+            horasImputadasLabor={eq.hDonutImputado}
+            horasFalta={eq.horasFaltaParaObjetivo}
+            horasExtra={eq.hDonutExtra}
+            horasImputadasTotal={eq.horasImputadasDecimal}
+          />
+        </div>
+      </motion.div>
+    );
+  }
+
+  function TeamHoursResumenVisualAside() {
+    return (
+      <motion.aside
+        className="w-full shrink-0 xl:sticky xl:top-2 xl:z-[2] xl:w-[min(100%,18rem)] 2xl:w-[min(100%,20rem)]"
+        aria-label="Resumen visual del periodo"
+        initial={{ opacity: 1, y: 0 }}
+        animate={resumenAsideAnim}
+      >
+        <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
+          <div className="border-b border-slate-100 pb-2 dark:border-slate-800">
+            <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-blue-700 dark:text-sky-300">
+              Resumen visual
+            </h2>
+            <p className="mt-1 text-xs leading-snug text-slate-500 dark:text-slate-400">
+              Desglose por tipo de fichaje y objetivo frente a imputación.
+            </p>
+            {eq.equipoSummaryError ? (
+              <p className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-amber-200/90 bg-amber-50 px-2.5 py-1.5 text-xs leading-snug text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
+                {eq.equipoSummaryError}
+              </p>
+            ) : null}
+            {eq.equipoSummaryLoading ? (
+              <p className="mt-2 text-sm font-medium text-blue-800 dark:text-sky-200">
+                Cargando resumen para gráficos…
+              </p>
+            ) : null}
+          </div>
+          <div className="mt-2 space-y-2">
+            <div className="min-h-0 min-w-0 rounded-xl border border-slate-200/90 bg-slate-50/50 px-2 py-2.5 dark:border-slate-600/60 dark:bg-slate-900/40 sm:px-2.5">
+              <FichajeTipoRadialSummary
+                bare
+                bareStack
+                horasNormal={eq.fichajeTipoStats.horasNormal}
+                horasManual={eq.fichajeTipoStats.horasManual}
+                horasSinImputar={eq.horasSinImputarTipoFichaje}
+                registrosNormal={eq.fichajeTipoStats.registrosNormal}
+                registrosManual={eq.fichajeTipoStats.registrosManual}
+                diasSinImputar={eq.diasSinImputarEquipo}
+              />
+            </div>
+            <div className="min-h-0 min-w-0 rounded-lg border-t border-slate-200/80 bg-slate-50/80 px-1.5 py-2 pt-2.5 dark:border-slate-700/80 dark:bg-slate-950/35 sm:px-2">
+              <HorasMensualesDonut
+                bare
+                bareStack
+                horasImputadoHastaTope={eq.hDonutImputado}
+                horasFalta={eq.hDonutFalta}
+                horasExtra={eq.hDonutExtra}
+                horasObjetivo={eq.horasObjetivoMesTeorico}
+                horasImputadasTotal={eq.horasImputadasDecimal}
+                registrosEnPeriodo={eq.equipoRegistrosPeriodoKpi}
+                periodo={eq.equipoPeriodo}
+              />
+            </div>
+          </div>
+        </section>
+      </motion.aside>
+    );
+  }
+
+  return (
+    <div className="min-w-0 max-w-full pb-4">
+      <header className="space-y-2 pb-3">
+        <div className="space-y-1">
+          {parteEquipoValidationError ? (
+            <div
+              role="alert"
+              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/35 dark:text-amber-100"
+            >
+              <span>{parteEquipoValidationError}</span>{" "}
+              <button
+                type="button"
+                className="ml-2 font-semibold underline"
+                onClick={() => setParteEquipoValidationError(null)}
+              >
+                Cerrar
+              </button>
+            </div>
+          ) : null}
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
+            Fichajes y partes
+          </p>
+          <h1 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white sm:text-xl sm:leading-snug">
+            Vista del equipo por trabajador
+          </h1>
+          <p className="max-w-2xl text-xs leading-snug text-slate-600 dark:text-slate-400">
+            <span className="font-medium text-slate-800 dark:text-slate-200">{periodoEtiqueta}</span>
+            {" · "}Fichajes imputados y partes diarios del periodo seleccionado.
+          </p>
+          {isWorker ? (
+            <p className="mt-2 max-w-2xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+              Como trabajador/a puedes filtrar y revisar el equipo. Los botones{" "}
+              <strong className="font-semibold">Editar hora</strong> y{" "}
+              <strong className="font-semibold">Añadir / Editar parte</strong> solo aparecen en filas de los{" "}
+              <strong className="font-semibold">últimos {WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS} días naturales</strong>{" "}
+              (incluye fines de semana). Fuera de esa ventana la API puede rechazar la edición.
+            </p>
+          ) : null}
+        </div>
+
+        <details className="group max-w-2xl rounded-lg border border-slate-200/65 bg-slate-50/40 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/25">
+          <summary className="cursor-pointer select-none text-xs font-medium text-slate-700 outline-none marker:text-slate-400 dark:text-slate-200">
+            Interpretación del periodo y los gráficos
+          </summary>
+          <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-snug text-slate-600 marker:text-slate-400 dark:text-slate-400">
+            <li>
+              Mes en curso: del 1 al día de hoy. Meses anteriores: mes completo (lun–dom en rejilla).
+            </li>
+            <li>Fin de semana: tratado como no laboral salvo correcciones manuales.</li>
+            <li>
+              <span className="font-medium text-rose-700 dark:text-rose-400">
+                Laborable sin fichaje
+              </span>{" "}
+              se resalta en la tabla para revisión rápida.
+            </li>
+            <li>
+              En pantallas anchas, el resumen con donas queda a la <strong>derecha</strong> de la tabla y del
+              bloque de objetivo (misma anchura que la rejilla de registros).
+            </li>
+            <li>
+              Si el periodo es <span className="font-medium text-slate-800 dark:text-slate-200">Año</span>
+              , los gráficos usan el año completo y la tabla solo el mes que elijas encima de
+              «Registros».
+            </li>
+          </ul>
+        </details>
+      </header>
+
+      {/* ── Rejilla: panel de filtros + contenido ────────────────── */}
+      {/* `items-stretch` + wrapper alto completo: sin esto `items-start` deja la celda del aside
+          tan baja como el propio panel y `sticky` no tiene recorrido dentro del scroll de `main`. */}
+      <div className="flex flex-col gap-4 pt-3 lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-stretch">
+
+        {/* ── Panel de filtros lateral (solo lg+; en móvil: primer `<details>` encima del grid) ───────── */}
+        {teamHoursIsLgLayout ? (
+        <div className="min-h-0 min-w-0">
+          <aside
+            aria-label="Filtros de la vista"
+            className={`${cardSurfaceClass} p-3 lg:sticky lg:top-3`}
+          >
+            <TeamHoursFiltrosInner />
+          </aside>
+        </div>
+        ) : null}
+
+        {!teamHoursIsLgLayout ? (
+          <details className="group rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-600 dark:bg-slate-900/45 dark:shadow-none [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-left outline-none ring-agro-500/25 focus-visible:ring-2 dark:ring-emerald-500/30">
+              <span className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Mostrar u ocultar
+                </span>
+                <span className="mt-0.5 block text-sm font-semibold text-slate-900 dark:text-white">
+                  Filtros del periodo y alcance
+                </span>
+              </span>
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-xl font-bold leading-none text-agro-700 dark:border-slate-600 dark:bg-slate-800 dark:text-agro-400 group-open:hidden"
+                aria-hidden
+              >
+                +
+              </span>
+              <span
+                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-agro-200 bg-agro-50 text-xl font-bold leading-none text-agro-800 group-open:flex dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200"
+                aria-hidden
+              >
+                −
+              </span>
+            </summary>
+            <div className="border-t border-slate-100 px-3 pb-4 pt-3 dark:border-slate-800">
+              <aside aria-label="Filtros de la vista" className={`${cardSurfaceClass} p-3`}>
+                <TeamHoursFiltrosInner />
+              </aside>
+            </div>
+          </details>
+        ) : null}
+
+        {/* ── Contenido principal: KPI a ancho útil; objetivo+tabla comparten ancho con donas a la derecha (xl+) ── */}
+        <div className="min-h-0 min-w-0 space-y-3">
+          {teamHoursIsLgLayout ? <TeamHoursEquipoKpiSection idSuffix="" /> : null}
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:gap-3">
             <div className="min-h-0 min-w-0 flex-1 space-y-3">
-        <motion.div
-          className={`${cardSurfaceClass} p-3 sm:p-3.5`}
-          initial={{ opacity: 1, y: 0 }}
-          animate={objetivoBlockAnim}
-        >
-          <EquipoObjetivoMesEncabezado
-            diasLaborables={eq.diasLaborablesMesEquipo}
-            personasEnObjetivo={eq.personasEnObjetivo}
-            horasObjetivo={eq.horasObjetivoMesTeorico}
-            filtroTodasPersonas={eq.filtroPersonaEquipo === "todas"}
-            periodo={eq.equipoPeriodo}
-          />
-          <div className="mt-2">
-            <EquipoBarraLaboralesExtra
-              horasObjetivo={eq.horasObjetivoMesTeorico}
-              horasImputadasLabor={eq.hDonutImputado}
-              horasFalta={eq.horasFaltaParaObjetivo}
-              horasExtra={eq.hDonutExtra}
-              horasImputadasTotal={eq.horasImputadasDecimal}
-            />
-          </div>
-        </motion.div>
+              {teamHoursIsLgLayout ? <TeamHoursObjetivoCard /> : null}
 
       {/* Tabla / vacío (principal): animación tipo desplegable desde arriba */}
       {eq.diasCalendarioMesEquipo.length === 0 ? (
@@ -1161,7 +1290,7 @@ export default function TeamHoursPage() {
                     filas: eq.equipoFilasVista,
                     nameByPersonKey: eq.equipoNombrePorClave,
                     capWorkMinutesPerDay: eq.equipoCapTrabajoDiarioMinutos,
-                    title: `Horas del equipo — ${periodoEtiqueta}`,
+                    title: `Fichajes y partes — ${periodoEtiqueta}`,
                     fileBaseName,
                   });
                 }}
@@ -1210,20 +1339,48 @@ export default function TeamHoursPage() {
           {/* Tabla scroll */}
           <div
             ref={eq.equipoTablaScrollRef}
-            className="team-hours-table-scroll isolate max-h-[min(80vh,calc(100dvh-11.5rem))] w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto border-t border-slate-100 bg-slate-50/20 [-webkit-overflow-scrolling:touch] [touch-action:pan-x_pan-y] dark:border-slate-800 dark:bg-slate-950/15 lg:max-h-[min(82vh,calc(100dvh-12.5rem))]"
+            className="team-hours-table-scroll isolate w-full min-w-0 max-w-full overflow-x-hidden overflow-y-visible border-t border-slate-100 bg-slate-50/20 dark:border-slate-800 dark:bg-slate-950/15 max-h-none lg:max-h-[min(82vh,calc(100dvh-12.5rem))] lg:overflow-y-auto lg:[-webkit-overflow-scrolling:touch] lg:[touch-action:pan-y]"
             style={{
               overscrollBehaviorY: "auto",
               overscrollBehaviorX: "contain",
-              WebkitOverflowScrolling: "touch",
             }}
           >
+            <div className="min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch] [touch-action:manipulation]">
             <table className="w-full min-w-[64rem] border-collapse text-left text-sm">
               <thead className="sticky top-0 z-[5] border-b border-slate-200/90 bg-white/90 text-xs font-semibold text-slate-600 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300">
                 <tr>
                   {(
                     [
-                      { key: "persona", label: "Persona" },
+                      { key: "persona", label: "Trabajador" },
                       { key: "fecha", label: "Fecha" },
+                    ] as const
+                  ).map(({ key, label }) => (
+                    <th key={key} className="px-2 py-1.5">
+                      <button
+                        type="button"
+                        onClick={() => eq.setEquipoSortColumn(key)}
+                        className="flex w-full items-center gap-0.5 text-left hover:text-slate-900 dark:hover:text-white"
+                      >
+                        {label}
+                        <SortArrow sortKey={key} activeKey={eq.equipoSort.key} dir={eq.equipoSort.dir} />
+                      </button>
+                    </th>
+                  ))}
+                  <th
+                    className="max-w-[6.5rem] px-2 py-1.5"
+                    title="Campo JSON status del API"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => eq.setEquipoSortColumn("estado")}
+                      className="flex w-full items-center gap-0.5 text-left hover:text-slate-900 dark:hover:text-white"
+                    >
+                      Estado
+                      <SortArrow sortKey="estado" activeKey={eq.equipoSort.key} dir={eq.equipoSort.dir} />
+                    </button>
+                  </th>
+                  {(
+                    [
                       { key: "entrada", label: "Entrada" },
                       { key: "salida", label: "Salida" },
                     ] as const
@@ -1247,19 +1404,6 @@ export default function TeamHoursPage() {
                     >
                       Descanso
                       <SortArrow sortKey="descanso" activeKey={eq.equipoSort.key} dir={eq.equipoSort.dir} />
-                    </button>
-                  </th>
-                  <th
-                    className="max-w-[6.5rem] px-2 py-1.5"
-                    title="Campo JSON status del API"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => eq.setEquipoSortColumn("estado")}
-                      className="flex w-full items-center gap-0.5 text-left hover:text-slate-900 dark:hover:text-white"
-                    >
-                      Estado
-                      <SortArrow sortKey="estado" activeKey={eq.equipoSort.key} dir={eq.equipoSort.dir} />
                     </button>
                   </th>
                   <th className="px-2 py-1.5">
@@ -1358,9 +1502,6 @@ export default function TeamHoursPage() {
                         <td className="px-2 py-1.5 text-sm text-slate-700 dark:text-slate-200">
                           {formatDateEsWeekdayDdMmYyyy(fila.workDate)}
                         </td>
-                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-2 py-1.5 text-sm align-middle">
                           <span
                             className={`${equipoTablaEtiquetaBaseClass} ${timeEntryApiStatusBadgeClass("NonWorkingDay")}`}
@@ -1368,6 +1509,9 @@ export default function TeamHoursPage() {
                             No laboral
                           </span>
                         </td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
                         <td className="max-w-[11rem] px-2 py-1.5 text-sm text-slate-600 dark:text-slate-300">
                           {RAZON_NO_LABORAL}
                         </td>
@@ -1417,9 +1561,6 @@ export default function TeamHoursPage() {
                         <td className="px-2 py-1.5 text-sm font-medium text-slate-800 dark:text-slate-100">
                           {formatDateEsWeekdayDdMmYyyy(fila.workDate)}
                         </td>
-                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-2 py-1.5 text-sm align-middle">
                           <span
                             className={`${equipoTablaEtiquetaBaseClass} ${equipoTablaSinImputarBadgeClass}`}
@@ -1427,6 +1568,9 @@ export default function TeamHoursPage() {
                             Sin imputar
                           </span>
                         </td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">—</td>
                         <td className="max-w-[11rem] px-2 py-1.5 text-sm text-slate-700 dark:text-slate-200">
                           {RAZON_SIN_IMPUTAR}
                         </td>
@@ -1489,15 +1633,6 @@ export default function TeamHoursPage() {
                       <td className="min-w-[9rem] px-2 py-1.5 text-sm">
                         {formatDateEsWeekdayDdMmYyyy(e.workDate)}
                       </td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-sm">
-                        {ocultaHoras ? "—" : formatTimeLocal(e.checkInUtc)}
-                      </td>
-                      <td className="whitespace-nowrap px-2 py-1.5 text-sm">
-                        {ocultaHoras ? "—" : formatTimeLocal(e.checkOutUtc)}
-                      </td>
-                      <td className="px-2 py-1.5 text-sm">
-                        {ocultaHoras ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
-                      </td>
                       <td className="px-2 py-1.5 text-sm align-middle">
                         {ausenciaEtiquetaVisual ? (
                           <span
@@ -1511,6 +1646,15 @@ export default function TeamHoursPage() {
                             status={e.timeEntryStatus}
                           />
                         )}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-sm">
+                        {ocultaHoras ? "—" : formatTimeLocal(e.checkInUtc)}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-1.5 text-sm">
+                        {ocultaHoras ? "—" : formatTimeLocal(e.checkOutUtc)}
+                      </td>
+                      <td className="px-2 py-1.5 text-sm">
+                        {ocultaHoras ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
                       </td>
                       <td className="max-w-[12rem] px-2 py-1.5 text-sm leading-snug">
                         <span className={razonClass}>
@@ -1606,6 +1750,7 @@ export default function TeamHoursPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
           {eq.equipoRange && eq.filtroPersonaEquipo !== "todas" ? (
             <div className="border-t border-slate-100 bg-slate-50/30 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/20">
@@ -1639,66 +1784,43 @@ export default function TeamHoursPage() {
       )}
             </div>
 
-            <motion.aside
-              className="w-full shrink-0 xl:sticky xl:top-2 xl:z-[2] xl:w-[min(100%,18rem)] 2xl:w-[min(100%,20rem)]"
-              aria-label="Resumen visual del periodo"
-              initial={{ opacity: 1, y: 0 }}
-              animate={resumenAsideAnim}
-            >
-              {/*
-                Sin max-height ni overflow en el aside: evita barra interna y recortes.
-                Donas una debajo de otra; el scroll general es el de <main>.
-              */}
-              <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
-                <div className="border-b border-slate-100 pb-2 dark:border-slate-800">
-                  <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-blue-700 dark:text-sky-300">
-                    Resumen visual
-                  </h2>
-                  <p className="mt-1 text-xs leading-snug text-slate-500 dark:text-slate-400">
-                    Desglose por tipo de fichaje y objetivo frente a imputación.
-                  </p>
-                  {eq.equipoSummaryError ? (
-                    <p className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-amber-200/90 bg-amber-50 px-2.5 py-1.5 text-xs leading-snug text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
-                      {eq.equipoSummaryError}
-                    </p>
-                  ) : null}
-                  {eq.equipoSummaryLoading ? (
-                    <p className="mt-2 text-sm font-medium text-blue-800 dark:text-sky-200">
-                      Cargando resumen para gráficos…
-                    </p>
-                  ) : null}
-                </div>
-                <div className="mt-2 space-y-2">
-                  <div className="min-h-0 min-w-0 rounded-xl border border-slate-200/90 bg-slate-50/50 px-2 py-2.5 dark:border-slate-600/60 dark:bg-slate-900/40 sm:px-2.5">
-                    <FichajeTipoRadialSummary
-                      bare
-                      bareStack
-                      horasNormal={eq.fichajeTipoStats.horasNormal}
-                      horasManual={eq.fichajeTipoStats.horasManual}
-                      horasSinImputar={eq.horasSinImputarTipoFichaje}
-                      registrosNormal={eq.fichajeTipoStats.registrosNormal}
-                      registrosManual={eq.fichajeTipoStats.registrosManual}
-                      diasSinImputar={eq.diasSinImputarEquipo}
-                    />
-                  </div>
-                  <div className="min-h-0 min-w-0 rounded-lg border-t border-slate-200/80 bg-slate-50/80 px-1.5 py-2 pt-2.5 dark:border-slate-700/80 dark:bg-slate-950/35 sm:px-2">
-                    <HorasMensualesDonut
-                      bare
-                      bareStack
-                      horasImputadoHastaTope={eq.hDonutImputado}
-                      horasFalta={eq.hDonutFalta}
-                      horasExtra={eq.hDonutExtra}
-                      horasObjetivo={eq.horasObjetivoMesTeorico}
-                      horasImputadasTotal={eq.horasImputadasDecimal}
-                      registrosEnPeriodo={eq.equipoRegistrosPeriodoKpi}
-                      periodo={eq.equipoPeriodo}
-                    />
-                  </div>
-                </div>
-              </section>
-            </motion.aside>
+            {teamHoursIsLgLayout ? <TeamHoursResumenVisualAside /> : null}
           </div>
         </div>
+
+        {!teamHoursIsLgLayout ? (
+          <details className="group rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-600 dark:bg-slate-900/45 dark:shadow-none [&_summary::-webkit-details-marker]:hidden">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-left outline-none ring-agro-500/25 focus-visible:ring-2 dark:ring-emerald-500/30">
+              <span className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Mostrar u ocultar
+                </span>
+                <span className="mt-0.5 block text-sm font-semibold text-slate-900 dark:text-white">
+                  Resumen numérico y gráficos
+                </span>
+              </span>
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-xl font-bold leading-none text-agro-700 dark:border-slate-600 dark:bg-slate-800 dark:text-agro-400 group-open:hidden"
+                aria-hidden
+              >
+                +
+              </span>
+              <span
+                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-agro-200 bg-agro-50 text-xl font-bold leading-none text-agro-800 group-open:flex dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200"
+                aria-hidden
+              >
+                −
+              </span>
+            </summary>
+            <div className="border-t border-slate-100 px-3 pb-4 pt-3 dark:border-slate-800">
+              <div className="flex flex-col gap-3">
+                <TeamHoursEquipoKpiSection idSuffix="-movil" />
+                <TeamHoursObjetivoCard />
+                <TeamHoursResumenVisualAside />
+              </div>
+            </div>
+          </details>
+        ) : null}
       </div>
 
       {/* ── Modal: editar día del equipo ───────────────────────── */}

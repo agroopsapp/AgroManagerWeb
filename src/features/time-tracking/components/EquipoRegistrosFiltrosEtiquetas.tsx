@@ -42,7 +42,7 @@ export interface EquipoRegistrosFiltrosEtiquetasProps {
 }
 
 /**
- * Etiquetas de contexto encima de la tabla «Registros» (Horas del equipo / panel manager):
+ * Etiquetas de contexto encima de la tabla «Registros» (Fichajes y partes / panel manager):
  * periodo siempre, y chips adicionales cuando hay alcance o vista rápida activa.
  */
 export function EquipoRegistrosFiltrosEtiquetas({

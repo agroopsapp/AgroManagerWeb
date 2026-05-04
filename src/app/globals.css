@@ -29,7 +29,7 @@ body.dark {
   color: #f1f5f9 !important;
 }
 
-/* Tabla «Horas del equipo»: barra de scroll legible en modo oscuro */
+/* Tabla «Fichajes y partes»: barra de scroll legible en modo oscuro */
 .team-hours-table-scroll {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 #f1f5f9;

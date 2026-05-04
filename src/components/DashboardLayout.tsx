@@ -16,31 +16,12 @@ import {
   isDashboardPathAccessibleInFichadorShell,
   isDashboardPathOperativaYAnalisis,
 } from "@/lib/dashboardNavGating";
+import {
+  DASHBOARD_NAV_SECTIONS,
+  isDashboardNavLinkVisible,
+} from "@/lib/dashboardNavSections";
 
 const SIDEBAR_STORAGE_KEY = "agroops_sidebar_collapsed";
-
-const QUICK_MENU_ITEMS = [
-  // Fila 1
-  { href: "/dashboard", label: "Panel", icon: "🏠" },
-  { href: "/dashboard/tasks", label: "Tareas", icon: "📋" },
-  { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
-  { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
-  { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
-  { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: "📅" },
-  { href: "/dashboard/time-tracking/partes-de-obra", label: "Partes de obra", icon: "📑" },
-  { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥" },
-  { href: "/dashboard/my-company", label: "Mi empresa", icon: "🏷️" },
-  { href: "/dashboard/companies", label: "Empresas", icon: "🏢" },
-  { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
-  // Fila 2 (después de operativa)
-  { href: "/dashboard/animals", label: "Animales", icon: "🐄" },
-  { href: "/dashboard/users", label: "Trabajadores", icon: "👤" },
-  { href: "/dashboard/farms", label: "Granjas", icon: "🌾" },
-  // Fila 3
-  { href: "/dashboard/stats", label: "Estadísticas", icon: "📈" },
-  { href: "/dashboard/superadmin", label: "Superadmin", icon: "🛡", superAdminOnly: true },
-  { href: "/dashboard/settings", label: "Ajustes", icon: "⚙", superAdminOnly: true },
-];
 
 export default function DashboardLayout({
   children,
@@ -105,6 +86,13 @@ export default function DashboardLayout({
     });
   };
 
+  const quickNavVisibility = {
+    role: user?.role,
+    enableAnimals,
+    enableTimeTracking,
+    enableOperativaYAnalisisMenu,
+  };
+
   if (!isReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -148,7 +136,7 @@ export default function DashboardLayout({
             onClick={() => setQuickMenuOpen(false)}
           >
             <div
-              className={`w-full max-w-xs ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`}
+              className={`w-full max-w-sm ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="mb-3 flex items-center justify-between">
@@ -164,64 +152,36 @@ export default function DashboardLayout({
                   ✕
                 </button>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                {QUICK_MENU_ITEMS.map(({ href, label, icon, adminOnly, superAdminOnly }) => {
-                  const isAdminLike =
-                    user?.role === USER_ROLE.Admin ||
-                    user?.role === USER_ROLE.SuperAdmin ||
-                    user?.role === USER_ROLE.Manager;
+              <div className="max-h-[min(70vh,28rem)] space-y-4 overflow-y-auto pr-1">
+                {DASHBOARD_NAV_SECTIONS.map((section) => {
+                  const visible = section.items.filter((item) =>
+                    isDashboardNavLinkVisible(item, quickNavVisibility),
+                  );
+                  if (visible.length === 0) return null;
 
-                  // Modo fichador: Worker estricto; Admin/Manager también ven gestión (empresa, etc.).
-                  if (
-                    user?.role !== USER_ROLE.SuperAdmin &&
-                    !isDashboardPathAccessibleInFichadorShell(user?.role, href)
-                  ) {
-                    return null;
-                  }
-
-                  if (href === "/dashboard" && user?.role === USER_ROLE.Worker) {
-                    return null;
-                  }
-
-                  if (superAdminOnly && user?.role !== USER_ROLE.SuperAdmin) {
-                    return null;
-                  }
-
-                  if (adminOnly && !isAdminLike) {
-                    return null;
-                  }
-                  if (!enableTimeTracking && href === "/dashboard/time-tracking") {
-                    return null;
-                  }
-                  if (!enableTimeTracking && href.startsWith("/dashboard/time-tracking/")) {
-                    return null;
-                  }
-                  if (!enableTimeTracking && href === "/dashboard/team-hours") {
-                    return null;
-                  }
-                  if (!enableOperativaYAnalisisMenu && isDashboardPathOperativaYAnalisis(href)) {
-                    return null;
-                  }
-                  if (
-                    !enableAnimals &&
-                    (href === "/dashboard/incidents" || href === "/dashboard/animals")
-                  ) {
-                    return null;
-                  }
                   return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setQuickMenuOpen(false)}
-                    className="flex min-h-[80px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                  >
-                    <span className="text-2xl" aria-hidden>
-                      {icon}
-                    </span>
-                    <span className="mt-1 max-w-[90px] text-[11px] leading-tight text-center">
-                      {label}
-                    </span>
-                  </Link>
+                    <div key={section.title}>
+                      <p className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        {section.title}
+                      </p>
+                      <div className="grid grid-cols-3 gap-3">
+                        {visible.map(({ href, label, icon }) => (
+                          <Link
+                            key={href}
+                            href={href}
+                            onClick={() => setQuickMenuOpen(false)}
+                            className="flex min-h-[80px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                          >
+                            <span className="text-2xl" aria-hidden>
+                              {icon}
+                            </span>
+                            <span className="mt-1 max-w-[90px] text-[11px] leading-tight text-center">
+                              {label}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
                   );
                 })}
               </div>

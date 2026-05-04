@@ -87,10 +87,13 @@ export function useForgotModal({
     setForgotMode(null);
   }, []);
 
+  /** Desde «Olvidé fichar»: solo se permite hoy + jornada completa → sin pantallas intermedias. */
   const openForgotModal = useCallback(() => {
     setForgotError(null);
-    setForgotTargetDate(null);
-    setForgotStep("pick_day");
+    const today = localTodayISO();
+    setForgotTargetDate(today);
+    setForgotMode("full_hoy");
+    setForgotStep("full_start");
   }, []);
 
   const openForgotForDate = useCallback((workDate: string) => {

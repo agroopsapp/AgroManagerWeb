@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  /** Ruta duplicada del panel de equipo: solo debe existir `/dashboard/team-hours` en el menú. */
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/manager",
+        destination: "/dashboard/team-hours",
+        permanent: false,
+      },
+    ];
+  },
+
   /**
    * Cabeceras de seguridad.
    *

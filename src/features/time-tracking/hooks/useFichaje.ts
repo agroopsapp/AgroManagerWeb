@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { getTasksFromRecord, getWorkPartsForWorker } from "@/lib/workPartsStorage";
-import { timeTrackingApi, type TimeEntryDto } from "@/services/time-tracking.service";
+import { timeTrackingApi } from "@/services/time-tracking.service";
 import {
   localCalendarISO,
   localTodayISO,
@@ -13,8 +13,8 @@ import {
   historicoFilaSinImputarPasado,
   type HistoricoPersonalFila,
 } from "@/features/time-tracking/utils/formatters";
-import type { TimeEntryMock, TimeEntryRazon } from "@/features/time-tracking/types";
-import { parseTimeEntryApiStatus } from "@/features/time-tracking/utils/timeEntryApiStatus";
+import type { TimeEntryMock } from "@/features/time-tracking/types";
+import { timeEntryDtoToMock } from "@/features/time-tracking/utils/timeEntryDtoToMock";
 
 type AuthUser = { id?: string; email?: string | null; role?: string } | null | undefined;
 
@@ -22,41 +22,6 @@ interface Params {
   user: AuthUser;
   isReady: boolean;
   miWorkerId: number;
-}
-
-function normalizeRazon(input: string | null | undefined): TimeEntryRazon | undefined {
-  if (
-    input === "imputacion_normal" ||
-    input === "imputacion_manual_error" ||
-    input === "ausencia_vacaciones" ||
-    input === "ausencia_baja" ||
-    input === "dia_no_laboral"
-  ) {
-    return input;
-  }
-  return undefined;
-}
-
-function dtoToEntry(
-  dto: TimeEntryDto,
-  fallbackWorkerId: number,
-): TimeEntryMock {
-  const { status: apiStatus, ...dtoRest } = dto;
-  const workerId =
-    Number.isFinite(dto.workerId) && dto.workerId > 0 ? dto.workerId : fallbackWorkerId;
-  return {
-    ...dtoRest,
-    timeEntryId: dto.timeEntryId ?? null,
-    companyId: dto.companyId ?? null,
-    workerId,
-    breakMinutes: dto.breakMinutes ?? 0,
-    razon: normalizeRazon(dto.razon),
-    userName: dto.userName ?? null,
-    userEmail: dto.userEmail ?? null,
-    lastModifiedByEmail: dto.lastModifiedByEmail ?? null,
-    lastModifiedByName: dto.lastModifiedByName ?? null,
-    timeEntryStatus: parseTimeEntryApiStatus(apiStatus),
-  };
 }
 
 export function useFichaje({ user, isReady, miWorkerId }: Params) {
@@ -88,7 +53,7 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
       try {
         const list = await timeTrackingApi.getMyEntries({ signal: ac.signal });
         if (ac.signal.aborted) return;
-        const entriesMapped = list.map((e) => dtoToEntry(e, miWorkerId));
+        const entriesMapped = list.map((e) => timeEntryDtoToMock(e, miWorkerId));
         const filteredLast7 = entriesMapped.filter((e) =>
           workDateWithinLastNDays(e.workDate, 7),
         );
@@ -197,7 +162,7 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
     try {
       const created = await timeTrackingApi.checkIn();
       setEntries((prev) => {
-        const next = dtoToEntry(created, miWorkerId);
+        const next = timeEntryDtoToMock(created, miWorkerId);
         const withoutSameId = prev.filter((e) => e.id !== next.id);
         return [...withoutSameId, next];
       });

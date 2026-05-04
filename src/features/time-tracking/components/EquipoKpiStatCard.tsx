@@ -83,7 +83,7 @@ export const EquipoKpiFraccionFichaje = memo(function EquipoKpiFraccionFichaje({
   );
 });
 
-/** Tarjeta KPI reutilizable (Horas del equipo y vistas similares). */
+/** Tarjeta KPI reutilizable (Fichajes y partes / vistas similares). */
 export const EquipoKpiStatCard = memo(function EquipoKpiStatCard({
   titulo,
   valorPrincipal,

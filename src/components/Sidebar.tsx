@@ -4,69 +4,9 @@ import Link from "next/link";
 import { useFeatures } from "@/contexts/FeaturesContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  DASHBOARD_PATHS_OPERATIVA_Y_ANALISIS,
-  isDashboardPathAccessibleInFichadorShell,
-} from "@/lib/dashboardNavGating";
-import { USER_ROLE } from "@/types";
-
-const PATHS_OCULTOS_SIN_OPERATIVA = new Set<string>(DASHBOARD_PATHS_OPERATIVA_Y_ANALISIS);
-
-type NavItem = {
-  href: string;
-  label: string;
-  icon: string;
-  adminOnly?: boolean;
-  /** Solo rol `SuperAdmin` (API `/api/superadmin/*`). */
-  superAdminOnly?: boolean;
-};
-
-type NavSection = {
-  title: string;
-  items: NavItem[];
-};
-
-const navSections: NavSection[] = [
-  {
-    title: "Operativa",
-    items: [
-      { href: "/dashboard", label: "Panel", icon: "🏠" },
-      { href: "/dashboard/tasks", label: "Tareas", icon: "📋" },
-      { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
-      { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
-    ],
-  },
-  {
-    title: "Jornada",
-    items: [
-      { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
-      { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: "📅" },
-      { href: "/dashboard/time-tracking/partes-de-obra", label: "Partes de obra", icon: "📑" },
-      { href: "/dashboard/team-hours", label: "Horas del equipo", icon: "👥" },
-      { href: "/dashboard/my-company", label: "Mi empresa", icon: "🏷️" },
-      { href: "/dashboard/companies", label: "Empresas", icon: "🏢" },
-      { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
-    ],
-  },
-  {
-    title: "Datos",
-    items: [
-      { href: "/dashboard/animals", label: "Animales", icon: "🐄" },
-      { href: "/dashboard/users", label: "Trabajadores", icon: "👤" },
-      { href: "/dashboard/farms", label: "Granjas", icon: "🌾" },
-    ],
-  },
-  {
-    title: "Análisis",
-    items: [{ href: "/dashboard/stats", label: "Estadísticas", icon: "📈" }],
-  },
-  {
-    title: "Sistema",
-    items: [
-      { href: "/dashboard/superadmin", label: "Superadmin", icon: "🛡", superAdminOnly: true },
-      { href: "/dashboard/settings", label: "Ajustes", icon: "⚙", superAdminOnly: true },
-    ],
-  },
-];
+  DASHBOARD_NAV_SECTIONS,
+  isDashboardNavLinkVisible,
+} from "@/lib/dashboardNavSections";
 
 export interface SidebarProps {
   /** Ruta actual (la lee el layout para evitar `usePathname` en este chunk: menos fallos con Turbopack). */
@@ -94,43 +34,27 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
   const { enableAnimals, enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const { user } = useAuth();
   const role = user?.role;
-  const isSuperAdmin = role === USER_ROLE.SuperAdmin;
-  const isAdminLike =
-    role === USER_ROLE.Admin || role === USER_ROLE.SuperAdmin || role === USER_ROLE.Manager;
-  const canSeeAnimals = enableAnimals && isAdminLike;
 
-  const isNavItemVisible = (item: NavItem): boolean => {
-    if (item.href === "/dashboard" && role === USER_ROLE.Worker) return false;
-    // Modo "solo fichador" para cualquier rol no SuperAdmin: se permite únicamente Jornada.
-    if (!isSuperAdmin && !isDashboardPathAccessibleInFichadorShell(role, item.href)) return false;
-    if (item.superAdminOnly && role !== USER_ROLE.SuperAdmin) return false;
-    if (item.adminOnly && !isAdminLike) return false;
-    if (!enableTimeTracking && item.href === "/dashboard/time-tracking") return false;
-    if (!enableTimeTracking && item.href.startsWith("/dashboard/time-tracking/")) return false;
-    if (!enableTimeTracking && item.href === "/dashboard/team-hours") return false;
-    if (!enableOperativaYAnalisisMenu && PATHS_OCULTOS_SIN_OPERATIVA.has(item.href)) return false;
-    if (
-      !canSeeAnimals &&
-      (item.href === "/dashboard/incidents" || item.href === "/dashboard/animals")
-    ) {
-      return false;
-    }
-    return true;
+  const visibility = {
+    role,
+    enableAnimals,
+    enableTimeTracking,
+    enableOperativaYAnalisisMenu,
   };
 
   const showLabels = mobileDrawer || !collapsed;
 
   return (
     <aside className={asideClass(collapsed, mobileDrawer)}>
-      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-2 md:p-3">
-        {navSections.map((section) => {
-          const visibleItems = section.items.filter(isNavItemVisible);
+      <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-2 md:p-3">
+        {DASHBOARD_NAV_SECTIONS.map((section) => {
+          const visibleItems = section.items.filter((item) => isDashboardNavLinkVisible(item, visibility));
           if (visibleItems.length === 0) return null;
 
           return (
-            <div key={section.title} className="shrink-0">
+            <div key={section.title} className="flex shrink-0 flex-col gap-1">
               {showLabels && (
-                <p className="mt-2 mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <p className="mb-0.5 px-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   {section.title}
                 </p>
               )}
@@ -167,7 +91,7 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
           type="button"
           onClick={onToggle}
           aria-label={mobileDrawer ? "Cerrar menú" : collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="mt-2 flex w-full shrink-0 items-center justify-center rounded-lg px-3 py-2.5 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 md:px-3"
+          className="mt-auto flex w-full shrink-0 items-center justify-center rounded-lg px-3 py-2.5 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 md:px-3"
         >
           {mobileDrawer ? (
             <span className="text-sm font-semibold">Cerrar menú</span>

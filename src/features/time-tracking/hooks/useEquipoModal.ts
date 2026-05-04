@@ -16,6 +16,7 @@ import type {
   ForgotStep,
   TimeEntryMock,
 } from "@/features/time-tracking/types";
+import { timeEntryDtoToMock } from "@/features/time-tracking/utils/timeEntryDtoToMock";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { breakSummaryFromMinutes, timeTrackingApi } from "@/services/time-tracking.service";
 
@@ -29,6 +30,11 @@ interface Params {
   refetchEquipoRows: () => void;
   equipoWorkersCatalog: EquipoWorkerOption[];
   equipoSuperAdminCompanyId: string | null;
+  /**
+   * Tras guardar entrada/salida/descanso (jornada cerrada) desde el wizard del grid equipo:
+   * abrir el modal de parte con la fila recién persistida (evita ir al botón «+»).
+   */
+  onHorarioJornadaCompletaGuardada?: (entry: TimeEntryMock) => void | Promise<void>;
 }
 
 function resetHorarioWizardFields(
@@ -51,6 +57,7 @@ export function useEquipoModal({
   refetchEquipoRows,
   equipoWorkersCatalog,
   equipoSuperAdminCompanyId,
+  onHorarioJornadaCompletaGuardada,
 }: Params) {
   const { showSuccess } = useFlashSuccess();
   const [equipoModal, setEquipoModal] = useState<null | {
@@ -400,6 +407,9 @@ export function useEquipoModal({
           : null;
 
       const breakSummary = breakSummaryFromMinutes(breakMin);
+
+      let entryParaParte: TimeEntryMock | null = null;
+
       if (timeEntryId) {
         await timeTrackingApi.updateTimeEntry(timeEntryId, {
           workDate,
@@ -410,6 +420,27 @@ export function useEquipoModal({
           breakSummary,
           isManuallyCompleted: true,
         });
+        const ex = existing!;
+        const cid =
+          (typeof ex.companyId === "string" && ex.companyId.trim().length > 0
+            ? ex.companyId.trim()
+            : null) ?? companyId;
+        const uid =
+          (typeof ex.userId === "string" && ex.userId.trim().length > 0
+            ? ex.userId.trim()
+            : null) ?? targetUserId;
+        entryParaParte = {
+          ...ex,
+          workDate,
+          checkInUtc,
+          checkOutUtc,
+          breakMinutes: breakMin,
+          companyId: cid,
+          userId: uid,
+          timeEntryId,
+          workerId: equipoModal.workerId,
+          timeEntryStatus: "Closed",
+        };
       } else {
         if (!companyId) {
           setHorarioWizardError(
@@ -417,7 +448,7 @@ export function useEquipoModal({
           );
           return;
         }
-        await timeTrackingApi.createTimeEntry({
+        const created = await timeTrackingApi.createTimeEntry({
           companyId,
           userId: targetUserId!,
           workDate,
@@ -427,11 +458,19 @@ export function useEquipoModal({
           breakMinutes: breakMin,
           breakSummary,
         });
+        entryParaParte = timeEntryDtoToMock(created, equipoModal.workerId);
       }
 
       refetchEquipoRows();
       cerrarEquipoModal();
       showSuccess("Horario guardado correctamente.");
+
+      if (
+        entryParaParte?.checkOutUtc &&
+        typeof onHorarioJornadaCompletaGuardada === "function"
+      ) {
+        void Promise.resolve(onHorarioJornadaCompletaGuardada(entryParaParte));
+      }
     } catch (e) {
       setHorarioWizardError(
         userVisibleMessageFromUnknown(e, "No se pudo guardar el horario. Revisa permisos."),

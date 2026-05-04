@@ -1,5 +1,21 @@
 # Resumen de funcionalidades — AgroManagerWeb (AgroOps)
 
+## Prioridad del producto y criterios de desarrollo (obligatorio leer)
+
+- **Qué es lo importante:** el **fichador** (registro de jornada y todo el bloque **Jornada** conectado: vacaciones/festivos, partes de obra, **Fichajes y partes** del equipo, y la administración ligera de empresa/servicios según rol). El resto (operativa, tareas, animales, panel, etc.) es **complementario** y solo aplica si las banderas en **Ajustes** lo activan; no sustituye al fichador como eje.
+
+- **Arquitectura en front:** se sigue la estructura acordada del repo (páginas ligeras, `features/`, `services/`, `hooks/`, `types/`, validación de contrato con el API). No mezclar lógica de negocio pesada en la UI sin criterio.
+
+- **Dónde vive la lógica de negocio:** en el **backend**. El front **presenta**, **valida entradas** básicas y **consume** lo que el API expone. Cualquier regla de negocio no trivial (saldos, cierres, permisos reales, integridad) debe resolverse en servidor; el frontend se adapta al contrato (JSON, códigos HTTP, mensajes).
+
+- **Dudas de producto, diseño o alcance:** **preguntar al responsable** antes de implementar; no asumir.
+
+- **Cambios al código o a este documento:** **no se modifica nada sin consentimiento explícito** del responsable del proyecto (incluido “pequeños” ajustes que toquen flujos o contratos visibles al usuario).
+
+---
+
+## Qué es este documento
+
 Documento de referencia para guardar y consultar **qué existe en la aplicación** y **cuándo aparece en el menú**. Las rutas y pantallas “grandes” (tareas, panel, granjas, estadísticas…) solo son navegables si el superadministrador las tiene activadas en **Ajustes**; si no, muchos usuarios solo ven **Jornada** y un bloque reducido de **Datos** / **Sistema**, como en una instalación centrada en fichaje.
 
 Implementación de referencia: `src/components/Sidebar.tsx`, `src/lib/dashboardNavGating.ts`, `src/contexts/FeaturesContext.tsx`, `src/components/DashboardLayout.tsx`.
@@ -12,23 +28,24 @@ Implementación de referencia: `src/components/Sidebar.tsx`, `src/lib/dashboardN
 
 | Bandera | Efecto en el menú |
 |--------|-------------------|
-| **`enableTimeTracking`** | Si es **false**, desaparecen **Registro de jornada**, **Vacaciones y festivos**, **Partes de obra** y **Horas del equipo** (y rutas bajo `/dashboard/time-tracking/*`). |
+| **`enableTimeTracking`** | Si es **false**, desaparecen **Registro de jornada**, **Vacaciones y festivos**, **Partes de obra** y **Fichajes y partes** (y rutas bajo `/dashboard/time-tracking/*`). |
 | **`enableOperativaYAnalisisMenu`** | Si es **false**, se ocultan del menú (y se redirige si se intenta entrar) las rutas del grupo operativo/análisis: **Panel** (`/dashboard`), **Tareas**, **Tareas sin asignar**, **Incidencias animales**, **Animales**, **Granjas**, **Estadísticas**. Ver lista exacta en `DASHBOARD_PATHS_OPERATIVA_Y_ANALISIS` en `dashboardNavGating.ts`. |
 | **`enableAnimals`** | Solo relevante cuando el menú operativo **está activo**: si es **false**, no se muestran **Incidencias animales** ni **Animales** (y la pestaña de incidentes en el panel). |
 
 ### Secciones del sidebar (orden real)
 
 1. **Operativa** — Panel, Tareas, Tareas sin asignar, Incidencias animales (solo si `enableOperativaYAnalisisMenu` y cada ítem supera sus filtros de rol/animales).
-2. **Jornada** — Registro de jornada, Vacaciones y festivos, Partes de obra, Horas del equipo, Mi empresa, Empresas, Servicios (según rol y `enableTimeTracking`).
-3. **Datos** — Animales, Trabajadores, Granjas (Animales y Granjas dependen del menú operativo; **Trabajadores** puede seguir visible sin operativa según rol).
-4. **Análisis** — Estadísticas (solo con menú operativo activo).
-5. **Sistema** — Superadmin, Ajustes (**solo rol SuperAdmin** en el sidebar).
+2. **Hoy** — Registro de jornada, Partes de obra, Fichajes y partes (según rol y `enableTimeTracking`).
+3. **Gestión** — Vacaciones y festivos, Mi empresa, Empresas, Servicios, Trabajadores (según rol y `enableTimeTracking`; el trabajador solo suele ver aquí Vacaciones y festivos).
+4. **Datos** — Animales, Granjas cuando el menú operativo lista ese bloque (**Trabajadores** está en Gestión).
+5. **Análisis** — Estadísticas (solo con menú operativo activo).
+6. **Sistema** — Superadmin, Ajustes (**solo rol SuperAdmin** en el sidebar).
 
 ### Restricción por rol (“caparazon fichador”)
 
 Para usuarios que **no** son SuperAdmin, el layout solo permite navegar por rutas que devuelve `isDashboardPathAccessibleInFichadorShell`:
 
-- **Worker:** por defecto solo **jornada** (`/dashboard/time-tracking` y subrutas) y **Horas del equipo**. No ve Mi empresa, Empresas, Servicios ni Trabajadores en el menú.
+- **Worker:** **Hoy** (registro, partes de obra, fichajes y partes) y en **Gestión** solo **Vacaciones y festivos**. No ve Mi empresa, Empresas, Servicios ni Trabajadores en el menú.
 - **Admin / Manager:** lo anterior más **Mi empresa**, **Empresas**, **Servicios** y **Trabajadores** (`/dashboard/users`).
 - **SuperAdmin:** no aplica esta restricción de navegación en la visibilidad del sidebar (ve todas las entradas que no filtren las banderas anteriores).
 
@@ -36,8 +53,9 @@ Para usuarios que **no** son SuperAdmin, el layout solo permite navegar por ruta
 
 Con **`enableTimeTracking`** activo y **`enableOperativaYAnalisisMenu`** desactivado, un **SuperAdmin** ve típicamente:
 
-- **Jornada:** Registro de jornada, Vacaciones y festivos, Partes de obra, Horas del equipo, Mi empresa, Empresas, Servicios  
-- **Datos:** solo **Trabajadores** (Animales y Granjas van con el bloque operativo, que está oculto)  
+- **Hoy:** Registro de jornada, Partes de obra, Fichajes y partes  
+- **Gestión:** Vacaciones y festivos, Mi empresa, Empresas, Servicios, Trabajadores  
+- **Datos:** vacío si el menú operativo está oculto (Animales y Granjas pertenecen a ese bloque)  
 - **Sistema:** Superadmin, Ajustes  
 
 Eso coincide con el menú reducido que quieres documentar como referencia para “solo fichaje + administración ligera”.
@@ -68,7 +86,9 @@ Rutas bajo `/dashboard` van en `DashboardLayout`: sin usuario → `/login`; mien
 
 ---
 
-## 3. Módulo Jornada y administración ligera del fichaje
+## 3. Módulo Jornada y administración ligera del fichaje (prioridad del producto)
+
+Cero de la experiencia: **fichar, consultar y gestionar jornada** (y, según rol, el equipo y la obra vinculada al fichaje). El resto de módulos del documento son secundarios respecto a este bloque.
 
 ### Registro de jornada (`/dashboard/time-tracking`)
 
@@ -82,7 +102,7 @@ Gestión de calendario laboral / ausencias en el ámbito del fichador (misma fea
 
 Partes vinculados al registro de jornada y obra (subruta bajo `time-tracking`).
 
-### Horas del equipo (`/dashboard/team-hours`)
+### Fichajes y partes (`/dashboard/team-hours`)
 
 Vista de equipo: resúmenes por fechas, fichajes del equipo, modales de edición/partes (`useEquipo`, `useEquipoModal`, APIs de empresas y servicios cuando aplica).
 
@@ -160,7 +180,7 @@ Solo **SuperAdmin**. Incluye tema claro/oscuro (`ThemeContext`, `agromanager_the
 ## 9. Datos y tipos principales
 
 - **Task**, **AnimalCase**, **Animal**, **Farm**, **User**, **Worker:** definidos en tipos y mocks según corresponda.  
-- Parte del dominio operativo sigue usando estado React y mocks donde no hay API aún; el fichador consume servicios reales (`auth`, `companies`, `work-reports`, etc.) según las pantallas implementadas.
+- Parte del dominio operativo sigue usando estado React y mocks donde no hay API aún; el fichador consume servicios reales (`auth`, `companies`, `work-reports`, etc.) según las pantallas implementadas. **Regla:** la fuente de verdad al conectar un flujo con el back sigue siendo el **API y el contrato**; el front no sustituye reglas de negocio del servidor.
 
 ---
 
@@ -170,8 +190,8 @@ Solo **SuperAdmin**. Incluye tema claro/oscuro (`ThemeContext`, `agromanager_the
 |--------|----------------------------------------|--------|
 | Panel, Tareas, sin asignar, incidencias, animales, granjas, stats | Ocultos / redirigen | Visibles según rol y `enableAnimals` |
 | Jornada + (Admin/Manager/SA) empresa/servicios/users | Siguen según `enableTimeTracking` y rol | Se suman a la izquierda con el resto de secciones |
-| Worker (no SA) | Solo rutas fichador + horas equipo | + tareas si aplica; sin panel |
+| Worker (no SA) | Solo rutas fichador + Fichajes y partes | + tareas si aplica; sin panel |
 
 ---
 
-Con este documento queda explícito **por qué** tu resumen anterior (solo tareas y panel) no coincidía con el menú real: ese texto describía el producto **con operativa activa**, no el modo **solo Jornada + tramos de administración** que configuras desde **Ajustes** y que refleja la captura del menú reducido.
+Con este documento queda explícito **por qué** un resumen antiguo (solo tareas y panel) no coincidía con el menú real: ese texto describía el producto **con operativa activa**, no el modo **solo Jornada + tramos de administración** que configuras desde **Ajustes** y que refleja el menú reducido. **Recordatorio:** el eje de producto es el **fichador**; el resto es opcional según entorno. Cualquier ampliación o cambio de flujo requiere **alineación con el back** y **acuerdo explícito** antes de tocar implementación.

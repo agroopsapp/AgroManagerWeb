@@ -126,9 +126,9 @@ export default function SettingsPage() {
             En esta versión esas secciones{" "}
             <strong className="font-semibold text-slate-700 dark:text-slate-300">no están publicadas</strong>: no
             aparecen en el menú y no se pueden activar desde aquí. Cuando toque habilitarlas, un desarrollador debe
-            poner <code className="rounded bg-slate-200 px-1 text-xs dark:bg-slate-700">OPERATIVA_MENU_RELEASED</code> en{" "}
+            poner <code className="rounded bg-slate-200 px-1 text-xs dark:bg-slate-700">PUBLICAR_MENU_OPERATIVA_Y_ANALISIS</code> en{" "}
             <code className="rounded bg-slate-200 px-1 text-xs dark:bg-slate-700">true</code> en{" "}
-            <code className="rounded bg-slate-200 px-1 text-xs dark:bg-slate-700">FeaturesContext</code>.
+            <code className="rounded bg-slate-200 px-1 text-xs dark:bg-slate-700">dashboardNavGating.ts</code>.
           </p>
         </div>
       ) : (

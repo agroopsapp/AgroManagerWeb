@@ -34,6 +34,12 @@ export default function ManagerPage() {
       user?.role === USER_ROLE.Admin,
   });
 
+  const equipoPart = useEquipoPart({
+    setEquipoPartsVersion: equipo.setEquipoPartsVersion,
+    refetchEquipoRows: equipo.refetchEquipoRows,
+    onValidationError: setParteEquipoValidationError,
+  });
+
   const equipoModal = useEquipoModal({
     user,
     equipoTablaScrollRef: equipo.equipoTablaScrollRef,
@@ -42,12 +48,10 @@ export default function ManagerPage() {
     refetchEquipoRows: equipo.refetchEquipoRows,
     equipoWorkersCatalog: equipo.equipoWorkersOpciones,
     equipoSuperAdminCompanyId: equipo.equipoSuperAdminCompanyId,
-  });
-
-  const equipoPart = useEquipoPart({
-    setEquipoPartsVersion: equipo.setEquipoPartsVersion,
-    refetchEquipoRows: equipo.refetchEquipoRows,
-    onValidationError: setParteEquipoValidationError,
+    onHorarioJornadaCompletaGuardada: async (entry) => {
+      setParteEquipoValidationError(null);
+      await equipoPart.openEquipoPartEditor(entry);
+    },
   });
 
   useEffect(() => {

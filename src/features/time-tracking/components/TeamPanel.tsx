@@ -361,18 +361,19 @@ export function TeamPanel({
     <div className="min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800/95 sm:p-5">
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Historial del equipo
+          Fichajes y partes
         </p>
         <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">
-          Horas imputadas por trabajadores
+          Vista del equipo por trabajador
         </h2>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           <strong>Mes en curso:</strong> solo días del 1 al <strong>hoy</strong>. Meses anteriores:
-          mes completo. Todos los días (lun–dom): fin de semana = no laboral.{" "}
+          mes completo. Fin de semana = no laboral.{" "}
           <span className="font-semibold text-red-700 dark:text-red-400">
             Laborable sin fichaje = rojo
           </span>
-          . Dona izquierda: objetivo vs imputado. Dona derecha: días laborables sin imputar (rojo).
+          . Donas: objetivo vs imputado y días laborables sin imputar. Las filas permiten editar fichajes y{" "}
+          <strong className="font-semibold text-slate-800 dark:text-slate-100">partes diarios</strong>.
         </p>
       </div>
 
@@ -895,7 +896,7 @@ export function TeamPanel({
                   filas: filasOrdenadas,
                   nameByPersonKey: equipoNombrePorClave,
                   capWorkMinutesPerDay: equipoCapTrabajoDiarioMinutos,
-                  title: `Horas del equipo — ${periodoEtiqueta}`,
+                  title: `Fichajes y partes — ${periodoEtiqueta}`,
                   fileBaseName,
                 });
               }}
@@ -936,20 +937,45 @@ export function TeamPanel({
           />
           <div
             ref={tablaScrollRef}
-            className="mt-2 max-h-[min(70vh,520px)] w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto rounded-xl border border-slate-100 dark:border-slate-700 [-webkit-overflow-scrolling:touch] [touch-action:pan-x_pan-y]"
+            className="mt-2 max-h-none w-full min-w-0 max-w-full overflow-x-hidden overflow-y-visible rounded-xl border border-slate-100 dark:border-slate-700 lg:max-h-[min(70vh,520px)] lg:overflow-y-auto lg:[-webkit-overflow-scrolling:touch] lg:[touch-action:pan-y]"
             style={{
               overscrollBehaviorY: "auto",
               overscrollBehaviorX: "contain",
-              WebkitOverflowScrolling: "touch",
             }}
           >
+            <div className="min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch] [touch-action:manipulation]">
             <table className="w-full min-w-[1180px] border-collapse text-left text-xs">
               <thead className="sticky top-0 z-[5] bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500 shadow-sm dark:bg-slate-700 dark:text-slate-300">
                 <tr>
                   {(
                     [
-                      { key: "persona", label: "Persona" },
+                      { key: "persona", label: "Trabajador" },
                       { key: "fecha", label: "Fecha" },
+                    ] as const
+                  ).map(({ key, label }) => (
+                    <th key={key} className="px-3 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => onSetSortColumn(key)}
+                        className="flex w-full items-center gap-0.5 text-left hover:text-agro-700 dark:hover:text-agro-300"
+                      >
+                        {label}
+                        <SortArrow sortKey={key} activeKey={sort.key} dir={sort.dir} />
+                      </button>
+                    </th>
+                  ))}
+                  <th className="max-w-[6.5rem] px-3 py-2.5" title="Campo JSON status del API">
+                    <button
+                      type="button"
+                      onClick={() => onSetSortColumn("estado")}
+                      className="flex w-full items-center gap-0.5 text-left hover:text-agro-700 dark:hover:text-agro-300"
+                    >
+                      Estado
+                      <SortArrow sortKey="estado" activeKey={sort.key} dir={sort.dir} />
+                    </button>
+                  </th>
+                  {(
+                    [
                       { key: "entrada", label: "Entrada" },
                       { key: "salida", label: "Salida" },
                     ] as const
@@ -981,16 +1007,6 @@ export function TeamPanel({
                       </button>
                     </th>
                   ))}
-                  <th className="max-w-[6.5rem] px-3 py-2.5" title="Campo JSON status del API">
-                    <button
-                      type="button"
-                      onClick={() => onSetSortColumn("estado")}
-                      className="flex w-full items-center gap-0.5 text-left hover:text-agro-700 dark:hover:text-agro-300"
-                    >
-                      Estado
-                      <SortArrow sortKey="estado" activeKey={sort.key} dir={sort.dir} />
-                    </button>
-                  </th>
                   <th className="px-3 py-2.5">Parte</th>
                   <th className="px-3 py-2.5">
                     <button
@@ -1088,9 +1104,6 @@ export function TeamPanel({
                         <td className="px-3 py-2 text-xs text-slate-700 dark:text-slate-200">
                           {formatDateEsWeekdayDdMmYyyy(fila.workDate)}
                         </td>
-                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-3 py-2 text-xs align-middle">
                           <span
                             className={`${equipoTablaEtiquetaBaseClass} ${timeEntryApiStatusBadgeClass("NonWorkingDay")}`}
@@ -1098,6 +1111,9 @@ export function TeamPanel({
                             No laboral
                           </span>
                         </td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="max-w-[11rem] px-3 py-2 text-xs text-slate-600 dark:text-slate-300">
                           {RAZON_NO_LABORAL}
@@ -1142,9 +1158,6 @@ export function TeamPanel({
                         <td className="px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-100">
                           {formatDateEsWeekdayDdMmYyyy(fila.workDate)}
                         </td>
-                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
-                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-3 py-2 text-xs align-middle">
                           <span
                             className={`${equipoTablaEtiquetaBaseClass} ${equipoTablaSinImputarBadgeClass}`}
@@ -1152,6 +1165,9 @@ export function TeamPanel({
                             Sin imputar
                           </span>
                         </td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">—</td>
                         <td className="max-w-[11rem] px-3 py-2 text-xs text-slate-700 dark:text-slate-200">
                           {RAZON_SIN_IMPUTAR}
@@ -1220,15 +1236,6 @@ export function TeamPanel({
                         {resolvePersonaNombre(fila)}
                       </td>
                       <td className="px-3 py-2 text-xs">{formatDateEsWeekdayDdMmYyyy(e.workDate)}</td>
-                      <td className="px-3 py-2 text-xs">
-                        {ocultaHoras ? "—" : formatTimeLocal(e.checkInUtc)}
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        {ocultaHoras ? "—" : formatTimeLocal(e.checkOutUtc)}
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        {ocultaHoras ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
-                      </td>
                       <td className="px-3 py-2 text-xs align-middle">
                         {ausenciaEtiquetaVisual ? (
                           <span
@@ -1239,6 +1246,15 @@ export function TeamPanel({
                         ) : (
                           <TimeEntryStatusBadge status={e.timeEntryStatus} />
                         )}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {ocultaHoras ? "—" : formatTimeLocal(e.checkInUtc)}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {ocultaHoras ? "—" : formatTimeLocal(e.checkOutUtc)}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {ocultaHoras ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
                       </td>
                       <td className="px-3 py-2 text-xs">{parteCell}</td>
                       <td className="max-w-[10rem] px-3 py-2 text-xs leading-snug">
@@ -1323,6 +1339,7 @@ export function TeamPanel({
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Modal: editar día del equipo */}

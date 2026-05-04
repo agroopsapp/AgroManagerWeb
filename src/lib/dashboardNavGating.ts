@@ -1,6 +1,15 @@
 import { USER_ROLE, type UserRole } from "@/types";
 
 /**
+ * Menú **Operativa + Análisis** (panel, tareas, animales en ese bloque, granjas, estadísticas):
+ * solo disponible si es `true` **y** `enableOperativaYAnalisisMenu` está activo en contexto.
+ *
+ * Mientras sea `false`, esas rutas quedan **ocultas y redirigen para todos los roles** (incl. SuperAdmin).
+ * Cambiar a `true` solo cuando el producto autorice publicar ese bloque (“nueva orden”).
+ */
+export const PUBLICAR_MENU_OPERATIVA_Y_ANALISIS = false;
+
+/**
  * Rutas que se ocultan del menú y del menú rápido cuando `enableOperativaYAnalisisMenu` es false.
  * Incluye el Panel (`/dashboard`) y el resto de operativa / datos / análisis afectados.
  */

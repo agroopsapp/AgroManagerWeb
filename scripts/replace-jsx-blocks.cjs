@@ -57,7 +57,7 @@ replaceLines(3655, 4097, breakModalJsx);
 // ---------------------------------------------------------------------------
 // 2. EquipoPartModal + SignaturePadDialog: lines 3359-3653
 // ---------------------------------------------------------------------------
-const equipoPartModalJsx = `      {/* Modal: Parte desde Horas del equipo (editar tareas + firma) */}
+const equipoPartModalJsx = `      {/* Modal: Parte desde Fichajes y partes (editar tareas + firma) */}
       {equipoPartModal && (
         <EquipoPartModal
           modal={equipoPartModal}

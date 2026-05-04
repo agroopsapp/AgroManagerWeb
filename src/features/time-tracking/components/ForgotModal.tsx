@@ -191,6 +191,13 @@ export function ForgotModal({
             <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
               ¿A qué hora empezaste?
             </h2>
+            {variant === "overlay" && forgotMode === "full_hoy" ? (
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+                Corrección solo para <strong>hoy</strong> si aún no consta tu fichaje. Registrarás la{" "}
+                <strong>jornada completa</strong> (entrada, salida y descanso). Otros días los gestiona
+                administración.
+              </p>
+            ) : null}
             <div className="mt-4">
               <p className="text-xs font-medium text-slate-600 dark:text-slate-400">
                 Hora de inicio
@@ -214,6 +221,8 @@ export function ForgotModal({
                     onSetForgotMode(null);
                     onSetTargetDate(null);
                     onSetStep("pick_day");
+                  } else if (forgotMode === "full_hoy") {
+                    onClose();
                   } else {
                     onSetStep("pick_type");
                   }

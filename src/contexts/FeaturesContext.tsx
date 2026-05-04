@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState, useCallback } from "react";
+import { PUBLICAR_MENU_OPERATIVA_Y_ANALISIS } from "@/lib/dashboardNavGating";
 
 const useIsomorphicLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -24,11 +25,8 @@ interface FeaturesContextType extends FeaturesState {
 
 const STORAGE_KEY = "agromanager_features";
 
-/**
- * Si es `false`, no se muestra ni se puede activar desde Ajustes el menú operativo (panel, tareas,
- * incidencias, animales, granjas, estadísticas). Ponlo en `true` cuando quieras publicar ese bloque.
- */
-export const OPERATIVA_MENU_RELEASED = false;
+/** @deprecated Usar `PUBLICAR_MENU_OPERATIVA_Y_ANALISIS` en `dashboardNavGating.ts` (fuente única). */
+export const OPERATIVA_MENU_RELEASED = PUBLICAR_MENU_OPERATIVA_Y_ANALISIS;
 
 const DEFAULT_FEATURES: FeaturesState = {
   enableAnimals: true,
@@ -37,7 +35,7 @@ const DEFAULT_FEATURES: FeaturesState = {
 };
 
 function clampOperativaIfNotReleased(state: FeaturesState): FeaturesState {
-  if (OPERATIVA_MENU_RELEASED) return state;
+  if (PUBLICAR_MENU_OPERATIVA_Y_ANALISIS) return state;
   return { ...state, enableOperativaYAnalisisMenu: false };
 }
 
@@ -102,7 +100,7 @@ export function FeaturesProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setEnableOperativaYAnalisisMenu = useCallback((value: boolean) => {
-    if (!OPERATIVA_MENU_RELEASED) return;
+    if (!PUBLICAR_MENU_OPERATIVA_Y_ANALISIS) return;
     setState((s) => {
       const next = { ...s, enableOperativaYAnalisisMenu: value };
       persist(next);

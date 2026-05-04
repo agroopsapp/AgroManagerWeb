@@ -45,9 +45,16 @@ interface HistorialPersonalProps {
   onOpenEditarDiaMenu: (workDate: string) => void;
 }
 
-/** Contenedor scroll de tabla alineado con «Horas del equipo». */
-const tablaScrollClass =
-  "isolate max-h-[min(80vh,calc(100dvh-11.5rem))] w-full min-w-0 max-w-full overflow-x-auto overflow-y-auto border-t border-slate-100 bg-slate-50/20 [-webkit-overflow-scrolling:touch] [touch-action:pan-x_pan-y] dark:border-slate-800 dark:bg-slate-950/15 lg:max-h-[min(82vh,calc(100dvh-12.5rem))]";
+/**
+ * Exterior: en móvil sin max-height ni overflow-y (el scroll vertical es el de la página; evita «atrapar» el dedo).
+ * En lg+: caja acotada con scroll vertical interno.
+ */
+const tablaScrollOuterClass =
+  "team-hours-table-scroll isolate w-full min-w-0 max-w-full overflow-x-hidden overflow-y-visible border-t border-slate-100 bg-slate-50/20 dark:border-slate-800 dark:bg-slate-950/15 max-h-none lg:max-h-[min(82vh,calc(100dvh-12.5rem))] lg:overflow-y-auto lg:[-webkit-overflow-scrolling:touch] lg:[touch-action:pan-y]";
+
+/** `pan-x` rompe el scroll vertical del `<main>` en móvil; `manipulation` deja pan vertical + horizontal en overflow-x. */
+const tablaScrollInnerClass =
+  "min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch] [touch-action:manipulation]";
 
 const theadClass =
   "sticky top-0 z-[5] border-b border-slate-200/90 bg-white/90 text-xs font-semibold text-slate-600 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300";
@@ -111,12 +118,22 @@ export function HistorialPersonal({
           </p>
         ) : (
           <>
-            <div className={tablaScrollClass} style={{ overscrollBehavior: "contain" }}>
+            <div
+              className={tablaScrollOuterClass}
+              style={{
+                overscrollBehaviorY: "auto",
+                overscrollBehaviorX: "contain",
+              }}
+            >
+              <div className={tablaScrollInnerClass}>
               <table className="w-full min-w-[72rem] border-collapse text-left text-sm">
                 <thead className={theadClass}>
                   <tr>
                     <th className={stickyAccionesThClass}>Acciones</th>
                     <th className={thClass}>Fecha</th>
+                    <th className={thClass} title="Estado del día / fichaje">
+                      Estado
+                    </th>
                     <th className={thClass}>Usuario</th>
                     <th className={thClass}>Entrada</th>
                     <th className={thClass}>Salida</th>
@@ -135,9 +152,6 @@ export function HistorialPersonal({
                       </span>
                     </th>
                     <th className={thClass}>Descanso</th>
-                    <th className={thClass} title="Estado del día / fichaje">
-                      Estado
-                    </th>
                     <th className={thClass}>Parte</th>
                     <th className={thClass}>Razón</th>
                     <th className={`${thClass} min-w-[8rem] max-w-[12rem]`}>Modificado por</th>
@@ -191,6 +205,7 @@ export function HistorialPersonal({
                           <td className="whitespace-nowrap px-2 py-1.5 text-sm font-medium text-slate-800 dark:text-slate-100">
                             {formatDateEsWeekdayDdMmYyyy(fila.workDate)}
                           </td>
+                          <td className="px-2 py-1.5 text-sm align-middle">{estadoBadge}</td>
                           <td className="max-w-[13rem] px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">
                             {emDash}
                           </td>
@@ -199,7 +214,6 @@ export function HistorialPersonal({
                           <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">{emDash}</td>
                           <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">{emDash}</td>
                           <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">{emDash}</td>
-                          <td className="px-2 py-1.5 text-sm align-middle">{estadoBadge}</td>
                           <td className="px-2 py-1.5 text-sm text-slate-400 dark:text-slate-500">No</td>
                           <td className="max-w-[12rem] px-2 py-1.5 text-sm leading-snug">{razonTexto}</td>
                           <td className="px-2 py-1.5 text-sm text-slate-500 dark:text-slate-400">{emDash}</td>
@@ -273,6 +287,7 @@ export function HistorialPersonal({
                         <td className="whitespace-nowrap px-2 py-1.5 text-sm font-medium text-slate-800 dark:text-slate-100">
                           {formatDateEsWeekdayDdMmYyyy(e.workDate)}
                         </td>
+                        <td className="px-2 py-1.5 text-sm align-middle">{estadoCell}</td>
                         <td className="max-w-[13rem] px-2 py-1.5 text-sm leading-snug text-slate-700 dark:text-slate-200">
                           {e.userName?.trim() && (
                             <span className="font-medium">{e.userName.trim()}</span>
@@ -301,7 +316,6 @@ export function HistorialPersonal({
                         <td className="px-2 py-1.5 text-sm">
                           {sinJornada ? "—" : formatMinutesShort(e.breakMinutes ?? 0)}
                         </td>
-                        <td className="px-2 py-1.5 text-sm align-middle">{estadoCell}</td>
                         <td className="max-w-[10rem] px-2 py-1.5 text-sm leading-tight">{parteCell}</td>
                         <td className="max-w-[12rem] px-2 py-1.5 text-sm leading-snug">
                           <span className={razonClass}>
@@ -355,6 +369,7 @@ export function HistorialPersonal({
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           </>
         )}
