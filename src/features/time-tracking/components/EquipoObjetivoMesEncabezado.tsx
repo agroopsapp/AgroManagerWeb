@@ -12,43 +12,52 @@ const PERIODO_LABEL: Record<Periodo, string> = {
   anio: "del año",
 };
 
-/** Encabezado: cómo se calcula el objetivo del periodo (el detalle vs imputado va en las donas). */
+/**
+ * Encabezado del objetivo del periodo: kicker + fórmula compacta.
+ * Estilo alineado con el resto de tarjetas (agro-kicker / agro-muted).
+ */
 export const EquipoObjetivoMesEncabezado = memo(function EquipoObjetivoMesEncabezado({
   diasLaborables,
   personasEnObjetivo,
   horasObjetivo,
   filtroTodasPersonas,
   periodo,
+  compact,
 }: {
   diasLaborables: number;
   personasEnObjetivo: number;
   horasObjetivo: number;
   filtroTodasPersonas: boolean;
   periodo: Periodo;
+  compact?: boolean;
 }) {
   const periodoLabel = PERIODO_LABEL[periodo] ?? "del periodo";
+  const horasObjetivoFmt = horasObjetivo.toLocaleString("es-ES", { maximumFractionDigits: 1 });
 
   return (
     <div className="min-w-0">
-      <p className="text-sm font-semibold tracking-tight text-slate-800 dark:text-slate-100">
-        Objetivo {periodoLabel}
-      </p>
-      <p className="mt-1 text-sm leading-snug text-slate-700 dark:text-slate-200">
-        <strong className="font-bold text-slate-900 dark:text-white">{diasLaborables}</strong> días
-        laborables (lun–vie) × <strong className="font-bold text-slate-900 dark:text-white">8 h</strong>
+      <p className="agro-kicker">Objetivo {periodoLabel}</p>
+      <p className={`agro-muted leading-snug ${compact ? "mt-1" : "mt-1.5"}`}>
+        <span className="font-semibold text-slate-700 tabular-nums dark:text-slate-200">
+          {diasLaborables}
+        </span>{" "}
+        días (lun–vie) ×{" "}
+        <span className="font-semibold text-slate-700 tabular-nums dark:text-slate-200">8 h</span>
         {filtroTodasPersonas ? (
           <>
             {" "}
             ×{" "}
-            <strong className="font-bold text-slate-900 dark:text-white">{personasEnObjetivo}</strong>{" "}
-            personas
+            <span className="font-semibold text-slate-700 tabular-nums dark:text-slate-200">
+              {personasEnObjetivo}
+            </span>{" "}
+            pers.
           </>
-        ) : null}{" "}
-        →{" "}
-        <strong className="text-lg font-bold tabular-nums text-agro-800 dark:text-agro-300">
-          {horasObjetivo.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
-        </strong>{" "}
-        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">objetivo teórico.</span>
+        ) : null}
+        {" · "}
+        <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+          {horasObjetivoFmt} h
+        </span>
+        <span className="text-slate-400 dark:text-slate-500"> objetivo teórico</span>
       </p>
     </div>
   );

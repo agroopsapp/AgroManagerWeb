@@ -8,18 +8,13 @@ import { FlashSuccessProvider } from "@/contexts/FlashSuccessContext";
 import { useFeatures } from "@/contexts/FeaturesContext";
 import { TasksProvider } from "@/contexts/TasksContext";
 import { USER_ROLE } from "@/types";
-import Header from "./Header";
 import Sidebar from "./Sidebar";
-import { MODAL_BACKDROP_CENTER, MODAL_SURFACE, MODAL_SURFACE_PAD } from "@/components/modalShell";
+import { MODAL_BACKDROP_CENTER } from "@/components/modalShell";
 import {
   appHomePath,
   isDashboardPathAccessibleInFichadorShell,
   isDashboardPathOperativaYAnalisis,
 } from "@/lib/dashboardNavGating";
-import {
-  DASHBOARD_NAV_SECTIONS,
-  isDashboardNavLinkVisible,
-} from "@/lib/dashboardNavSections";
 
 const SIDEBAR_STORAGE_KEY = "agroops_sidebar_collapsed";
 
@@ -35,7 +30,6 @@ export default function DashboardLayout({
   const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [quickMenuOpen, setQuickMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
@@ -86,13 +80,6 @@ export default function DashboardLayout({
     });
   };
 
-  const quickNavVisibility = {
-    role: user?.role,
-    enableAnimals,
-    enableTimeTracking,
-    enableOperativaYAnalisisMenu,
-  };
-
   if (!isReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -123,72 +110,8 @@ export default function DashboardLayout({
     {/* `h-[100dvh]` + `overflow-hidden`: el scroll queda en `<main>`; si el shell crece con
         `min-h-screen` solamente, a veces hace scroll el documento y el `sticky` de las páginas
         (p. ej. filtros en team-hours) deja de “pegar” bien. */}
-    <div className="flex h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden bg-slate-50 dark:bg-slate-900">
-      <Header
-        onToggleMobileSidebar={() => setMobileSidebarOpen((v) => !v)}
-        onToggleQuickMenu={() => setQuickMenuOpen((v) => !v)}
-      />
+    <div className="flex h-[100dvh] min-h-0 min-w-0 flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-        {/* Menú rápido: grid 3x3 */}
-        {quickMenuOpen && (
-          <div
-            className={`fixed inset-0 z-50 ${MODAL_BACKDROP_CENTER}`}
-            onClick={() => setQuickMenuOpen(false)}
-          >
-            <div
-              className={`w-full max-w-sm ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  Menú rápido
-                </p>
-                <button
-                  type="button"
-                  aria-label="Cerrar menú rápido"
-                  className="rounded-full p-1 text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                  onClick={() => setQuickMenuOpen(false)}
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="max-h-[min(70vh,28rem)] space-y-4 overflow-y-auto pr-1">
-                {DASHBOARD_NAV_SECTIONS.map((section) => {
-                  const visible = section.items.filter((item) =>
-                    isDashboardNavLinkVisible(item, quickNavVisibility),
-                  );
-                  if (visible.length === 0) return null;
-
-                  return (
-                    <div key={section.title}>
-                      <p className="mb-2 px-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        {section.title}
-                      </p>
-                      <div className="grid grid-cols-3 gap-3">
-                        {visible.map(({ href, label, icon }) => (
-                          <Link
-                            key={href}
-                            href={href}
-                            onClick={() => setQuickMenuOpen(false)}
-                            className="flex min-h-[80px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                          >
-                            <span className="text-2xl" aria-hidden>
-                              {icon}
-                            </span>
-                            <span className="mt-1 max-w-[90px] text-[11px] leading-tight text-center">
-                              {label}
-                            </span>
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
         {mobileSidebarOpen && (
           <>
             <button
@@ -214,10 +137,21 @@ export default function DashboardLayout({
           <div className="hidden min-h-0 shrink-0 self-stretch md:flex md:flex-col">
             <Sidebar pathname={pathname} collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
           </div>
-          <main className="min-h-0 min-w-0 max-w-full flex-1 overflow-y-auto bg-slate-50 px-3 py-4 md:min-h-0 md:p-6 dark:bg-slate-900">
+          <main className="min-h-0 min-w-0 max-w-full flex-1 overflow-y-auto bg-slate-50 px-3 py-3 md:min-h-0 md:p-5 dark:bg-slate-950">
             {children}
           </main>
         </div>
+
+        {/* Botón flotante (móvil): abrir navegación sin header */}
+        <button
+          type="button"
+          onClick={() => setMobileSidebarOpen(true)}
+          className="fixed bottom-4 left-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full bg-emerald-700 text-lg font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98] md:hidden"
+          aria-label="Abrir menú"
+          title="Menú"
+        >
+          ☰
+        </button>
       </div>
     </div>
     </TasksProvider>

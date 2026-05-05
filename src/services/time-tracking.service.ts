@@ -446,6 +446,232 @@ function parseTimeEntryRowsSummary(raw: unknown): TimeEntryRowsSummaryDto | null
   };
 }
 
+/**
+ * GET /api/TimeEntries/rows/heatmap — mismos filtros que `rows/summary`, sin paginación.
+ * Devuelve cumplimiento por día y por semana ISO dentro del rango.
+ */
+export type TimeEntryRowsHeatmapDayDto = {
+  date: string;
+  isoWeekYear: number;
+  isoWeek: number;
+  /** ISO 8601: 1=Lun … 7=Dom */
+  weekday: number;
+  isWorkingDay: boolean;
+  peopleExpected: number;
+  peopleWorked: number;
+  peopleOnLeave: number;
+  workedHours: number;
+  theoreticalHours: number;
+  /** null cuando no es laborable o no hay personas esperadas. */
+  compliancePct: number | null;
+  slotsWithClosedEntry: number;
+  slotsWithServerPart: number;
+  slotsWithoutEntry: number;
+};
+
+export type TimeEntryRowsHeatmapWeekDto = {
+  isoWeekYear: number;
+  isoWeek: number;
+  /** Lunes ISO de la semana, aunque caiga fuera del rango pedido. */
+  weekStart: string;
+  /** Domingo ISO de la semana, aunque caiga fuera del rango pedido. */
+  weekEnd: string;
+  workedHours: number;
+  theoreticalHours: number;
+  compliancePct: number | null;
+};
+
+export type TimeEntryRowsHeatmapDto = {
+  from: string;
+  to: string;
+  hoursPerWorkingDay: number;
+  scope?: { peopleCount?: number; note?: string };
+  filtersApplied: Record<string, unknown>;
+  days: TimeEntryRowsHeatmapDayDto[];
+  weeks: TimeEntryRowsHeatmapWeekDto[];
+};
+
+function numOrNull(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseTimeEntryRowsHeatmap(raw: unknown): TimeEntryRowsHeatmapDto | null {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const from = String(o.from ?? o.From ?? "").trim();
+  const to = String(o.to ?? o.To ?? "").trim();
+  if (!from || !to) return null;
+
+  const scopeRaw = (o.scope ?? o.Scope ?? {}) as Record<string, unknown>;
+  const filtersRaw = (o.filtersApplied ?? o.FiltersApplied ?? {}) as Record<string, unknown>;
+
+  const daysRaw = o.days ?? o.Days;
+  const days: TimeEntryRowsHeatmapDayDto[] = Array.isArray(daysRaw)
+    ? daysRaw.map((row) => {
+        const r = (row ?? {}) as Record<string, unknown>;
+        return {
+          date: String(r.date ?? r.Date ?? "").trim(),
+          isoWeekYear: numSummary(r.isoWeekYear ?? r.IsoWeekYear, 0),
+          isoWeek: numSummary(r.isoWeek ?? r.IsoWeek, 0),
+          weekday: numSummary(r.weekday ?? r.Weekday, 0),
+          isWorkingDay: Boolean(r.isWorkingDay ?? r.IsWorkingDay),
+          peopleExpected: numSummary(r.peopleExpected ?? r.PeopleExpected, 0),
+          peopleWorked: numSummary(r.peopleWorked ?? r.PeopleWorked, 0),
+          peopleOnLeave: numSummary(r.peopleOnLeave ?? r.PeopleOnLeave, 0),
+          workedHours: numSummary(r.workedHours ?? r.WorkedHours, 0),
+          theoreticalHours: numSummary(r.theoreticalHours ?? r.TheoreticalHours, 0),
+          compliancePct: numOrNull(r.compliancePct ?? r.CompliancePct),
+          slotsWithClosedEntry: numSummary(
+            r.slotsWithClosedEntry ?? r.SlotsWithClosedEntry,
+            0,
+          ),
+          slotsWithServerPart: numSummary(
+            r.slotsWithServerPart ?? r.SlotsWithServerPart,
+            0,
+          ),
+          slotsWithoutEntry: numSummary(r.slotsWithoutEntry ?? r.SlotsWithoutEntry, 0),
+        };
+      })
+    : [];
+
+  const weeksRaw = o.weeks ?? o.Weeks;
+  const weeks: TimeEntryRowsHeatmapWeekDto[] = Array.isArray(weeksRaw)
+    ? weeksRaw.map((row) => {
+        const r = (row ?? {}) as Record<string, unknown>;
+        return {
+          isoWeekYear: numSummary(r.isoWeekYear ?? r.IsoWeekYear, 0),
+          isoWeek: numSummary(r.isoWeek ?? r.IsoWeek, 0),
+          weekStart: String(r.weekStart ?? r.WeekStart ?? "").trim(),
+          weekEnd: String(r.weekEnd ?? r.WeekEnd ?? "").trim(),
+          workedHours: numSummary(r.workedHours ?? r.WorkedHours, 0),
+          theoreticalHours: numSummary(r.theoreticalHours ?? r.TheoreticalHours, 0),
+          compliancePct: numOrNull(r.compliancePct ?? r.CompliancePct),
+        };
+      })
+    : [];
+
+  return {
+    from,
+    to,
+    hoursPerWorkingDay: numSummary(o.hoursPerWorkingDay ?? o.HoursPerWorkingDay, 8) || 8,
+    scope: {
+      peopleCount:
+        scopeRaw.peopleCount == null && scopeRaw.PeopleCount == null
+          ? undefined
+          : numSummary(scopeRaw.peopleCount ?? scopeRaw.PeopleCount, 0),
+      note: typeof scopeRaw.note === "string" ? scopeRaw.note : undefined,
+    },
+    filtersApplied: filtersRaw,
+    days,
+    weeks,
+  };
+}
+
+/**
+ * GET /api/TimeEntries/rows/heatmap-parts — disciplina de partes por día/semana ISO.
+ * Mismos filtros que `rows/summary` salvo `hoursPerWorkingDay` (no aplica).
+ *
+ * Cumplimiento = `entriesWithPart / closedEntries`.
+ * `closedEntries` cuenta solo `Status = Closed` (Error/Open/ausencias quedan fuera).
+ */
+export type TimeEntryRowsHeatmapPartsDayDto = {
+  date: string;
+  isoWeekYear: number;
+  isoWeek: number;
+  /** ISO 8601: 1=Lun … 7=Dom */
+  weekday: number;
+  isWorkingDay: boolean;
+  closedEntries: number;
+  entriesWithPart: number;
+  entriesWithoutPart: number;
+  /** null cuando `closedEntries === 0` (sin actividad medible). */
+  compliancePct: number | null;
+};
+
+export type TimeEntryRowsHeatmapPartsWeekDto = {
+  isoWeekYear: number;
+  isoWeek: number;
+  weekStart: string;
+  weekEnd: string;
+  closedEntries: number;
+  entriesWithPart: number;
+  compliancePct: number | null;
+};
+
+export type TimeEntryRowsHeatmapPartsDto = {
+  from: string;
+  to: string;
+  scope?: { peopleCount?: number; note?: string };
+  filtersApplied: Record<string, unknown>;
+  days: TimeEntryRowsHeatmapPartsDayDto[];
+  weeks: TimeEntryRowsHeatmapPartsWeekDto[];
+};
+
+function parseTimeEntryRowsHeatmapParts(
+  raw: unknown,
+): TimeEntryRowsHeatmapPartsDto | null {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const from = String(o.from ?? o.From ?? "").trim();
+  const to = String(o.to ?? o.To ?? "").trim();
+  if (!from || !to) return null;
+
+  const scopeRaw = (o.scope ?? o.Scope ?? {}) as Record<string, unknown>;
+  const filtersRaw = (o.filtersApplied ?? o.FiltersApplied ?? {}) as Record<string, unknown>;
+
+  const daysRaw = o.days ?? o.Days;
+  const days: TimeEntryRowsHeatmapPartsDayDto[] = Array.isArray(daysRaw)
+    ? daysRaw.map((row) => {
+        const r = (row ?? {}) as Record<string, unknown>;
+        return {
+          date: String(r.date ?? r.Date ?? "").trim(),
+          isoWeekYear: numSummary(r.isoWeekYear ?? r.IsoWeekYear, 0),
+          isoWeek: numSummary(r.isoWeek ?? r.IsoWeek, 0),
+          weekday: numSummary(r.weekday ?? r.Weekday, 0),
+          isWorkingDay: Boolean(r.isWorkingDay ?? r.IsWorkingDay),
+          closedEntries: numSummary(r.closedEntries ?? r.ClosedEntries, 0),
+          entriesWithPart: numSummary(r.entriesWithPart ?? r.EntriesWithPart, 0),
+          entriesWithoutPart: numSummary(
+            r.entriesWithoutPart ?? r.EntriesWithoutPart,
+            0,
+          ),
+          compliancePct: numOrNull(r.compliancePct ?? r.CompliancePct),
+        };
+      })
+    : [];
+
+  const weeksRaw = o.weeks ?? o.Weeks;
+  const weeks: TimeEntryRowsHeatmapPartsWeekDto[] = Array.isArray(weeksRaw)
+    ? weeksRaw.map((row) => {
+        const r = (row ?? {}) as Record<string, unknown>;
+        return {
+          isoWeekYear: numSummary(r.isoWeekYear ?? r.IsoWeekYear, 0),
+          isoWeek: numSummary(r.isoWeek ?? r.IsoWeek, 0),
+          weekStart: String(r.weekStart ?? r.WeekStart ?? "").trim(),
+          weekEnd: String(r.weekEnd ?? r.WeekEnd ?? "").trim(),
+          closedEntries: numSummary(r.closedEntries ?? r.ClosedEntries, 0),
+          entriesWithPart: numSummary(r.entriesWithPart ?? r.EntriesWithPart, 0),
+          compliancePct: numOrNull(r.compliancePct ?? r.CompliancePct),
+        };
+      })
+    : [];
+
+  return {
+    from,
+    to,
+    scope: {
+      peopleCount:
+        scopeRaw.peopleCount == null && scopeRaw.PeopleCount == null
+          ? undefined
+          : numSummary(scopeRaw.peopleCount ?? scopeRaw.PeopleCount, 0),
+      note: typeof scopeRaw.note === "string" ? scopeRaw.note : undefined,
+    },
+    filtersApplied: filtersRaw,
+    days,
+    weeks,
+  };
+}
+
 export const timeTrackingApi = {
   /**
    * Devuelve fichajes según permisos del backend.
@@ -546,6 +772,68 @@ export const timeTrackingApi = {
     const parsed = parseTimeEntryRowsSummary(raw);
     if (!parsed) {
       throw new Error("Respuesta de resumen de fichajes inválida.");
+    }
+    return parsed;
+  },
+
+  /**
+   * Heatmap de cumplimiento por día y semana ISO (mismos filtros que `rows/summary`).
+   * Reusa la query de summary porque la API admite los mismos parámetros.
+   */
+  async getTimeEntryRowsHeatmap(
+    opts: TimeEntryRowsSummaryQuery & { signal?: AbortSignal },
+  ): Promise<TimeEntryRowsHeatmapDto> {
+    const query = buildRowsQuery({
+      from: opts.from,
+      to: opts.to,
+      userId: opts.userId?.trim() ? opts.userId.trim() : undefined,
+      excludedFromTimeTracking: opts.excludedFromTimeTracking,
+      hoursPerWorkingDay:
+        opts.hoursPerWorkingDay != null && Number.isFinite(opts.hoursPerWorkingDay)
+          ? opts.hoursPerWorkingDay
+          : undefined,
+      onlyWorkingDaysWithoutWorkReport:
+        opts.onlyWorkingDaysWithoutWorkReport === true ? true : undefined,
+      clientCompanyId: opts.clientCompanyId?.trim() || undefined,
+      serviceId: opts.serviceId?.trim() || undefined,
+      workAreaId: opts.workAreaId?.trim() || undefined,
+    });
+    const raw = await apiClient.get<unknown>(`/api/TimeEntries/rows/heatmap${query}`, {
+      signal: opts.signal,
+      timeoutMs: TIME_ENTRY_ROWS_TIMEOUT_MS,
+    });
+    const parsed = parseTimeEntryRowsHeatmap(raw);
+    if (!parsed) {
+      throw new Error("Respuesta de heatmap de fichajes inválida.");
+    }
+    return parsed;
+  },
+
+  /**
+   * Heatmap de partes por día/semana ISO. Mismos filtros que `rows/summary`
+   * salvo `hoursPerWorkingDay` (no aplica a este KPI).
+   */
+  async getTimeEntryRowsHeatmapParts(
+    opts: Omit<TimeEntryRowsSummaryQuery, "hoursPerWorkingDay"> & { signal?: AbortSignal },
+  ): Promise<TimeEntryRowsHeatmapPartsDto> {
+    const query = buildRowsQuery({
+      from: opts.from,
+      to: opts.to,
+      userId: opts.userId?.trim() ? opts.userId.trim() : undefined,
+      excludedFromTimeTracking: opts.excludedFromTimeTracking,
+      onlyWorkingDaysWithoutWorkReport:
+        opts.onlyWorkingDaysWithoutWorkReport === true ? true : undefined,
+      clientCompanyId: opts.clientCompanyId?.trim() || undefined,
+      serviceId: opts.serviceId?.trim() || undefined,
+      workAreaId: opts.workAreaId?.trim() || undefined,
+    });
+    const raw = await apiClient.get<unknown>(
+      `/api/TimeEntries/rows/heatmap-parts${query}`,
+      { signal: opts.signal, timeoutMs: TIME_ENTRY_ROWS_TIMEOUT_MS },
+    );
+    const parsed = parseTimeEntryRowsHeatmapParts(raw);
+    if (!parsed) {
+      throw new Error("Respuesta de heatmap de partes inválida.");
     }
     return parsed;
   },

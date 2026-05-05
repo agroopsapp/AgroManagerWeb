@@ -3,13 +3,25 @@ import {
   isDashboardPathAccessibleInFichadorShell,
 } from "@/lib/dashboardNavGating";
 import { USER_ROLE, type UserRole } from "@/types";
+import type { ReactNode } from "react";
+import {
+  IconAlert,
+  IconAnimal,
+  IconChart,
+  IconClipboard,
+  IconFarm,
+  IconHome,
+  IconPin,
+  IconSettings,
+  IconUser,
+} from "@/components/icons/SidebarIcons";
 
 const PATHS_OCULTOS_SIN_OPERATIVA = new Set<string>(DASHBOARD_PATHS_OPERATIVA_Y_ANALISIS);
 
 export type DashboardNavItem = {
   href: string;
   label: string;
-  icon: string;
+  icon: ReactNode;
   adminOnly?: boolean;
   /** Solo rol `SuperAdmin` (API `/api/superadmin/*`). */
   superAdminOnly?: boolean;
@@ -28,46 +40,47 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
   {
     title: "Operativa",
     items: [
-      { href: "/dashboard", label: "Panel", icon: "🏠" },
-      { href: "/dashboard/tasks", label: "Tareas", icon: "📋" },
-      { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: "📌", adminOnly: true },
-      { href: "/dashboard/incidents", label: "Incidencias animales", icon: "⚠" },
+      { href: "/dashboard", label: "Panel", icon: IconHome() },
+      { href: "/dashboard/tasks", label: "Tareas", icon: IconClipboard() },
+      { href: "/dashboard/unassigned-tasks", label: "Tareas sin asignar", icon: IconPin(), adminOnly: true },
+      { href: "/dashboard/incidents", label: "Incidencias animales", icon: IconAlert() },
     ],
   },
   {
     title: "Hoy",
     items: [
-      { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: "⏱" },
-      { href: "/dashboard/time-tracking/partes-de-obra", label: "Partes de obra", icon: "📑" },
-      { href: "/dashboard/team-hours", label: "Fichajes y partes", icon: "👥" },
+      { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: IconChart() },
+      { href: "/dashboard/time-tracking/partes-de-obra", label: "Partes de obra", icon: IconClipboard() },
+      { href: "/dashboard/materiales", label: "Materiales", icon: IconFarm() },
+      { href: "/dashboard/team-hours", label: "Fichajes y partes", icon: IconUser() },
     ],
   },
   {
     title: "Gestión",
     items: [
-      { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: "📅" },
-      { href: "/dashboard/my-company", label: "Mi empresa", icon: "🏷️" },
-      { href: "/dashboard/companies", label: "Empresas", icon: "🏢" },
-      { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
-      { href: "/dashboard/users", label: "Trabajadores", icon: "👤" },
+      { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: IconChart() },
+      { href: "/dashboard/my-company", label: "Mi empresa", icon: IconFarm() },
+      { href: "/dashboard/companies", label: "Empresas", icon: IconFarm() },
+      { href: "/dashboard/services", label: "Servicios", icon: IconPin() },
+      { href: "/dashboard/users", label: "Trabajadores", icon: IconUser() },
     ],
   },
   {
     title: "Datos",
     items: [
-      { href: "/dashboard/animals", label: "Animales", icon: "🐄" },
-      { href: "/dashboard/farms", label: "Granjas", icon: "🌾" },
+      { href: "/dashboard/animals", label: "Animales", icon: IconAnimal() },
+      { href: "/dashboard/farms", label: "Granjas", icon: IconFarm() },
     ],
   },
   {
     title: "Análisis",
-    items: [{ href: "/dashboard/stats", label: "Estadísticas", icon: "📈" }],
+    items: [{ href: "/dashboard/stats", label: "Estadísticas", icon: IconChart() }],
   },
   {
     title: "Sistema",
     items: [
-      { href: "/dashboard/superadmin", label: "Superadmin", icon: "🛡", superAdminOnly: true },
-      { href: "/dashboard/settings", label: "Ajustes", icon: "⚙", superAdminOnly: true },
+      { href: "/dashboard/superadmin", label: "Superadmin", icon: IconAlert(), superAdminOnly: true },
+      { href: "/dashboard/settings", label: "Ajustes", icon: IconSettings(), superAdminOnly: true },
     ],
   },
 ];
