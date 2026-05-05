@@ -15,6 +15,7 @@ import { useForgotModal } from "@/features/time-tracking/hooks/useForgotModal";
 import { useAyerCompleta } from "@/features/time-tracking/hooks/useAyerCompleta";
 import type { TimeEntryMock } from "@/features/time-tracking/types";
 import { workReportsApi } from "@/services/work-reports.service";
+import { DashboardHoyPageHero, DashboardPageShell, FichajeJornadaMainPanel } from "@/components/dashboard-page";
 
 const AyerCompletaModal = dynamic(
   () => import("@/features/time-tracking/components/AyerCompletaModal").then((m) => m.AyerCompletaModal),
@@ -205,44 +206,33 @@ export default function TimeTrackingPage() {
 
   // --- Render ---
   return (
-    <div className="min-w-0 max-w-full space-y-6">
+    <DashboardPageShell width="full" className="min-w-0">
       {breakModal.workPartSuccessMessage && (
         <div className="fixed left-1/2 top-1/2 z-[9999] w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-emerald-200/90 bg-emerald-50 px-5 py-4 text-center text-sm font-semibold text-emerald-900 shadow-[0_24px_48px_-12px_rgba(5,150,105,0.35)] dark:border-emerald-700/80 dark:bg-emerald-950/95 dark:text-emerald-100">
           {breakModal.workPartSuccessMessage}
         </div>
       )}
 
-      {/* Cabecera: legible en cualquier tema, acento de marca sin barra verde plana */}
-      <header className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white px-5 py-6 shadow-[0_1px_3px_rgba(15,23,42,0.06)] sm:px-8 sm:py-7 dark:border-slate-700/80 dark:bg-slate-900/90 dark:shadow-none">
-        <div
-          className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-agro-500 via-emerald-500 to-teal-500"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -right-16 -top-24 h-48 w-48 rounded-full bg-agro-500/[0.07] blur-3xl dark:bg-agro-400/10"
-          aria-hidden
-        />
-        <div className="relative flex flex-col gap-5 pl-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-agro-600 dark:text-agro-400">
-              Registro de jornada
-            </p>
-            <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-              Fichador
-            </h1>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+      <DashboardHoyPageHero
+        sectionLabel="Registro de jornada"
+        title="Fichador"
+        description={
+          <>
+            <p className="max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
               Marca tu entrada y salida de forma sencilla y cumpliendo el registro horario.
             </p>
             <Link
               href="/dashboard/time-tracking/vacaciones-y-festivos"
-              className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-agro-700 underline-offset-2 hover:text-agro-800 hover:underline dark:text-agro-400 dark:hover:text-agro-300"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-agro-700 underline-offset-2 hover:text-agro-800 hover:underline dark:text-agro-400 dark:hover:text-agro-300"
             >
               <span aria-hidden>📅</span>
               Ver calendario de vacaciones y festivos
             </Link>
-          </div>
-          {user && (
-            <div className="flex min-w-0 shrink-0 flex-col gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/90 px-4 py-3 dark:border-slate-600/80 dark:bg-slate-800/60">
+          </>
+        }
+        trailing={
+          user ? (
+            <div className="flex min-w-0 w-full flex-col gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/90 px-4 py-3 sm:w-auto dark:border-slate-600/80 dark:bg-slate-800/60">
               <span className="max-w-[min(100%,18rem)] truncate text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Sesión
               </span>
@@ -250,12 +240,15 @@ export default function TimeTrackingPage() {
                 {user.email}
               </span>
               <span className="text-xs text-slate-500 dark:text-slate-400">
-                Hoy: <span className="font-medium text-slate-700 dark:text-slate-300">{formatDateES(fichaje.today)}</span>
+                Hoy:{" "}
+                <span className="font-medium text-slate-700 dark:text-slate-300">
+                  {formatDateES(fichaje.today)}
+                </span>
               </span>
             </div>
-          )}
-        </div>
-      </header>
+          ) : null
+        }
+      />
 
       {ayerCompleta.hayDiasSinCuadrarEnHistorico && (
         <div
@@ -282,11 +275,7 @@ export default function TimeTrackingPage() {
       )}
 
       {/* Un solo “módulo” visual: columna de acción + tabla comparten marco, acento y fondos */}
-      <div className="min-w-0 max-w-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_2px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/60 dark:border-slate-700/80 dark:bg-slate-900/95 dark:shadow-none dark:ring-slate-700/80">
-        <div
-          className="h-1 w-full bg-gradient-to-r from-agro-500 via-emerald-500 to-teal-500"
-          aria-hidden
-        />
+      <FichajeJornadaMainPanel>
         <div className="grid min-h-0 min-w-0 lg:grid-cols-[minmax(280px,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(300px,21rem)_minmax(0,1fr)]">
           <aside
             aria-label="Fichaje y resumen del día"
@@ -324,7 +313,7 @@ export default function TimeTrackingPage() {
             />
           </div>
         </div>
-      </div>
+      </FichajeJornadaMainPanel>
 
       {/* Modal: completar registro de ayer */}
       {ayerCompleta.ayerCompStep !== "closed" &&
@@ -443,6 +432,6 @@ export default function TimeTrackingPage() {
           onGenerateWorkPartPdf={breakModal.generateWorkPartPdf}
         />
       )}
-    </div>
+    </DashboardPageShell>
   );
 }

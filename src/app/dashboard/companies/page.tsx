@@ -13,6 +13,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { USER_ROLE, type Company as CompanyType, type CompanyArea } from "@/types";
+import {
+  DashboardHoyPageHero,
+  DashboardPageShell,
+  PageCalloutError,
+  PageSurface,
+} from "@/components/dashboard-page";
 
 function newAreaId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -327,41 +333,42 @@ export default function CompaniesPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Empresas</h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            {isWorker
-              ? "Listado de empresas del tenant. Solo consulta."
-              : "Empresas con las que se puede trabajar (alta, edición y baja). Los trabajadores se vinculan a una empresa al darlos de alta."}
-          </p>
-          {isReady && isWorker ? (
-            <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
-              Como trabajador/a, esta pantalla es <strong className="font-semibold">solo consulta</strong>
-              : no puedes crear, editar ni eliminar empresas. Puedes abrir el detalle de las áreas con{" "}
-              <strong className="font-semibold">Ver áreas</strong>.
+    <DashboardPageShell width="full" className="min-w-0">
+      <DashboardHoyPageHero
+        sectionLabel="Administración"
+        title="Empresas"
+        description={
+          <div className="max-w-2xl space-y-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400 [&_strong]:font-semibold">
+            <p>
+              {isWorker
+                ? "Listado de empresas del tenant. Solo consulta."
+                : "Empresas con las que se puede trabajar (alta, edición y baja). Los trabajadores se vinculan a una empresa al darlos de alta."}
             </p>
-          ) : null}
-        </div>
-        {!isWorker ? (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
-          >
-            Nueva empresa
-          </button>
-        ) : null}
-      </div>
+            {isReady && isWorker ? (
+              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+                Como trabajador/a, esta pantalla es <strong className="font-semibold">solo consulta</strong>
+                : no puedes crear, editar ni eliminar empresas. Puedes abrir el detalle de las áreas con{" "}
+                <strong className="font-semibold">Ver áreas</strong>.
+              </p>
+            ) : null}
+          </div>
+        }
+        trailing={
+          !isWorker ? (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+            >
+              Nueva empresa
+            </button>
+          ) : null
+        }
+      />
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500 dark:bg-red-900/30 dark:text-red-200">
-          {error}
-        </div>
-      )}
+      {error ? <PageCalloutError>{error}</PageCalloutError> : null}
 
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800 sm:flex-row sm:flex-wrap sm:items-center">
+      <PageSurface className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           type="search"
           placeholder="Buscar por nombre, CIF o dirección…"
@@ -370,9 +377,9 @@ export default function CompaniesPage() {
           disabled={loading}
           className="min-w-[180px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
-      </div>
+      </PageSurface>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
+      <PageSurface padded={false}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700">
@@ -524,7 +531,7 @@ export default function CompaniesPage() {
               : "Ninguna empresa coincide con la búsqueda."}
           </p>
         )}
-      </div>
+      </PageSurface>
 
       {isWorker && areasReadOpen && areasReadCompany && (
         <div
@@ -795,6 +802,6 @@ export default function CompaniesPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardPageShell>
   );
 }

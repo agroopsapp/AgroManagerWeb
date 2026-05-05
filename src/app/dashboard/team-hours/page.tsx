@@ -6,6 +6,7 @@ import { motion, useAnimationControls, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { companiesApi, getClientCompanyWithAreas, workServicesApi } from "@/services";
+import { DashboardHoyPageHero, DashboardPageShell } from "@/components/dashboard-page";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { USER_ROLE } from "@/types";
 import { useEquipo } from "@/features/time-tracking/hooks/useEquipo";
@@ -64,8 +65,7 @@ import {
 } from "@/features/time-tracking/components/EquipoTablaAccionesIconos";
 import { TimeEntryStatusBadge } from "@/features/time-tracking/components/TimeEntryStatusBadge";
 import { HorasMensualesDonut } from "@/features/time-tracking/components/charts/HorasMensualesDonut";
-import { FichajeTipoRadialSummary } from "@/features/time-tracking/components/charts/FichajeTipoRadialSummary";
-import { EquipoKpiResumenBarras } from "@/features/time-tracking/components/charts/EquipoKpiResumenBarras";
+import { FichajeTipoDonut } from "@/features/time-tracking/components/charts/FichajeTipoDonut";
 import { EquipoRegistrosFiltrosEtiquetas } from "@/features/time-tracking/components/EquipoRegistrosFiltrosEtiquetas";
 
 const EquipoPartModal = dynamic(
@@ -143,8 +143,6 @@ export default function TeamHoursPage() {
   const [parteEquipoValidationError, setParteEquipoValidationError] = useState<string | null>(null);
   const [exportPartesBundleLoading, setExportPartesBundleLoading] = useState(false);
   const [exportPartesBundleError, setExportPartesBundleError] = useState<string | null>(null);
-  /** Resumen KPI superior: tarjetas (1) o barras (2). */
-  const [equipoKpiPagina, setEquipoKpiPagina] = useState<0 | 1>(0);
   // Marcado = comportamiento habitual: ocultar excluidos del fichaje.
   const [ocultarExcluidosFichaje, setOcultarExcluidosFichaje] = useState(true);
   /** Solo escritorio (lg+): montar filtros en columna lateral; en móvil van en `<details>` para priorizar la tabla. */
@@ -362,7 +360,6 @@ export default function TeamHoursPage() {
       void registrosBlockAnim.start({
         opacity: 1,
         y: 0,
-        scaleY: 1,
         transition: transCorto,
       });
       void resumenAsideAnim.start({ opacity: 1, y: 0, transition: transCorto });
@@ -388,7 +385,6 @@ export default function TeamHoursPage() {
         registrosBlockAnim.start({
           opacity: 0.72,
           y: 16,
-          scaleY: 0.975,
           transition: { duration: 0.28, ease: FILTER_ANIM_EASE_IN },
         }),
         resumenAsideAnim.start({
@@ -423,7 +419,6 @@ export default function TeamHoursPage() {
         registrosBlockAnim.start({
           opacity: 1,
           y: 0,
-          scaleY: 1,
           transition: {
             duration: 0.72,
             ease: FILTER_ANIM_EASE_OUT,
@@ -807,71 +802,11 @@ export default function TeamHoursPage() {
     );
   }
 
-  function TeamHoursEquipoKpiSection({ idSuffix }: { idSuffix: string }) {
-    const panelId = `equipo-kpi-panel${idSuffix}`;
-    const tabTarjetasId = `equipo-kpi-tab-tarjetas${idSuffix}`;
-    const tabGraficoId = `equipo-kpi-tab-grafico${idSuffix}`;
+  function TeamHoursEquipoKpiSection() {
     return (
-      <motion.section
-        className="space-y-2"
-        initial={{ opacity: 1, y: 0 }}
-        animate={kpiBlockAnim}
-      >
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400">
-            Mismos datos del periodo: elige vista.
-          </p>
-          <nav
-            className="flex items-center gap-2 self-end sm:self-auto"
-            aria-label="Paginación vista resumen KPI"
-          >
-            <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">
-              Vista
-            </span>
-            <div className="flex items-center gap-1 rounded-full border border-slate-200/90 bg-slate-50/90 p-0.5 dark:border-slate-600 dark:bg-slate-800/80">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={equipoKpiPagina === 0}
-                aria-controls={panelId}
-                id={tabTarjetasId}
-                onClick={() => setEquipoKpiPagina(0)}
-                className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-bold transition ${
-                  equipoKpiPagina === 0
-                    ? "bg-agro-600 text-white shadow-sm dark:bg-emerald-600"
-                    : "text-slate-600 hover:bg-white/80 dark:text-slate-300 dark:hover:bg-slate-700/80"
-                }`}
-                title="Tarjetas"
-              >
-                1
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={equipoKpiPagina === 1}
-                aria-controls={panelId}
-                id={tabGraficoId}
-                onClick={() => setEquipoKpiPagina(1)}
-                className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-full px-2 text-xs font-bold transition ${
-                  equipoKpiPagina === 1
-                    ? "bg-agro-600 text-white shadow-sm dark:bg-emerald-600"
-                    : "text-slate-600 hover:bg-white/80 dark:text-slate-300 dark:hover:bg-slate-700/80"
-                }`}
-                title="Gráfico (barras)"
-              >
-                2
-              </button>
-            </div>
-            <span className="hidden text-[10px] text-slate-400 dark:text-slate-500 sm:inline" aria-hidden>
-              {equipoKpiPagina === 0 ? "· tarjetas" : "· barras"}
-            </span>
-          </nav>
-        </div>
-
-        <div id={panelId} role="tabpanel" aria-labelledby={equipoKpiPagina === 0 ? tabTarjetasId : tabGraficoId}>
-          {equipoKpiPagina === 0 ? (
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-5 xl:items-stretch">
-              <EquipoKpiStatCard
+      <motion.section initial={{ opacity: 1, y: 0 }} animate={kpiBlockAnim}>
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2 xl:grid-cols-5 xl:items-stretch">
+          <EquipoKpiStatCard
                 accent="emerald"
                 titulo="Horas imputadas"
                 valorPrincipal={
@@ -905,8 +840,8 @@ export default function TeamHoursPage() {
                     ) : null}
                   </>
                 }
-              />
-              <EquipoKpiStatCard
+          />
+          <EquipoKpiStatCard
                 accent="violet"
                 titulo="Fichaje en jornadas"
                 valorPrincipal={
@@ -915,8 +850,8 @@ export default function TeamHoursPage() {
                     jornadasLaborables={eq.equipoJornadasFichajeStats.jornadasLaborables}
                   />
                 }
-              />
-              <EquipoKpiStatCard
+          />
+          <EquipoKpiStatCard
                 accent="sky"
                 titulo="Parte vs jornadas registradas"
                 valorPrincipal={
@@ -925,8 +860,8 @@ export default function TeamHoursPage() {
                     jornadasRegistradas={eq.equipoRejillaParteStats.conFichajeCerrado}
                   />
                 }
-              />
-              <EquipoKpiStatCard
+          />
+          <EquipoKpiStatCard
                 accent="amber"
                 titulo="Registradas pero sin parte"
                 valorPrincipal={
@@ -935,8 +870,8 @@ export default function TeamHoursPage() {
                   </span>
                 }
                 pie="Jornada cerrada sin parte en servidor."
-              />
-              <EquipoKpiStatCard
+          />
+          <EquipoKpiStatCard
                 accent="rose"
                 titulo="Días sin imputar"
                 valorPrincipal={
@@ -945,22 +880,7 @@ export default function TeamHoursPage() {
                   </span>
                 }
                 pie="Celdas laborables sin fichaje (coherente con la tabla)."
-              />
-            </div>
-          ) : (
-            <EquipoKpiResumenBarras
-              totalMinutosImputados={eq.totalMinutosImputadosMes}
-              totalHorasDecimal={eq.totalHorasDecimalMes}
-              registros={eq.equipoRegistrosPeriodoKpi}
-              horasObjetivoTeorico={eq.horasObjetivoMesTeorico}
-              fichajeCon={eq.equipoJornadasFichajeStats.conFichaje}
-              fichajeJornadasLaborables={eq.equipoJornadasFichajeStats.jornadasLaborables}
-              parteCon={eq.equipoRejillaParteStats.conFichajeYParte}
-              parteJornadasRegistradas={eq.equipoRejillaParteStats.conFichajeCerrado}
-              registradasSinParte={eq.equipoRejillaParteStats.conFichajeSinParte}
-              diasSinImputar={eq.diasSinImputarEquipo}
-            />
-          )}
+          />
         </div>
       </motion.section>
     );
@@ -1006,9 +926,6 @@ export default function TeamHoursPage() {
             <h2 className="text-xs font-bold uppercase tracking-[0.08em] text-blue-700 dark:text-sky-300">
               Resumen visual
             </h2>
-            <p className="mt-1 text-xs leading-snug text-slate-500 dark:text-slate-400">
-              Desglose por tipo de fichaje y objetivo frente a imputación.
-            </p>
             {eq.equipoSummaryError ? (
               <p className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-amber-200/90 bg-amber-50 px-2.5 py-1.5 text-xs leading-snug text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
                 {eq.equipoSummaryError}
@@ -1022,9 +939,9 @@ export default function TeamHoursPage() {
           </div>
           <div className="mt-2 space-y-2">
             <div className="min-h-0 min-w-0 rounded-xl border border-slate-200/90 bg-slate-50/50 px-2 py-2.5 dark:border-slate-600/60 dark:bg-slate-900/40 sm:px-2.5">
-              <FichajeTipoRadialSummary
+              <FichajeTipoDonut
+                variant="compact"
                 bare
-                bareStack
                 horasNormal={eq.fichajeTipoStats.horasNormal}
                 horasManual={eq.fichajeTipoStats.horasManual}
                 horasSinImputar={eq.horasSinImputarTipoFichaje}
@@ -1037,12 +954,9 @@ export default function TeamHoursPage() {
               <HorasMensualesDonut
                 bare
                 bareStack
-                horasImputadoHastaTope={eq.hDonutImputado}
-                horasFalta={eq.hDonutFalta}
-                horasExtra={eq.hDonutExtra}
-                horasObjetivo={eq.horasObjetivoMesTeorico}
-                horasImputadasTotal={eq.horasImputadasDecimal}
-                registrosEnPeriodo={eq.equipoRegistrosPeriodoKpi}
+                celdasLaborables={eq.equipoJornadasFichajeStats.jornadasLaborables}
+                celdasConFichaje={eq.equipoJornadasFichajeStats.conFichaje}
+                celdasConFichajeYParte={eq.equipoRejillaParteStats.conFichajeYParte}
                 periodo={eq.equipoPeriodo}
               />
             </div>
@@ -1053,72 +967,72 @@ export default function TeamHoursPage() {
   }
 
   return (
-    <div className="min-w-0 max-w-full pb-4">
-      <header className="space-y-2 pb-3">
-        <div className="space-y-1">
-          {parteEquipoValidationError ? (
-            <div
-              role="alert"
-              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/35 dark:text-amber-100"
-            >
-              <span>{parteEquipoValidationError}</span>{" "}
-              <button
-                type="button"
-                className="ml-2 font-semibold underline"
-                onClick={() => setParteEquipoValidationError(null)}
-              >
-                Cerrar
-              </button>
-            </div>
-          ) : null}
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 dark:text-slate-400">
-            Fichajes y partes
-          </p>
-          <h1 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white sm:text-xl sm:leading-snug">
-            Vista del equipo por trabajador
-          </h1>
-          <p className="max-w-2xl text-xs leading-snug text-slate-600 dark:text-slate-400">
+    <DashboardPageShell width="full" className="pb-4">
+      {parteEquipoValidationError ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/35 dark:text-amber-100"
+        >
+          <span>{parteEquipoValidationError}</span>{" "}
+          <button
+            type="button"
+            className="ml-2 font-semibold underline"
+            onClick={() => setParteEquipoValidationError(null)}
+          >
+            Cerrar
+          </button>
+        </div>
+      ) : null}
+
+      <DashboardHoyPageHero
+        sectionLabel="Fichajes y partes"
+        title="Vista del equipo por trabajador"
+        description={
+          <p className="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
             <span className="font-medium text-slate-800 dark:text-slate-200">{periodoEtiqueta}</span>
             {" · "}Fichajes imputados y partes diarios del periodo seleccionado.
           </p>
-          {isWorker ? (
-            <p className="mt-2 max-w-2xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
-              Como trabajador/a puedes filtrar y revisar el equipo. Los botones{" "}
-              <strong className="font-semibold">Editar hora</strong> y{" "}
-              <strong className="font-semibold">Añadir / Editar parte</strong> solo aparecen en filas de los{" "}
-              <strong className="font-semibold">últimos {WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS} días naturales</strong>{" "}
-              (incluye fines de semana). Fuera de esa ventana la API puede rechazar la edición.
-            </p>
-          ) : null}
-        </div>
-
-        <details className="group max-w-2xl rounded-lg border border-slate-200/65 bg-slate-50/40 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/25">
-          <summary className="cursor-pointer select-none text-xs font-medium text-slate-700 outline-none marker:text-slate-400 dark:text-slate-200">
-            Interpretación del periodo y los gráficos
-          </summary>
-          <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-snug text-slate-600 marker:text-slate-400 dark:text-slate-400">
-            <li>
-              Mes en curso: del 1 al día de hoy. Meses anteriores: mes completo (lun–dom en rejilla).
-            </li>
-            <li>Fin de semana: tratado como no laboral salvo correcciones manuales.</li>
-            <li>
-              <span className="font-medium text-rose-700 dark:text-rose-400">
-                Laborable sin fichaje
-              </span>{" "}
-              se resalta en la tabla para revisión rápida.
-            </li>
-            <li>
-              En pantallas anchas, el resumen con donas queda a la <strong>derecha</strong> de la tabla y del
-              bloque de objetivo (misma anchura que la rejilla de registros).
-            </li>
-            <li>
-              Si el periodo es <span className="font-medium text-slate-800 dark:text-slate-200">Año</span>
-              , los gráficos usan el año completo y la tabla solo el mes que elijas encima de
-              «Registros».
-            </li>
-          </ul>
-        </details>
-      </header>
+        }
+        extraBelow={
+          <>
+            {isWorker ? (
+              <p className="max-w-2xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+                Como trabajador/a puedes filtrar y revisar el equipo. Los botones{" "}
+                <strong className="font-semibold">Editar hora</strong> y{" "}
+                <strong className="font-semibold">Añadir / Editar parte</strong> solo aparecen en filas de los{" "}
+                <strong className="font-semibold">últimos {WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS} días naturales</strong>{" "}
+                (incluye fines de semana). Fuera de esa ventana la API puede rechazar la edición.
+              </p>
+            ) : null}
+            <details className="group max-w-2xl rounded-lg border border-slate-200/65 bg-slate-50/40 px-3 py-2 dark:border-slate-700/80 dark:bg-slate-800/25">
+              <summary className="cursor-pointer select-none text-xs font-medium text-slate-700 outline-none marker:text-slate-400 dark:text-slate-200">
+                Interpretación del periodo y los gráficos
+              </summary>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-xs leading-snug text-slate-600 marker:text-slate-400 dark:text-slate-400">
+                <li>
+                  Mes en curso: del 1 al día de hoy. Meses anteriores: mes completo (lun–dom en rejilla).
+                </li>
+                <li>Fin de semana: tratado como no laboral salvo correcciones manuales.</li>
+                <li>
+                  <span className="font-medium text-rose-700 dark:text-rose-400">
+                    Laborable sin fichaje
+                  </span>{" "}
+                  se resalta en la tabla para revisión rápida.
+                </li>
+                <li>
+                  En pantallas anchas, el resumen con donas queda a la <strong>derecha</strong> de la tabla y del
+                  bloque de objetivo (misma anchura que la rejilla de registros).
+                </li>
+                <li>
+                  Si el periodo es <span className="font-medium text-slate-800 dark:text-slate-200">Año</span>
+                  , los gráficos usan el año completo y la tabla solo el mes que elijas encima de
+                  «Registros».
+                </li>
+              </ul>
+            </details>
+          </>
+        }
+      />
 
       {/* ── Rejilla: panel de filtros + contenido ────────────────── */}
       {/* `items-stretch` + wrapper alto completo: sin esto `items-start` deja la celda del aside
@@ -1171,7 +1085,7 @@ export default function TeamHoursPage() {
 
         {/* ── Contenido principal: KPI a ancho útil; objetivo+tabla comparten ancho con donas a la derecha (xl+) ── */}
         <div className="min-h-0 min-w-0 space-y-3">
-          {teamHoursIsLgLayout ? <TeamHoursEquipoKpiSection idSuffix="" /> : null}
+          {teamHoursIsLgLayout ? <TeamHoursEquipoKpiSection /> : null}
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:gap-3">
             <div className="min-h-0 min-w-0 flex-1 space-y-3">
@@ -1182,19 +1096,14 @@ export default function TeamHoursPage() {
         <motion.div
           className={`${cardSurfaceClass} px-4 py-6 text-center text-sm text-slate-600 dark:text-slate-400`}
           style={{ transformOrigin: "top center" }}
-          initial={{ opacity: 1, y: 0, scaleY: 1 }}
+          initial={{ opacity: 1, y: 0 }}
           animate={registrosBlockAnim}
         >
           No hay días que mostrar en este contexto (periodo futuro o filtro no aplicable). El mes en
           curso solo incluye hasta hoy.
         </motion.div>
       ) : (
-        <motion.section
-          className={`${cardSurfaceClass} overflow-hidden`}
-          style={{ transformOrigin: "top center" }}
-          initial={{ opacity: 1, y: 0, scaleY: 1 }}
-          animate={registrosBlockAnim}
-        >
+        <section className={`${cardSurfaceClass} flex min-h-0 flex-col`}>
           {eq.equipoPeriodo === "anio" ? (
             <div
               className="border-b border-agro-400/50 bg-gradient-to-br from-emerald-50/90 via-white to-agro-50/30 px-3 py-2.5 dark:border-agro-600/40 dark:from-agro-950/35 dark:via-slate-900/95 dark:to-emerald-950/15"
@@ -1336,18 +1245,17 @@ export default function TeamHoursPage() {
             filtroExtra={eq.equipoTablaFiltroExtra}
           />
 
-          {/* Tabla scroll */}
+          {/* Un solo contenedor con overflow (x+y en lg): `sticky` del thead falla si un padre tiene `overflow-hidden` o hay un wrapper solo con overflow-x entre thead y el scroll vertical. */}
           <div
             ref={eq.equipoTablaScrollRef}
-            className="team-hours-table-scroll isolate w-full min-w-0 max-w-full overflow-x-hidden overflow-y-visible border-t border-slate-100 bg-slate-50/20 dark:border-slate-800 dark:bg-slate-950/15 max-h-none lg:max-h-[min(82vh,calc(100dvh-12.5rem))] lg:overflow-y-auto lg:[-webkit-overflow-scrolling:touch] lg:[touch-action:pan-y]"
+            className="team-hours-table-scroll isolate w-full min-w-0 max-w-full border-t border-slate-100 bg-slate-50/20 dark:border-slate-800 dark:bg-slate-950/15 overflow-x-auto [-webkit-overflow-scrolling:touch] max-h-none min-h-0 touch-manipulation lg:max-h-[min(82vh,calc(100dvh-12.5rem))] lg:overflow-auto lg:overscroll-contain"
             style={{
               overscrollBehaviorY: "auto",
               overscrollBehaviorX: "contain",
             }}
           >
-            <div className="min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch] [touch-action:manipulation]">
             <table className="w-full min-w-[64rem] border-collapse text-left text-sm">
-              <thead className="sticky top-0 z-[5] border-b border-slate-200/90 bg-white/90 text-xs font-semibold text-slate-600 backdrop-blur-md dark:border-slate-700 dark:bg-slate-900/90 dark:text-slate-300">
+              <thead className="sticky top-0 z-20 border-b border-slate-200 bg-white text-xs font-semibold text-slate-600 shadow-[0_1px_0_0_rgb(226_232_240)] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:shadow-[0_1px_0_0_rgb(51_65_85_/_0.9)]">
                 <tr>
                   {(
                     [
@@ -1466,7 +1374,7 @@ export default function TeamHoursPage() {
                   >
                     Parte en servidor
                   </th>
-                  <th className="sticky right-0 z-[5] bg-white/95 px-1.5 py-1.5 text-center text-[11px] font-medium text-slate-500 shadow-[-8px_0_20px_-12px_rgba(15,23,42,0.18)] backdrop-blur-md dark:bg-slate-900/95 dark:text-slate-400">
+                  <th className="sticky right-0 z-30 bg-white px-1.5 py-1.5 text-center text-[11px] font-medium text-slate-500 shadow-[-8px_0_20px_-12px_rgba(15,23,42,0.18)] dark:bg-slate-900 dark:text-slate-400">
                     Acciones
                   </th>
                 </tr>
@@ -1750,7 +1658,6 @@ export default function TeamHoursPage() {
                 )}
               </tbody>
             </table>
-            </div>
           </div>
           {eq.equipoRange && eq.filtroPersonaEquipo !== "todas" ? (
             <div className="border-t border-slate-100 bg-slate-50/30 px-3 py-3 dark:border-slate-800 dark:bg-slate-900/20">
@@ -1780,7 +1687,7 @@ export default function TeamHoursPage() {
               />
             </div>
           ) : null}
-        </motion.section>
+        </section>
       )}
             </div>
 
@@ -1814,7 +1721,7 @@ export default function TeamHoursPage() {
             </summary>
             <div className="border-t border-slate-100 px-3 pb-4 pt-3 dark:border-slate-800">
               <div className="flex flex-col gap-3">
-                <TeamHoursEquipoKpiSection idSuffix="-movil" />
+                <TeamHoursEquipoKpiSection />
                 <TeamHoursObjetivoCard />
                 <TeamHoursResumenVisualAside />
               </div>
@@ -2024,6 +1931,6 @@ export default function TeamHoursPage() {
           onGeneratePdf={part.handleGenerateEquipoPartPdf}
         />
       )}
-    </div>
+    </DashboardPageShell>
   );
 }

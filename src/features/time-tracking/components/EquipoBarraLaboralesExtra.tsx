@@ -34,21 +34,16 @@ export const EquipoBarraLaboralesExtra = memo(function EquipoBarraLaboralesExtra
       )
     : 0;
 
+  const totalDistintoLabor =
+    Math.abs(horasImputadasTotal - horasImputadasLabor) > 0.08;
+  const mostrarPie = tieneExtra || totalDistintoLabor;
+
   return (
     <div className="mt-2 min-w-0 space-y-2 rounded-lg border border-slate-300 bg-slate-50/90 px-2.5 py-2 dark:border-slate-600 dark:bg-slate-800/35 sm:px-3 sm:py-2.5">
-      <p className="text-sm font-semibold tracking-tight text-slate-800 dark:text-slate-100">
-        Imputación vs tope laboral
-      </p>
       <div className="flex w-full min-w-0 items-end gap-2 sm:gap-3">
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-xs text-slate-700 dark:text-slate-200">
-            <span>
-              <span className="font-bold text-agro-700 dark:text-agro-400">Laborales</span>
-              <span className="text-slate-600 dark:text-slate-300">
-                {" "}
-                (tope {horasObjetivo.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h)
-              </span>
-            </span>
+            <span className="font-bold text-agro-700 dark:text-agro-400">Imputado / tope</span>
             <span className="shrink-0 tabular-nums font-semibold text-slate-900 dark:text-white">
               {horasImputadasLabor.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h /{" "}
               {horasObjetivo.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
@@ -64,15 +59,6 @@ export const EquipoBarraLaboralesExtra = memo(function EquipoBarraLaboralesExtra
               style={{ width: `${pctLabor}%` }}
             />
           </div>
-          {horasFalta > 0.05 && (
-            <p className="text-xs leading-snug text-slate-600 dark:text-slate-300">
-              <span className="font-medium text-slate-500 dark:text-slate-400">Tramo gris:</span> faltan{" "}
-              <strong className="font-bold text-slate-900 dark:text-white">
-                {horasFalta.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
-              </strong>{" "}
-              para cubrir el tope.
-            </p>
-          )}
         </div>
         {tieneExtra && (
           <div
@@ -98,22 +84,33 @@ export const EquipoBarraLaboralesExtra = memo(function EquipoBarraLaboralesExtra
           </div>
         )}
       </div>
-      <p className="border-t border-slate-200/80 pt-2 text-xs leading-snug text-slate-600 dark:border-slate-600/80 dark:text-slate-300">
-        Total imputado en el periodo:{" "}
-        <strong className="text-sm font-bold tabular-nums text-slate-900 dark:text-white">
-          {horasImputadasTotal.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
-        </strong>
-        {tieneExtra ? (
-          <>
-            {" "}
-            <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
-              (= laborales hasta tope +{" "}
-              <span className="font-semibold text-amber-700 dark:text-amber-400">extra</span>)
-            </span>
-          </>
-        ) : null}
-        .
-      </p>
+      {mostrarPie ? (
+        <p className="border-t border-slate-200/80 pt-2 text-xs leading-snug text-slate-600 dark:border-slate-600/80 dark:text-slate-300">
+          {tieneExtra ? (
+            <>
+              Total periodo:{" "}
+              <strong className="font-bold tabular-nums text-slate-900 dark:text-white">
+                {horasImputadasTotal.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
+              </strong>
+              {" "}
+              <span className="text-slate-500 dark:text-slate-400">
+                (incluye{" "}
+                <span className="font-semibold text-amber-700 dark:text-amber-400">
+                  +{horasExtra.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
+                </span>{" "}
+                extra)
+              </span>
+            </>
+          ) : (
+            <>
+              Total periodo:{" "}
+              <strong className="font-bold tabular-nums text-slate-900 dark:text-white">
+                {horasImputadasTotal.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
+              </strong>
+            </>
+          )}
+        </p>
+      ) : null}
     </div>
   );
 });

@@ -5,8 +5,9 @@ import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalS
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
-import { getCompaniesFromApi, workServicesApi } from "@/services";
-import { USER_ROLE, type WorkService } from "@/types";
+import { getCompaniesFromApi, materialsApi } from "@/services";
+import type { Material } from "@/features/materials/types";
+import { USER_ROLE } from "@/types";
 import {
   DashboardHoyPageHero,
   DashboardPageShell,
@@ -14,18 +15,18 @@ import {
   PageSurface,
 } from "@/components/dashboard-page";
 
-type SortKey = "name";
+type SortKey = "name" | "unit";
 type SortDir = "asc" | "desc";
 
-export default function ServicesPage() {
+export default function MaterialsPage() {
   const { showSuccess } = useFlashSuccess();
   const { user, isReady } = useAuth();
   const isWorker = user?.role === USER_ROLE.Worker;
-  const [rows, setRows] = useState<WorkService[]>([]);
+  const [rows, setRows] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<WorkService | null>(null);
+  const [editing, setEditing] = useState<Material | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -35,6 +36,14 @@ export default function ServicesPage() {
   const [tenantCompanyId, setTenantCompanyId] = useState<string | null>(null);
   const [tenantIdError, setTenantIdError] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
+  const [formUnit, setFormUnit] = useState("");
+
+  const loadMaterials = (companyId: string | null, signal: AbortSignal) => {
+    return materialsApi.getAll({
+      signal,
+      companyId: companyId?.trim() || undefined,
+    });
+  };
 
   useEffect(() => {
     const ac = new AbortController();
@@ -42,19 +51,18 @@ export default function ServicesPage() {
       setLoading(true);
       setError(null);
       try {
-        const list = await workServicesApi.getAll({ signal: ac.signal });
+        const list = await loadMaterials(tenantCompanyId, ac.signal);
         if (ac.signal.aborted) return;
         setRows(list ?? []);
       } catch (e) {
         if (ac.signal.aborted) return;
-        setError(userVisibleMessageFromUnknown(e, "No se pudieron cargar los servicios."));
+        setError(userVisibleMessageFromUnknown(e, "No se pudieron cargar los materiales."));
       } finally {
-        if (ac.signal.aborted) return;
-        setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       }
     })();
     return () => ac.abort();
-  }, []);
+  }, [tenantCompanyId]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -66,7 +74,7 @@ export default function ServicesPage() {
         setTenantCompanyId(id || null);
         if (!id) {
           setTenantIdError(
-            "No hay empresa en /api/Companies; no se puede crear servicio sin companyId.",
+            "No hay empresa en /api/Companies; no se puede crear material sin companyId.",
           );
         }
       })
@@ -74,9 +82,7 @@ export default function ServicesPage() {
         if (ac.signal.aborted) return;
         if (e instanceof DOMException && e.name === "AbortError") return;
         setTenantCompanyId(null);
-        setTenantIdError(
-          "No se pudo obtener la empresa del tenant (GET /api/Companies).",
-        );
+        setTenantIdError("No se pudo obtener la empresa del tenant (GET /api/Companies).");
       });
     return () => ac.abort();
   }, []);
@@ -84,12 +90,14 @@ export default function ServicesPage() {
   const openCreate = () => {
     setEditing(null);
     setFormName("");
+    setFormUnit("");
     setModalOpen(true);
   };
 
-  const openEdit = (row: WorkService) => {
+  const openEdit = (row: Material) => {
     setEditing(row);
     setFormName(row.name);
+    setFormUnit(row.unitOfMeasure ?? "");
     setModalOpen(true);
   };
 
@@ -97,6 +105,7 @@ export default function ServicesPage() {
     setModalOpen(false);
     setEditing(null);
     setFormName("");
+    setFormUnit("");
   };
 
   const toggleSort = (key: SortKey) => {
@@ -108,10 +117,15 @@ export default function ServicesPage() {
     let list = rows.filter((r) => {
       if (!filterSearch.trim()) return true;
       const q = filterSearch.toLowerCase();
-      return r.name.toLowerCase().includes(q);
+      const u = (r.unitOfMeasure ?? "").toLowerCase();
+      return r.name.toLowerCase().includes(q) || u.includes(q);
     });
     const dir = sortDir === "asc" ? 1 : -1;
-    list = [...list].sort((a, b) => dir * a.name.localeCompare(b.name));
+    const unitStr = (m: Material) => (m.unitOfMeasure ?? "").toLowerCase();
+    list = [...list].sort((a, b) => {
+      if (sortKey === "name") return dir * a.name.localeCompare(b.name);
+      return dir * unitStr(a).localeCompare(unitStr(b));
+    });
     return list;
   }, [rows, sortKey, sortDir, filterSearch]);
 
@@ -123,10 +137,17 @@ export default function ServicesPage() {
     setError(null);
     try {
       if (editing) {
-        await workServicesApi.update(editing.id, { name });
-        setRows((prev) =>
-          prev.map((r) => (r.id === editing.id ? { ...r, name } : r))
-        );
+        const unitTrim = formUnit.trim();
+        const updated = await materialsApi.update(editing.id, {
+          name,
+          unitOfMeasure: unitTrim === "" ? null : unitTrim,
+        });
+        const next: Material = updated ?? {
+          ...editing,
+          name,
+          unitOfMeasure: unitTrim === "" ? null : unitTrim,
+        };
+        setRows((prev) => prev.map((r) => (r.id === editing.id ? next : r)));
       } else {
         if (!tenantCompanyId) {
           setError(
@@ -135,12 +156,17 @@ export default function ServicesPage() {
           setSaving(false);
           return;
         }
-        const created = await workServicesApi.create({ companyId: tenantCompanyId, name });
+        const unitTrim = formUnit.trim();
+        const created = await materialsApi.create({
+          companyId: tenantCompanyId,
+          name,
+          ...(unitTrim ? { unitOfMeasure: unitTrim } : {}),
+        });
         setRows((prev) => [created, ...prev]);
       }
       closeModal();
       showSuccess(
-        editing ? "Servicio actualizado correctamente." : "Servicio creado correctamente.",
+        editing ? "Material actualizado correctamente." : "Material creado correctamente.",
       );
     } catch (err) {
       setError(userVisibleMessageFromUnknown(err, "No se pudo guardar."));
@@ -153,10 +179,10 @@ export default function ServicesPage() {
     setDeletingId(id);
     setError(null);
     try {
-      await workServicesApi.delete(id);
+      await materialsApi.delete(id);
       setRows((prev) => prev.filter((r) => r.id !== id));
       setDeleteConfirm(null);
-      showSuccess("Servicio eliminado correctamente.");
+      showSuccess("Material eliminado correctamente.");
     } catch (err) {
       setError(userVisibleMessageFromUnknown(err, "No se pudo eliminar."));
     } finally {
@@ -168,14 +194,17 @@ export default function ServicesPage() {
     <DashboardPageShell width="full" className="min-w-0">
       <DashboardHoyPageHero
         sectionLabel="Administración"
-        title="Servicios"
+        title="Materiales"
         description={
           <div className="max-w-2xl space-y-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400 [&_strong]:font-semibold">
-            <p>Servicios que puede ofrecer una empresa.</p>
+            <p>
+              Catálogo de materiales del tenant. API: <strong>GET/POST /api/Materials</strong>,{" "}
+              <strong>PUT/DELETE /api/Materials/{"{id}"}</strong>.
+            </p>
             {isReady && isWorker ? (
               <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
                 Como trabajador/a, esta pantalla es <strong className="font-semibold">solo consulta</strong>
-                : no puedes crear, editar ni eliminar servicios.
+                : no puedes crear, editar ni eliminar materiales.
               </p>
             ) : null}
           </div>
@@ -187,7 +216,7 @@ export default function ServicesPage() {
               onClick={openCreate}
               className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
             >
-              Nuevo servicio
+              Nuevo material
             </button>
           ) : null
         }
@@ -198,7 +227,7 @@ export default function ServicesPage() {
       <PageSurface>
         <input
           type="search"
-          placeholder="Buscar por nombre…"
+          placeholder="Buscar por nombre o unidad…"
           value={filterSearch}
           onChange={(e) => setFilterSearch(e.target.value)}
           disabled={loading}
@@ -219,16 +248,32 @@ export default function ServicesPage() {
                 </th>
                 <th className="px-4 py-3">
                   {isWorker ? (
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">Servicio</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">Nombre</span>
                   ) : (
                     <button
                       type="button"
                       onClick={() => toggleSort("name")}
                       className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
                     >
-                      Servicio {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
+                      Nombre {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
                     </button>
                   )}
+                </th>
+                <th className="px-4 py-3">
+                  {isWorker ? (
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">Unidad</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleSort("unit")}
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    >
+                      Unidad {sortKey === "unit" && (sortDir === "asc" ? "↑" : "↓")}
+                    </button>
+                  )}
+                </th>
+                <th className="hidden px-4 py-3 text-xs font-semibold text-slate-500 sm:table-cell dark:text-slate-400">
+                  Alta
                 </th>
                 {!isWorker ? (
                   <th className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">
@@ -243,8 +288,18 @@ export default function ServicesPage() {
                   <td className="px-2 py-3 text-center tabular-nums text-slate-500 dark:text-slate-400">
                     {lineIndex + 1}
                   </td>
-                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
-                    {row.name}
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{row.name}</td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                    {row.unitOfMeasure ?? "—"}
+                  </td>
+                  <td className="hidden whitespace-nowrap px-4 py-3 text-xs text-slate-500 sm:table-cell dark:text-slate-400">
+                    {row.createdAt
+                      ? new Date(row.createdAt).toLocaleDateString("es-ES", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "—"}
                   </td>
                   {!isWorker ? (
                     <td className="px-4 py-3 text-right">
@@ -253,7 +308,7 @@ export default function ServicesPage() {
                           <span className="text-xs text-slate-500 dark:text-slate-400">¿Eliminar?</span>
                           <button
                             type="button"
-                            onClick={() => handleDelete(row.id)}
+                            onClick={() => void handleDelete(row.id)}
                             disabled={deletingId === row.id}
                             className="rounded border border-red-300 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:border-red-500 dark:bg-red-900/40 dark:text-red-300"
                           >
@@ -300,8 +355,8 @@ export default function ServicesPage() {
           <p className="py-8 text-center text-slate-500 dark:text-slate-400">
             {rows.length === 0
               ? isWorker
-                ? "No hay servicios."
-                : "No hay servicios. Pulsa «Nuevo servicio»."
+                ? "No hay materiales."
+                : "No hay materiales. Pulsa «Nuevo material»."
               : "Nada coincide con la búsqueda."}
           </p>
         )}
@@ -313,36 +368,50 @@ export default function ServicesPage() {
           onClick={closeModal}
           role="dialog"
           aria-modal="true"
-          aria-labelledby="svc-form-title"
+          aria-labelledby="mat-form-title"
         >
           <div
             className={modalScrollablePanel("md")}
             onClick={(e) => e.stopPropagation()}
           >
             <h2
-              id="svc-form-title"
+              id="mat-form-title"
               className="text-lg font-semibold text-slate-900 dark:text-slate-100"
             >
-              {editing ? "Editar servicio" : "Nuevo servicio"}
+              {editing ? "Editar material" : "Nuevo material"}
             </h2>
-            <form onSubmit={handleSave} className="mt-4 space-y-4">
-              {!editing && tenantIdError && (
+            <form onSubmit={(e) => void handleSave(e)} className="mt-4 space-y-4">
+              {!editing && tenantIdError ? (
                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100">
                   {tenantIdError}
                 </p>
-              )}
+              ) : null}
               <div>
-                <label htmlFor="svc-name" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                <label htmlFor="mat-name" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Nombre
                 </label>
                 <input
-                  id="svc-name"
+                  id="mat-name"
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   required
                   disabled={saving}
-                  placeholder="Ej. Pesticida, Sembrar…"
+                  placeholder="Ej. Abono NPK"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                />
+              </div>
+              <div>
+                <label htmlFor="mat-unit" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Unidad de medida <span className="font-normal text-slate-500">(opcional)</span>
+                </label>
+                <input
+                  id="mat-unit"
+                  type="text"
+                  value={formUnit}
+                  onChange={(e) => setFormUnit(e.target.value)}
+                  disabled={saving}
+                  placeholder="Ej. kg, saco… (vacío = sin unidad)"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>

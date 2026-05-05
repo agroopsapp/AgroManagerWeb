@@ -3,22 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
-import { MockBadge } from "@/components/MockBadge";
-import {
-  closeParteObraMock,
-  createParteObraMock,
-  deleteParteObraMock,
-  readPartesObraMock,
-  updateParteObraMock,
-  type ParteObra,
-} from "@/lib/partesObraMock";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
-import { companiesApi } from "@/services";
+import type { Material } from "@/features/materials/types";
+import type { MultiDayWorkReportDto, MultiDayWorkReportStatus } from "@/features/multi-day-work-reports/types";
+import { companiesApi, getCompaniesFromApi, materialsApi, multiDayWorkReportsApi } from "@/services";
 import type { Company } from "@/types";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
-
-const cardSurfaceClass =
-  "rounded-2xl border border-slate-200/65 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-700/75 dark:bg-slate-900/45 dark:shadow-none";
+import { localTodayISO } from "@/shared/utils/time";
+import { DashboardHoyPageHero, DashboardPageShell, FichajeJornadaMainPanel } from "@/components/dashboard-page";
 
 const labelClass =
   "text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500";
@@ -26,20 +18,85 @@ const labelClass =
 const inputClass =
   "mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-agro-500 focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
 
-type MaterialDraft = { id: string; name: string; quantity: string };
+type MaterialDraft = { id: string; name: string; quantity: string; lineId?: string };
 
-type AvailableMaterial = { id: string; name: string };
+/** Fila de tabla: datos del API + materiales resueltos para resumen. */
+type ParteObraRow = {
+  id: string;
+  companyId: string;
+  clientCompanyId: string;
+  title: string;
+  notes: string;
+  plannedStartDate: string;
+  plannedEndDate: string | null;
+  materials: { name: string; quantity: number }[];
+  status: MultiDayWorkReportStatus;
+  createdAtUtc: string;
+};
 
-const AVAILABLE_MATERIALS_MOCK: AvailableMaterial[] = [
-  { id: "mat-1", name: "Cemento" },
-  { id: "mat-2", name: "Arena" },
-  { id: "mat-3", name: "Grava" },
-  { id: "mat-4", name: "Tornillos" },
-  { id: "mat-5", name: "Clavos" },
-  { id: "mat-6", name: "Gasóleo" },
-  { id: "mat-7", name: "Pintura" },
-  { id: "mat-8", name: "Madera" },
-] as const;
+function mapDtoToReportRow(
+  d: MultiDayWorkReportDto,
+  materials: { name: string; quantity: number }[],
+): ParteObraRow {
+  return {
+    id: d.id,
+    companyId: d.companyId,
+    clientCompanyId: d.clientCompanyId,
+    title: d.title,
+    notes: d.notes,
+    plannedStartDate: d.startDate.slice(0, 10),
+    plannedEndDate: d.endDate,
+    materials,
+    status: d.status,
+    createdAtUtc: d.createdAt,
+  };
+}
+
+/** Alinea líneas del API con el borrador del formulario (POST / PUT / DELETE). */
+async function syncMultiDayReportMaterials(
+  reportId: string,
+  drafts: MaterialDraft[],
+  signal: AbortSignal,
+): Promise<void> {
+  const parsed = drafts
+    .map((d) => ({
+      materialId: d.id.trim(),
+      lineId: d.lineId,
+      quantity: Number.parseFloat(String(d.quantity).replace(",", ".")),
+    }))
+    .filter((x) => x.materialId && Number.isFinite(x.quantity) && x.quantity > 0);
+
+  const existing = await multiDayWorkReportsApi.getMaterials(reportId, { signal });
+  const usedLineIds = new Set<string>();
+
+  for (const d of parsed) {
+    const ex = d.lineId
+      ? existing.find((e) => e.id === d.lineId)
+      : existing.find((e) => e.materialId === d.materialId && !usedLineIds.has(e.id));
+    if (ex) {
+      usedLineIds.add(ex.id);
+      if (Math.abs(ex.quantity - d.quantity) > 1e-9) {
+        await multiDayWorkReportsApi.updateMaterialQuantity(
+          reportId,
+          ex.id,
+          { quantity: d.quantity },
+          { signal },
+        );
+      }
+    } else {
+      await multiDayWorkReportsApi.addMaterial(
+        reportId,
+        { materialId: d.materialId, quantity: d.quantity },
+        { signal },
+      );
+    }
+  }
+  for (const ex of existing) {
+    if (!usedLineIds.has(ex.id)) {
+      await multiDayWorkReportsApi.deleteMaterialLine(reportId, ex.id, { signal });
+    }
+  }
+}
 
 function formatDateEs(iso: string) {
   const d = new Date(iso.slice(0, 10) + "T12:00:00");
@@ -87,7 +144,14 @@ function rowOverlapsFilter(
 
 export default function PartesObraPage() {
   const { user, isReady } = useAuth();
-  const [rows, setRows] = useState<ParteObra[]>([]);
+  const [rows, setRows] = useState<ParteObraRow[]>([]);
+  const [rowsLoading, setRowsLoading] = useState(false);
+  const [rowsError, setRowsError] = useState<string | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [editFetchError, setEditFetchError] = useState<string | null>(null);
+  /** Incrementar para volver a cargar la tabla tras crear/editar/borrar/cerrar. */
+  const [listRevision, setListRevision] = useState(0);
+  const bumpList = useCallback(() => setListRevision((n) => n + 1), []);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [start, setStart] = useState(() => new Date().toISOString().slice(0, 10));
@@ -100,10 +164,14 @@ export default function PartesObraPage() {
   const [materialsModalOpen, setMaterialsModalOpen] = useState(false);
   const [materialsModalSelected, setMaterialsModalSelected] = useState<MaterialDraft[]>([]);
   const [materialsModalQuery, setMaterialsModalQuery] = useState("");
+  const [tenantCompanyId, setTenantCompanyId] = useState<string | null>(null);
+  const [materialsCatalog, setMaterialsCatalog] = useState<Material[]>([]);
+  const [materialsCatalogLoading, setMaterialsCatalogLoading] = useState(false);
+  const [materialsCatalogError, setMaterialsCatalogError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [filterStatus, setFilterStatus] = useState<"" | ParteObra["status"]>("");
+  const [filterStatus, setFilterStatus] = useState<"" | MultiDayWorkReportStatus>("");
   const [filterCompanyId, setFilterCompanyId] = useState("");
   const [filterSearch, setFilterSearch] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
@@ -121,19 +189,53 @@ export default function PartesObraPage() {
     return m;
   }, [clientCompanies]);
 
-  const sync = useCallback(() => {
-    setRows(readPartesObraMock());
-  }, []);
-
   useEffect(() => {
-    sync();
-    window.addEventListener("agromanager-partes-obra-changed", sync);
-    window.addEventListener("agromanager-multiday-reports-changed", sync);
-    return () => {
-      window.removeEventListener("agromanager-partes-obra-changed", sync);
-      window.removeEventListener("agromanager-multiday-reports-changed", sync);
-    };
-  }, [sync]);
+    if (!isReady || !user || !tenantCompanyId?.trim()) {
+      setRows([]);
+      setRowsLoading(false);
+      setRowsError(null);
+      return;
+    }
+    const ac = new AbortController();
+    const cid = tenantCompanyId.trim();
+    setRowsLoading(true);
+    setRowsError(null);
+    (async () => {
+      try {
+        const [reports, catalog] = await Promise.all([
+          multiDayWorkReportsApi.getAll({ signal: ac.signal, companyId: cid }),
+          materialsApi.getAll({ signal: ac.signal, companyId: cid }),
+        ]);
+        if (ac.signal.aborted) return;
+        const matName = new Map(catalog.map((m) => [m.id, m.name]));
+        const withMaterials = await Promise.all(
+          reports.map(async (r) => {
+            const lines = await multiDayWorkReportsApi.getMaterials(r.id, { signal: ac.signal });
+            if (ac.signal.aborted) {
+              return mapDtoToReportRow(r, []);
+            }
+            const materials = lines.map((l) => ({
+              name: (matName.get(l.materialId) ?? l.materialId).trim() || l.materialId,
+              quantity: l.quantity,
+            }));
+            return mapDtoToReportRow(r, materials);
+          }),
+        );
+        if (ac.signal.aborted) return;
+        withMaterials.sort(
+          (a, b) => new Date(b.createdAtUtc).getTime() - new Date(a.createdAtUtc).getTime(),
+        );
+        setRows(withMaterials);
+      } catch (e) {
+        if (ac.signal.aborted) return;
+        setRows([]);
+        setRowsError(userVisibleMessageFromUnknown(e, "No se pudieron cargar los partes de obra."));
+      } finally {
+        if (!ac.signal.aborted) setRowsLoading(false);
+      }
+    })();
+    return () => ac.abort();
+  }, [isReady, user, tenantCompanyId, listRevision]);
 
   useEffect(() => {
     if (!isReady || !user) return;
@@ -160,7 +262,50 @@ export default function PartesObraPage() {
     return () => ac.abort();
   }, [isReady, user]);
 
-  const openCount = useMemo(() => rows.filter((r) => r.status === "Open").length, [rows]);
+  useEffect(() => {
+    if (!isReady || !user) return;
+    const ac = new AbortController();
+    getCompaniesFromApi({ signal: ac.signal })
+      .then((list) => {
+        if (ac.signal.aborted) return;
+        const id = list[0]?.id?.trim() ?? "";
+        setTenantCompanyId(id || null);
+      })
+      .catch(() => {
+        if (ac.signal.aborted) return;
+        setTenantCompanyId(null);
+      });
+    return () => ac.abort();
+  }, [isReady, user]);
+
+  useEffect(() => {
+    if (!materialsModalOpen || !isReady || !user) return;
+    const ac = new AbortController();
+    setMaterialsCatalogLoading(true);
+    setMaterialsCatalogError(null);
+    materialsApi
+      .getAll({
+        signal: ac.signal,
+        companyId: tenantCompanyId?.trim() || undefined,
+      })
+      .then((list) => {
+        if (ac.signal.aborted) return;
+        setMaterialsCatalog(list ?? []);
+      })
+      .catch((e) => {
+        if (ac.signal.aborted) return;
+        setMaterialsCatalog([]);
+        setMaterialsCatalogError(
+          userVisibleMessageFromUnknown(e, "No se pudieron cargar los materiales."),
+        );
+      })
+      .finally(() => {
+        if (!ac.signal.aborted) setMaterialsCatalogLoading(false);
+      });
+    return () => ac.abort();
+  }, [materialsModalOpen, tenantCompanyId, isReady, user]);
+
+  const openCount = useMemo(() => rows.filter((r) => r.status === "Abierto").length, [rows]);
 
   const filteredRows = useMemo(() => {
     const q = filterSearch.trim().toLowerCase();
@@ -192,29 +337,53 @@ export default function PartesObraPage() {
   }, []);
 
   const openCreateModal = () => {
+    setEditFetchError(null);
     setModalMode("create");
     setEditingId(null);
     resetFormDraft();
     setCreateEditModalOpen(true);
   };
 
-  const openEditModal = (row: ParteObra) => {
-    setModalMode("edit");
-    setEditingId(row.id);
-    setTitle(row.title);
-    setNotes(row.notes);
-    setStart(row.plannedStartDate.slice(0, 10));
-    setEnd(row.plannedEndDate ? row.plannedEndDate.slice(0, 10) : "");
-    setSelectedClientCompanyId(row.clientCompanyId);
-    setMaterials(
-      row.materials.map((m, i) => ({
-        id: `edit-mat-${i}-${m.name}`,
-        name: m.name,
-        quantity: String(m.quantity),
-      })),
-    );
+  const openEditModal = async (row: ParteObraRow) => {
+    if (!tenantCompanyId?.trim()) {
+      setFormError("Falta la empresa del tenant para cargar el parte.");
+      return;
+    }
+    setEditFetchError(null);
+    setLoadingEdit(true);
     setFormError(null);
-    setCreateEditModalOpen(true);
+    const ac = new AbortController();
+    const cid = tenantCompanyId.trim();
+    try {
+      const [dto, lines, catalog] = await Promise.all([
+        multiDayWorkReportsApi.getById(row.id, { signal: ac.signal }),
+        multiDayWorkReportsApi.getMaterials(row.id, { signal: ac.signal }),
+        materialsApi.getAll({ signal: ac.signal, companyId: cid }),
+      ]);
+      const nameById = new Map(catalog.map((m) => [m.id, m.name]));
+      setModalMode("edit");
+      setEditingId(dto.id);
+      setTitle(dto.title);
+      setNotes(dto.notes);
+      setStart(dto.startDate.slice(0, 10));
+      setEnd(dto.endDate ? dto.endDate.slice(0, 10) : "");
+      setSelectedClientCompanyId(dto.clientCompanyId);
+      setMaterials(
+        lines.map((l) => ({
+          id: l.materialId,
+          lineId: l.id,
+          name: (nameById.get(l.materialId) ?? "").trim() || l.materialId,
+          quantity: String(l.quantity),
+        })),
+      );
+      setCreateEditModalOpen(true);
+    } catch (e) {
+      const msg = userVisibleMessageFromUnknown(e, "No se pudo cargar el parte para editar.");
+      setEditFetchError(msg);
+      setFormError(msg);
+    } finally {
+      setLoadingEdit(false);
+    }
   };
 
   const closeCreateEditModal = () => {
@@ -240,7 +409,7 @@ export default function PartesObraPage() {
     setMaterialsModalQuery("");
   };
 
-  const addFromAvailable = (m: AvailableMaterial) => {
+  const addFromAvailable = (m: Material) => {
     setMaterialsModalSelected((prev) => {
       const existing = prev.find((x) => x.id === m.id);
       if (existing) return prev;
@@ -261,12 +430,13 @@ export default function PartesObraPage() {
   const availableFiltered = useMemo(() => {
     const q = materialsModalQuery.trim().toLowerCase();
     const selected = new Set(materialsModalSelected.map((m) => m.id));
-    return AVAILABLE_MATERIALS_MOCK.filter((m) => {
+    return materialsCatalog.filter((m) => {
       if (selected.has(m.id)) return false;
       if (!q) return true;
-      return m.name.toLowerCase().includes(q);
+      const unit = (m.unitOfMeasure ?? "").toLowerCase();
+      return m.name.toLowerCase().includes(q) || unit.includes(q);
     });
-  }, [materialsModalQuery, materialsModalSelected]);
+  }, [materialsModalQuery, materialsModalSelected, materialsCatalog]);
 
   const validateAndParseBody = (): {
     title: string;
@@ -319,7 +489,7 @@ export default function PartesObraPage() {
     };
   };
 
-  const handleModalSubmit = (e: React.FormEvent) => {
+  const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     if (!user?.email) {
@@ -329,46 +499,132 @@ export default function PartesObraPage() {
     const body = validateAndParseBody();
     if (!body) return;
 
+    const cid = tenantCompanyId?.trim();
+    if (!cid) {
+      setFormError("No se pudo resolver la empresa del tenant (companyId). Revisa la sesión o el API de empresas.");
+      return;
+    }
+
     setSaving(true);
+    const ac = new AbortController();
     try {
       if (modalMode === "create") {
-        createParteObraMock({
-          title: body.title,
-          notes: body.notes,
-          plannedStartDate: body.startIso,
-          plannedEndDate: body.endVal,
-          createdByEmail: user.email,
-          clientCompanyId: body.clientCompanyId,
-          materials: body.mats,
-        });
+        let createdId: string | null = null;
+        try {
+          const created = await multiDayWorkReportsApi.create(
+            {
+              companyId: cid,
+              clientCompanyId: body.clientCompanyId,
+              title: body.title,
+              notes: body.notes,
+              startDate: body.startIso,
+              endDate: body.endVal,
+            },
+            { signal: ac.signal },
+          );
+          createdId = created.id;
+          await syncMultiDayReportMaterials(created.id, materials, ac.signal);
+        } catch (inner) {
+          if (createdId) {
+            try {
+              await multiDayWorkReportsApi.delete(createdId, { signal: ac.signal });
+            } catch {
+              /* evitar parte huérfano sin materiales si el borrado falla */
+            }
+          }
+          throw inner;
+        }
         resetFormDraft();
         closeCreateEditModal();
+        bumpList();
       } else if (modalMode === "edit" && editingId) {
-        updateParteObraMock(editingId, {
-          title: body.title,
-          notes: body.notes,
-          plannedStartDate: body.startIso,
-          plannedEndDate: body.endVal,
-          clientCompanyId: body.clientCompanyId,
-          materials: body.mats,
-        });
+        const row = rows.find((r) => r.id === editingId);
+        if (!row) {
+          setFormError("No se encontró el parte en la lista actual. Recarga la página.");
+          return;
+        }
+        await multiDayWorkReportsApi.update(
+          editingId,
+          {
+            title: body.title,
+            notes: body.notes,
+            startDate: body.startIso,
+            endDate: body.endVal,
+            status: row.status,
+          },
+          { signal: ac.signal },
+        );
+        await syncMultiDayReportMaterials(editingId, materials, ac.signal);
         closeCreateEditModal();
+        bumpList();
       }
+    } catch (err) {
+      setFormError(userVisibleMessageFromUnknown(err, "No se pudo guardar el parte."));
     } finally {
       setSaving(false);
     }
   };
 
-  const handleClose = (id: string) => {
-    closeParteObraMock(id);
+  const handleClose = async (id: string) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    const ac = new AbortController();
+    const closedOn = localTodayISO();
+    /** La fecha fin queda como el día del cierre (calendario local), no antes del inicio del parte. */
+    const endDate =
+      closedOn < row.plannedStartDate.slice(0, 10) ? row.plannedStartDate.slice(0, 10) : closedOn;
+    try {
+      await multiDayWorkReportsApi.update(
+        id,
+        {
+          title: row.title,
+          notes: row.notes,
+          startDate: row.plannedStartDate,
+          endDate,
+          status: "Cerrado",
+        },
+        { signal: ac.signal },
+      );
+      bumpList();
+    } catch (e) {
+      setRowsError(userVisibleMessageFromUnknown(e, "No se pudo cerrar el parte."));
+    }
   };
 
-  const handleDeleteRow = (id: string, titleRow: string) => {
+  const handleReopen = async (id: string) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    const ac = new AbortController();
+    try {
+      await multiDayWorkReportsApi.update(
+        id,
+        {
+          title: row.title,
+          notes: row.notes,
+          startDate: row.plannedStartDate,
+          endDate: null,
+          status: "Abierto",
+        },
+        { signal: ac.signal },
+      );
+      bumpList();
+    } catch (e) {
+      setRowsError(userVisibleMessageFromUnknown(e, "No se pudo reabrir el parte."));
+    }
+  };
+
+  const handleDeleteRow = async (id: string, titleRow: string) => {
     const ok = window.confirm(
-      `¿Eliminar el parte de obra «${titleRow}»? Esta acción no se puede deshacer (demo local).`,
+      `¿Eliminar el parte de obra «${titleRow}»? Esta acción no se puede deshacer.`,
     );
     if (!ok) return;
-    deleteParteObraMock(id);
+    const ac = new AbortController();
+    try {
+      await multiDayWorkReportsApi.delete(id, { signal: ac.signal });
+      bumpList();
+    } catch (e) {
+      setRowsError(userVisibleMessageFromUnknown(e, "No se pudo eliminar el parte."));
+    }
   };
 
   if (!isReady) {
@@ -383,46 +639,60 @@ export default function PartesObraPage() {
     "rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-agro-600 dark:text-agro-400">
-              Jornada
-            </p>
-            <MockBadge />
-          </div>
-          <h1 className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">Partes de obra</h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
-            Partes de obra en rejilla con filtros; pueden abarcar varios días. Crear abre el formulario en una ventana.
-            Persistencia demo en <span className="font-mono text-xs">localStorage</span>; empresas desde{" "}
+    <DashboardPageShell width="full" className="min-w-0">
+      <DashboardHoyPageHero
+        sectionLabel="Partes de obra"
+        title="Partes de obra"
+        description={
+          <p className="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            Partes de obra multidía: datos desde{" "}
+            <span className="font-mono text-xs">GET /api/MultiDayWorkReports</span>, materiales por parte en{" "}
+            <span className="font-mono text-xs">…/materials</span>. Empresas cliente desde{" "}
             <span className="font-mono text-xs">GET /api/ClientCompanies</span>.
           </p>
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-500">
+        }
+        extraBelow={
+          <p className="text-xs text-slate-500 dark:text-slate-500">
             Abiertos: <span className="font-semibold text-slate-700 dark:text-slate-300">{openCount}</span>
             {" · "}
-            Mostrando <span className="font-semibold text-slate-700 dark:text-slate-300">{filteredRows.length}</span> de{" "}
-            <span className="font-semibold text-slate-700 dark:text-slate-300">{rows.length}</span>
+            Mostrando <span className="font-semibold text-slate-700 dark:text-slate-300">{filteredRows.length}</span>{" "}
+            de <span className="font-semibold text-slate-700 dark:text-slate-300">{rows.length}</span>
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="rounded-xl bg-agro-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-agro-700"
-          >
-            Crear parte de obra
-          </button>
-          <Link
-            href="/dashboard/time-tracking"
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
-            Volver al fichador
-          </Link>
-        </div>
-      </div>
+        }
+        trailing={
+          <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:justify-end">
+            <button
+              type="button"
+              disabled={!tenantCompanyId?.trim()}
+              title={!tenantCompanyId?.trim() ? "Falta companyId del tenant para crear partes en el API." : undefined}
+              onClick={openCreateModal}
+              className="rounded-xl bg-agro-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-agro-700 disabled:opacity-50"
+            >
+              Crear parte de obra
+            </button>
+            <Link
+              href="/dashboard/time-tracking"
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              Volver al fichador
+            </Link>
+          </div>
+        }
+      />
 
-      <div className={`${cardSurfaceClass} p-4 md:p-5`}>
+      <FichajeJornadaMainPanel clipOverflow={false}>
+      {!tenantCompanyId?.trim() && isReady && user ? (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100 md:px-6">
+          No se pudo obtener la empresa del tenant (necesaria para listar y crear partes). Comprueba{" "}
+          <span className="font-mono text-xs">GET /api/Companies</span> o tu rol.
+        </div>
+      ) : null}
+      {editFetchError ? (
+        <div className="border-b border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-100 md:px-6">
+          {editFetchError}
+        </div>
+      ) : null}
+      <div className="border-b border-slate-100 p-4 md:p-6 dark:border-slate-700/80">
         <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Filtros</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           <label className="flex flex-col gap-1">
@@ -433,8 +703,8 @@ export default function PartesObraPage() {
               onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
             >
               <option value="">Todos</option>
-              <option value="Open">Abierto</option>
-              <option value="Closed">Cerrado</option>
+              <option value="Abierto">Abierto</option>
+              <option value="Cerrado">Cerrado</option>
             </select>
           </label>
           <label className="flex flex-col gap-1 sm:col-span-2">
@@ -548,12 +818,23 @@ export default function PartesObraPage() {
               <>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Una empresa cliente por parte de obra (lista del tenant vía API).
+                  {modalMode === "edit" ? (
+                    <span className="block text-amber-700 dark:text-amber-300/90">
+                      En edición no se puede cambiar la empresa cliente (contrato del API).
+                    </span>
+                  ) : null}
                 </p>
                 <select
                   id="md-client-company"
                   className={inputClass}
                   value={selectedClientCompanyId}
                   onChange={(e) => setSelectedClientCompanyId(e.target.value)}
+                  disabled={modalMode === "edit"}
+                  title={
+                    modalMode === "edit"
+                      ? "La API no permite cambiar la empresa cliente al editar."
+                      : undefined
+                  }
                 >
                   <option value="">— Elige empresa —</option>
                   {clientCompanies.map((c) => (
@@ -580,9 +861,9 @@ export default function PartesObraPage() {
             />
           </div>
           <div>
-            <p className={labelClass}>Materiales (mock)</p>
+            <p className={labelClass}>Materiales</p>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Selecciona materiales disponibles y ajusta cantidad usada. Se guardará en este parte de obra.
+              Catálogo desde GET /api/Materials. Ajusta cantidad en el modal y se guardará en este parte de obra.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
@@ -664,7 +945,8 @@ export default function PartesObraPage() {
                     companiesLoading ||
                     !!companiesError ||
                     clientCompanies.length === 0 ||
-                    !selectedClientCompanyId.trim()
+                    !selectedClientCompanyId.trim() ||
+                    !tenantCompanyId?.trim()
                   }
                   className="rounded-xl bg-agro-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-agro-700 disabled:opacity-60"
                 >
@@ -781,11 +1063,18 @@ export default function PartesObraPage() {
                     value={materialsModalQuery}
                     onChange={(e) => setMaterialsModalQuery(e.target.value)}
                     placeholder="Buscar…"
+                    disabled={materialsCatalogLoading}
                   />
                 </div>
-                {availableFiltered.length === 0 ? (
+                {materialsCatalogLoading ? (
+                  <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Cargando materiales…</p>
+                ) : materialsCatalogError ? (
+                  <p className="mt-3 text-sm text-red-600 dark:text-red-400">{materialsCatalogError}</p>
+                ) : availableFiltered.length === 0 ? (
                   <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                    No hay materiales disponibles con ese filtro (o ya están seleccionados).
+                    {materialsCatalog.length === 0
+                      ? "No hay materiales en el catálogo (GET /api/Materials). Puedes darlos de alta en Gestión → Materiales."
+                      : "No hay materiales con ese filtro (o ya están seleccionados)."}
                   </p>
                 ) : (
                   <div className="mt-3 max-h-80 overflow-y-auto pr-1">
@@ -793,6 +1082,7 @@ export default function PartesObraPage() {
                       <thead className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         <tr>
                           <th className="py-2 pr-3">Material</th>
+                          <th className="py-2 pr-3 hidden sm:table-cell">Unidad</th>
                           <th className="py-2 w-24 text-right">Acción</th>
                         </tr>
                       </thead>
@@ -801,6 +1091,9 @@ export default function PartesObraPage() {
                           <tr key={m.id}>
                             <td className="py-2 pr-3">
                               <span className="text-slate-800 dark:text-slate-100">{m.name}</span>
+                            </td>
+                            <td className="hidden py-2 pr-3 text-xs text-slate-500 sm:table-cell dark:text-slate-400">
+                              {m.unitOfMeasure ?? "—"}
                             </td>
                             <td className="py-2 text-right">
                               <button
@@ -840,14 +1133,20 @@ export default function PartesObraPage() {
         </div>
       )}
 
-      <div className={`${cardSurfaceClass} overflow-hidden`}>
+      <div className="min-w-0">
         <div className="border-b border-slate-200/80 px-5 py-4 dark:border-slate-700/80">
           <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Registro de partes</h2>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Editar o eliminar filas; «Cerrar» marca el parte como cerrado sin borrarlo.
           </p>
         </div>
-        {rows.length === 0 ? (
+        {rowsError ? (
+          <p className="px-5 py-6 text-center text-sm text-red-600 dark:text-red-400">{rowsError}</p>
+        ) : rowsLoading ? (
+          <div className="flex justify-center px-5 py-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+          </div>
+        ) : rows.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
             Aún no hay partes. Pulsa <span className="font-semibold">Crear parte de obra</span> para abrir el
             formulario.
@@ -876,7 +1175,7 @@ export default function PartesObraPage() {
                   <tr
                     key={r.id}
                     className={
-                      r.status === "Closed"
+                      r.status === "Cerrado"
                         ? "bg-slate-50/80 text-slate-500 dark:bg-slate-900/30 dark:text-slate-500"
                         : "text-slate-800 dark:text-slate-100"
                     }
@@ -919,45 +1218,51 @@ export default function PartesObraPage() {
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span
                         className={
-                          r.status === "Open"
+                          r.status === "Abierto"
                             ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
                             : "rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200"
                         }
                       >
-                        {r.status === "Open" ? "Abierto" : "Cerrado"}
+                        {r.status === "Abierto" ? "Abierto" : "Cerrado"}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-500 hidden sm:table-cell whitespace-nowrap">
                       {formatDateTimeEs(r.createdAtUtc)}
-                      <div className="mt-0.5 truncate max-w-[10rem]" title={r.createdByEmail}>
-                        {r.createdByEmail}
-                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex flex-wrap justify-end gap-1">
                         <button
                           type="button"
-                          onClick={() => openEditModal(r)}
-                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                          disabled={loadingEdit}
+                          onClick={() => void openEditModal(r)}
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                         >
                           Editar
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteRow(r.id, r.title)}
+                          onClick={() => void handleDeleteRow(r.id, r.title)}
                           className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-800 hover:bg-rose-100 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-100 dark:hover:bg-rose-950/55"
                         >
                           Eliminar
                         </button>
-                        {r.status === "Open" ? (
+                        {r.status === "Abierto" ? (
                           <button
                             type="button"
-                            onClick={() => handleClose(r.id)}
+                            onClick={() => void handleClose(r.id)}
                             className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                           >
                             Cerrar
                           </button>
-                        ) : null}
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void handleReopen(r.id)}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                          >
+                            Reabrir
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -967,6 +1272,7 @@ export default function PartesObraPage() {
           </div>
         )}
       </div>
-    </div>
+      </FichajeJornadaMainPanel>
+    </DashboardPageShell>
   );
 }

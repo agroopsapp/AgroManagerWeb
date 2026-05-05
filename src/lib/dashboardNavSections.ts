@@ -49,6 +49,7 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
       { href: "/dashboard/my-company", label: "Mi empresa", icon: "🏷️" },
       { href: "/dashboard/companies", label: "Empresas", icon: "🏢" },
       { href: "/dashboard/services", label: "Servicios", icon: "🛠️" },
+      { href: "/dashboard/materials", label: "Materiales", icon: "📦" },
       { href: "/dashboard/users", label: "Trabajadores", icon: "👤" },
     ],
   },

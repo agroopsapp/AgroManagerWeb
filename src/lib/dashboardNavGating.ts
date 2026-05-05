@@ -60,6 +60,7 @@ const FICHADOR_ADMIN_LIKE_PATH_PREFIXES = [
   "/dashboard/my-company",
   "/dashboard/companies",
   "/dashboard/services",
+  "/dashboard/materials",
   "/dashboard/users",
 ] as const;
 

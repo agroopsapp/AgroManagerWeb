@@ -4,7 +4,7 @@ import React from "react";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { EquipoBarraLaboralesExtra } from "./EquipoBarraLaboralesExtra";
 import { EquipoObjetivoMesEncabezado } from "./EquipoObjetivoMesEncabezado";
-import { FichajeTipoRadialSummary } from "./charts/FichajeTipoRadialSummary";
+import { FichajeTipoDonut } from "./charts/FichajeTipoDonut";
 import { HorasMensualesDonut } from "./charts/HorasMensualesDonut";
 import { PartesEnDiasDonut } from "./charts/PartesEnDiasDonut";
 import { EquipoTablaAccionesDuo, EquipoTablaBotonPrimeraJornada } from "./EquipoTablaAccionesIconos";
@@ -139,6 +139,10 @@ interface TeamPanelProps {
   hDonutImputado: number;
   hDonutFalta: number;
   hDonutExtra: number;
+  /** Celdas laborables en rejilla (mismo universo que KPI fichaje / parte). */
+  celdasLaborablesRejilla: number;
+  celdasConFichajeRejilla: number;
+  celdasConFichajeYParteRejilla: number;
   horasImputadasDecimal: number;
   horasFaltaParaObjetivo: number;
   fichajeTipoStats: FichajeTipoStats;
@@ -286,6 +290,9 @@ export function TeamPanel({
   hDonutImputado,
   hDonutFalta,
   hDonutExtra,
+  celdasLaborablesRejilla,
+  celdasConFichajeRejilla,
+  celdasConFichajeYParteRejilla,
   horasImputadasDecimal,
   horasFaltaParaObjetivo,
   fichajeTipoStats,
@@ -372,7 +379,7 @@ export function TeamPanel({
           <span className="font-semibold text-red-700 dark:text-red-400">
             Laborable sin fichaje = rojo
           </span>
-          . Donas: objetivo vs imputado y días laborables sin imputar. Las filas permiten editar fichajes y{" "}
+          . Gráficos: tipo de fichaje, fichaje/parte en rejilla y partes por día. Las filas permiten editar fichajes y{" "}
           <strong className="font-semibold text-slate-800 dark:text-slate-100">partes diarios</strong>.
         </p>
       </div>
@@ -693,7 +700,7 @@ export function TeamPanel({
         {/* Columna derecha: gráficos */}
         <div
           className="flex min-h-[320px] min-w-0 max-w-full flex-1 flex-col gap-4 overflow-x-hidden rounded-3xl border-2 border-slate-200 bg-gradient-to-br from-white via-slate-50/80 to-emerald-50/30 p-3 shadow-sm sm:p-4 dark:border-slate-600 dark:from-slate-900/90 dark:via-slate-900/70 dark:to-emerald-950/20 lg:min-h-0 lg:overflow-y-auto"
-          aria-label="Gráficos tipo de fichaje y objetivo vs imputado"
+          aria-label="Gráficos tipo de fichaje, fichaje y parte en rejilla, partes por día"
         >
           <div className="min-w-0 border-b border-slate-200/80 pb-4 dark:border-slate-600">
             <EquipoObjetivoMesEncabezado
@@ -714,7 +721,8 @@ export function TeamPanel({
 
           <div className="grid w-full min-w-0 max-w-full grid-cols-1 gap-4 lg:grid-cols-3 lg:items-stretch lg:gap-4">
             <div className="min-h-0 w-full min-w-0 max-w-full lg:h-full">
-              <FichajeTipoRadialSummary
+              <FichajeTipoDonut
+                variant="compact"
                 horasNormal={fichajeTipoStats.horasNormal}
                 horasManual={fichajeTipoStats.horasManual}
                 horasSinImputar={horasSinImputarTipoFichaje}
@@ -725,12 +733,9 @@ export function TeamPanel({
             </div>
             <div className="min-h-0 w-full min-w-0 max-w-full lg:h-full">
               <HorasMensualesDonut
-                horasImputadoHastaTope={hDonutImputado}
-                horasFalta={hDonutFalta}
-                horasExtra={hDonutExtra}
-                horasObjetivo={horasObjetivo}
-                horasImputadasTotal={horasImputadasDecimal}
-                registrosEnPeriodo={kpiRegistrosEnPeriodo ?? rowsFiltradas.length}
+                celdasLaborables={celdasLaborablesRejilla}
+                celdasConFichaje={celdasConFichajeRejilla}
+                celdasConFichajeYParte={celdasConFichajeYParteRejilla}
                 periodo={periodo}
               />
             </div>
@@ -937,15 +942,14 @@ export function TeamPanel({
           />
           <div
             ref={tablaScrollRef}
-            className="mt-2 max-h-none w-full min-w-0 max-w-full overflow-x-hidden overflow-y-visible rounded-xl border border-slate-100 dark:border-slate-700 lg:max-h-[min(70vh,520px)] lg:overflow-y-auto lg:[-webkit-overflow-scrolling:touch] lg:[touch-action:pan-y]"
+            className="mt-2 max-h-none w-full min-w-0 max-w-full overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700 [-webkit-overflow-scrolling:touch] touch-manipulation lg:max-h-[min(70vh,520px)] lg:overflow-auto lg:overscroll-contain"
             style={{
               overscrollBehaviorY: "auto",
               overscrollBehaviorX: "contain",
             }}
           >
-            <div className="min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch] [touch-action:manipulation]">
             <table className="w-full min-w-[1180px] border-collapse text-left text-xs">
-              <thead className="sticky top-0 z-[5] bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500 shadow-sm dark:bg-slate-700 dark:text-slate-300">
+              <thead className="sticky top-0 z-20 border-b border-slate-200 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500 shadow-[0_1px_0_0_rgb(226_232_240)] dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:shadow-[0_1px_0_0_rgb(51_65_85_/_0.9)]">
                 <tr>
                   {(
                     [
@@ -1070,7 +1074,7 @@ export function TeamPanel({
                   >
                     Parte en servidor
                   </th>
-                  <th className="sticky right-0 z-[5] bg-slate-50 px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)] dark:bg-slate-700 dark:text-slate-300">
+                  <th className="sticky right-0 z-30 bg-slate-50 px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-wide text-slate-500 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.08)] dark:bg-slate-700 dark:text-slate-300">
                     Acciones
                   </th>
                 </tr>
@@ -1339,7 +1343,6 @@ export function TeamPanel({
                 )}
               </tbody>
             </table>
-            </div>
           </div>
 
           {/* Modal: editar día del equipo */}

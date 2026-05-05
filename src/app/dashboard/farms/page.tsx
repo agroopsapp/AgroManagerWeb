@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import type { Farm as FarmType } from "@/types";
 import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
+import {
+  DashboardPageShell,
+  PageCalloutError,
+  PageHeader,
+  PageSurface,
+} from "@/components/dashboard-page";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { farmsApi } from "@/services";
 
@@ -152,30 +158,24 @@ export default function FarmsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Granjas</h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            CRUD de granjas. Crear, editar y eliminar. Nombre y ubicación.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
-        >
-          Nueva granja
-        </button>
-      </div>
+    <DashboardPageShell>
+      <PageHeader
+        title="Granjas"
+        description="CRUD de granjas. Crear, editar y eliminar. Nombre y ubicación."
+        actions={
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+          >
+            Nueva granja
+          </button>
+        }
+      />
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500 dark:bg-red-900/30 dark:text-red-200">
-          {error}
-        </div>
-      )}
+      {error ? <PageCalloutError>{error}</PageCalloutError> : null}
 
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800 sm:flex-row sm:flex-wrap sm:items-center">
+      <PageSurface className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           type="search"
           placeholder="Buscar por nombre o ubicación..."
@@ -184,9 +184,9 @@ export default function FarmsPage() {
           disabled={loading}
           className="min-w-[180px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
         />
-      </div>
+      </PageSurface>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
+      <PageSurface padded={false}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700">
@@ -282,7 +282,7 @@ export default function FarmsPage() {
               : "Ninguna granja coincide con los filtros."}
           </p>
         )}
-      </div>
+      </PageSurface>
 
       {/* Modal crear/editar */}
       {modalOpen && (
@@ -351,6 +351,6 @@ export default function FarmsPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardPageShell>
   );
 }

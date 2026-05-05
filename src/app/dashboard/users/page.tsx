@@ -8,6 +8,12 @@ import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { rolesApi } from "@/services/roles.service";
 import { usersApi, type UpdateUserPayload } from "@/services/users.service";
 import type { Role, User as UserType } from "@/types";
+import {
+  DashboardHoyPageHero,
+  DashboardPageShell,
+  PageCalloutError,
+  PageSurface,
+} from "@/components/dashboard-page";
 
 /** Misma compañía que en el backend de pruebas; luego puede venir de la sesión. */
 const COMPANY_ID = "356d0a75-654a-4d07-b65c-25f97f854178";
@@ -277,24 +283,27 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Trabajadores</h1>
-          <p className="text-slate-600 dark:text-slate-400">
+    <DashboardPageShell width="full" className="min-w-0">
+      <DashboardHoyPageHero
+        sectionLabel="Administración"
+        title="Trabajadores"
+        description={
+          <p className="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
             Configuración de usuarios (admin). Crear, editar y eliminar.
           </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
-        >
-          Nuevo usuario
-        </button>
-      </div>
+        }
+        trailing={
+          <button
+            type="button"
+            onClick={openCreate}
+            className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+          >
+            Nuevo usuario
+          </button>
+        }
+      />
 
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-600 dark:bg-slate-800 sm:flex-row sm:flex-wrap sm:items-center">
+      <PageSurface className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           type="search"
           placeholder="Buscar por nombre, email o teléfono..."
@@ -312,21 +321,17 @@ export default function UsersPage() {
             <option key={r.id} value={r.id}>{r.name}</option>
           ))}
         </select>
-      </div>
+      </PageSurface>
 
-      {loading && (
+      {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
           Cargando trabajadores...
         </div>
-      )}
+      ) : null}
 
-      {pageError && !loading && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 shadow-sm dark:border-red-500/40 dark:bg-red-900/20 dark:text-red-300">
-          {pageError}
-        </div>
-      )}
+      {pageError && !loading ? <PageCalloutError>{pageError}</PageCalloutError> : null}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-600 dark:bg-slate-800">
+      <PageSurface padded={false}>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700">
@@ -488,7 +493,7 @@ export default function UsersPage() {
               : "Ningún usuario coincide con los filtros."}
           </p>
         )}
-      </div>
+      </PageSurface>
 
       {/* Modal crear/editar */}
       {modalOpen && (
@@ -702,6 +707,6 @@ export default function UsersPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardPageShell>
   );
 }

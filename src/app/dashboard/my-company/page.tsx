@@ -19,6 +19,12 @@ import {
   putCompanyOnApi,
 } from "@/services/companies.service";
 import { USER_ROLE } from "@/types";
+import {
+  DashboardHoyPageHero,
+  DashboardPageShell,
+  PageCalloutError,
+  PageSurface,
+} from "@/components/dashboard-page";
 
 function errorMessage(e: unknown, fallback: string): string {
   return userVisibleMessageFromUnknown(e, fallback);
@@ -88,34 +94,36 @@ export default function MyCompanyPage() {
     setForm((s) => ({ ...s, [k]: v }));
 
   return (
-    <div className="min-w-0 max-w-full space-y-4">
-      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm dark:border-slate-600 dark:bg-slate-800/90 sm:p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Mi empresa
-        </p>
-        <h1 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">
-          Datos para partes e informes
-        </h1>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-          Los datos se cargan con <strong>GET /api/Companies</strong>
-          {!isWorker ? (
-            <>
-              {" "}
-              y puedes guardarlos en el servidor con <strong>PUT /api/Companies/{"{id}"}</strong>
-            </>
-          ) : null}
-          . Se usan como cabecera en partes (PDF) e informes.
-        </p>
-        {isWorker ? (
-          <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
-            Como trabajador/a, los datos son <strong className="font-semibold">solo consulta</strong>{" "}
-            (no editables).
-          </p>
+    <DashboardPageShell width="full" className="min-w-0">
+      <DashboardHoyPageHero
+        sectionLabel="Configuración"
+        title="Mi empresa"
+        description={
+          <div className="max-w-2xl space-y-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400 [&_strong]:font-semibold">
+            <p>
+              Datos para partes e informes. Los datos se cargan con <strong>GET /api/Companies</strong>
+              {!isWorker ? (
+                <>
+                  {" "}
+                  y puedes guardarlos en el servidor con <strong>PUT /api/Companies/{"{id}"}</strong>
+                </>
+              ) : null}
+              . Se usan como cabecera en partes (PDF) e informes.
+            </p>
+            {isWorker ? (
+              <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
+                Como trabajador/a, los datos son <strong className="font-semibold">solo consulta</strong> (no
+                editables).
+              </p>
+            ) : null}
+          </div>
+        }
+      />
+      {error ? <PageCalloutError>{error}</PageCalloutError> : null}
+      <PageSurface>
+        {loading ? (
+          <p className="text-sm text-slate-600 dark:text-slate-400">Cargando datos de la empresa…</p>
         ) : null}
-
-        {loading && (
-          <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">Cargando datos de la empresa…</p>
-        )}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -291,8 +299,7 @@ export default function MyCompanyPage() {
           )}
         </div>
 
-        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
-        {okMsg && <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{okMsg}</p>}
+        {okMsg ? <p className="mt-3 text-sm text-emerald-700 dark:text-emerald-300">{okMsg}</p> : null}
 
         {!isWorker ? (
           <div className="mt-4 flex flex-wrap justify-end gap-2">
@@ -328,7 +335,7 @@ export default function MyCompanyPage() {
             </button>
           </div>
         ) : null}
-      </div>
-    </div>
+      </PageSurface>
+    </DashboardPageShell>
   );
 }

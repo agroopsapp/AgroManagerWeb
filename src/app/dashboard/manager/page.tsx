@@ -141,6 +141,9 @@ export default function ManagerPage() {
         hDonutImputado={equipo.hDonutImputado}
         hDonutFalta={equipo.hDonutFalta}
         hDonutExtra={equipo.hDonutExtra}
+        celdasLaborablesRejilla={equipo.equipoJornadasFichajeStats.jornadasLaborables}
+        celdasConFichajeRejilla={equipo.equipoJornadasFichajeStats.conFichaje}
+        celdasConFichajeYParteRejilla={equipo.equipoRejillaParteStats.conFichajeYParte}
         horasImputadasDecimal={equipo.horasImputadasDecimal}
         horasFaltaParaObjetivo={equipo.horasFaltaParaObjetivo}
         fichajeTipoStats={equipo.fichajeTipoStats}

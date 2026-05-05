@@ -11,6 +11,7 @@ import { usersApi } from "@/services";
 import { USER_ROLE } from "@/types";
 import type { User } from "@/types";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
+import { DashboardHoyPageHero, DashboardPageShell, FichajeJornadaMainPanel } from "@/components/dashboard-page";
 
 /** Valor del `<select>` para ver vacaciones de todos los usuarios (solo admin-like). */
 const VACACIONES_USER_TODOS = "todas";
@@ -187,37 +188,28 @@ export default function VacacionesYFestivosPage() {
   }
 
   return (
-    <div className="min-w-0 max-w-full space-y-6">
-      <header className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white px-5 py-6 shadow-[0_1px_3px_rgba(15,23,42,0.06)] sm:px-8 sm:py-7 dark:border-slate-700/80 dark:bg-slate-900/90 dark:shadow-none">
-        <div
-          className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-agro-500 via-emerald-500 to-teal-500"
-          aria-hidden
-        />
-        <div className="relative flex flex-col gap-4 pl-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-agro-600 dark:text-agro-400">
-              Registro de jornada
-            </p>
-            <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
-              Vacaciones y festivos
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-              Consulta festivos de empresa y vacaciones por trabajador. Los festivos los gestiona administración; cada
-              trabajador puede ver (y editar solo sus vacaciones, si procede).
-            </p>
-          </div>
+    <DashboardPageShell width="full" className="min-w-0">
+      <DashboardHoyPageHero
+        sectionLabel="Vacaciones y festivos"
+        title="Calendario laboral"
+        description={
+          <p className="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            Consulta festivos de empresa y vacaciones por trabajador. Los festivos los gestiona administración; cada
+            trabajador puede ver (y editar solo sus vacaciones, si procede).
+          </p>
+        }
+        trailing={
           <Link
             href="/dashboard/time-tracking"
-            className="shrink-0 rounded-xl border border-slate-200/90 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl border border-slate-200/90 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             ← Volver al fichador
           </Link>
-        </div>
-      </header>
+        }
+      />
 
-      {/* Sin `overflow-hidden` en el ancestro: si no, `sticky` del panel de filtros no funciona (mismo criterio que team-hours). */}
-      <div className="rounded-3xl border border-slate-200/80 bg-white shadow-[0_2px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/60 dark:border-slate-700/80 dark:bg-slate-900/95 dark:shadow-none dark:ring-slate-700/80">
-        <div className="h-1 w-full bg-gradient-to-r from-agro-500 via-emerald-500 to-teal-500" aria-hidden />
+      {/* Sin `overflow-hidden` en el panel: si no, `sticky` del aside de filtros no funciona con el scroll de `main`. */}
+      <FichajeJornadaMainPanel clipOverflow={false}>
         <div className="p-4 sm:p-6 lg:p-8">
           {!hydrated ? (
             <div className="flex justify-center py-16">
@@ -388,7 +380,7 @@ export default function VacacionesYFestivosPage() {
             </div>
           )}
         </div>
-      </div>
+      </FichajeJornadaMainPanel>
 
       {hydrated && (
         <p className="text-center text-xs text-slate-500 dark:text-slate-400">
@@ -396,6 +388,6 @@ export default function VacacionesYFestivosPage() {
           sincronizarlo con el servidor.
         </p>
       )}
-    </div>
+    </DashboardPageShell>
   );
 }
