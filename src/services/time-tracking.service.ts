@@ -32,6 +32,74 @@ export interface TimeEntrySummaryDto {
   entries: TimeEntryDto[];
 }
 
+// --- DTOs de heatmap (disciplina de partes) ---
+
+export type TimeEntryRowsHeatmapPartsDayDto = {
+  isoWeekYear: number;
+  isoWeek: number;
+  /** 1 = lunes ... 7 = domingo */
+  weekday: number;
+  /** YYYY-MM-DD */
+  date: string;
+  /** Si no hay fichajes cerrados, puede ser null. */
+  compliancePct: number | null;
+  closedEntries: number;
+  entriesWithPart: number;
+  entriesWithoutPart: number;
+  isWorkingDay: boolean;
+};
+
+export type TimeEntryRowsHeatmapPartsWeekDto = {
+  isoWeekYear: number;
+  isoWeek: number;
+  /** YYYY-MM-DD */
+  weekStart: string;
+  /** YYYY-MM-DD */
+  weekEnd: string;
+  compliancePct: number | null;
+  closedEntries: number;
+  entriesWithPart: number;
+};
+
+export type TimeEntryRowsHeatmapPartsDto = {
+  days: TimeEntryRowsHeatmapPartsDayDto[];
+  weeks?: TimeEntryRowsHeatmapPartsWeekDto[];
+};
+
+export type TimeEntryRowsHeatmapDayDto = {
+  isoWeekYear: number;
+  isoWeek: number;
+  /** 1 = lunes ... 7 = domingo */
+  weekday: number;
+  /** YYYY-MM-DD */
+  date: string;
+  compliancePct: number | null;
+  theoreticalHours: number;
+  workedHours: number;
+  peopleExpected: number;
+  peopleWorked: number;
+  isWorkingDay: boolean;
+};
+
+export type TimeEntryRowsHeatmapWeekDto = {
+  isoWeekYear: number;
+  isoWeek: number;
+  /** YYYY-MM-DD */
+  weekStart: string;
+  /** YYYY-MM-DD */
+  weekEnd: string;
+  compliancePct: number | null;
+  theoreticalHours: number;
+  workedHours: number;
+  peopleExpected?: number;
+  peopleWorked?: number;
+};
+
+export type TimeEntryRowsHeatmapDto = {
+  days: TimeEntryRowsHeatmapDayDto[];
+  weeks?: TimeEntryRowsHeatmapWeekDto[];
+};
+
 /**
  * Texto de descanso alineado con `breakSummary` en GET /api/TimeEntries/rows.
  * Algunos handlers solo persisten o exponen este campo y no `breakMinutes`.

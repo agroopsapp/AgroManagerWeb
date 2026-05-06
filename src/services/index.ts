@@ -13,6 +13,12 @@ export {
   type TimeEntryRowsQuery,
   type TimeEntryRowsSummaryDto,
   type TimeEntryRowsSummaryQuery,
+  type TimeEntryRowsHeatmapDto,
+  type TimeEntryRowsHeatmapDayDto,
+  type TimeEntryRowsHeatmapWeekDto,
+  type TimeEntryRowsHeatmapPartsDto,
+  type TimeEntryRowsHeatmapPartsDayDto,
+  type TimeEntryRowsHeatmapPartsWeekDto,
 } from "./time-tracking.service";
 export { kioskTimeTrackingApi, type KioskPunchResultDto } from "./kiosk-time-tracking.service";
 export { tasksApi } from "./tasks.service";

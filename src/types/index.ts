@@ -181,6 +181,9 @@ export interface WorkService {
   description: string;
 }
 
+// Re-export de tipos de features para import global (`@/types`)
+export type { Material } from "@/features/materials/types";
+
 export interface Species {
   id: string;
   name: string;

@@ -27,11 +27,19 @@ export function normalizeMaterial(input: unknown): Material | null {
   if (rawId == null || String(rawId).trim() === "") return null;
   const rawCompany = o.companyId ?? o.CompanyId ?? "";
   const rawCreated = o.createdAt ?? o.CreatedAt ?? "";
+  const rawUnitOfMeasure = o.unitOfMeasure ?? o.UnitOfMeasure ?? o.unit ?? o.Unit ?? null;
   return {
     id: String(rawId),
     companyId: String(rawCompany),
     name: o.name != null ? String(o.name) : o.Name != null ? String(o.Name) : "",
-    unitOfMeasure: strOrNull(o.unitOfMeasure ?? o.UnitOfMeasure),
+    unitOfMeasure: strOrNull(rawUnitOfMeasure),
+    description: (o.description ?? o.Description ?? "") == null
+      ? ""
+      : String(o.description ?? o.Description ?? ""),
+    unit: (o.unit ?? o.Unit ?? "") == null ? "" : String(o.unit ?? o.Unit ?? ""),
+    code: (o.code ?? o.Code ?? o.sku ?? o.Sku ?? o.reference ?? o.Reference ?? "") == null
+      ? ""
+      : String(o.code ?? o.Code ?? o.sku ?? o.Sku ?? o.reference ?? o.Reference ?? ""),
     createdAt: typeof rawCreated === "string" ? rawCreated : String(rawCreated),
   };
 }
@@ -40,10 +48,9 @@ function bodyCreate(body: MaterialCreateBody): MaterialCreateBody {
   const name = body.name.trim();
   const u = body.unitOfMeasure;
   const trimmed = typeof u === "string" ? u.trim() : "";
-  if (trimmed === "") {
-    return { companyId: body.companyId, name };
-  }
-  return { companyId: body.companyId, name, unitOfMeasure: trimmed };
+  const base: MaterialCreateBody = { companyId: body.companyId.trim(), name };
+  if (trimmed !== "") base.unitOfMeasure = trimmed;
+  return base;
 }
 
 function bodyUpdate(body: MaterialUpdateBody): MaterialUpdateBody {
@@ -57,6 +64,40 @@ function bodyUpdate(body: MaterialUpdateBody): MaterialUpdateBody {
     return { name, unitOfMeasure: null };
   }
   return { name, unitOfMeasure: trimmed };
+}
+
+/**
+ * Builder del payload para crear materiales desde la UI.
+ * Nota: el contrato tipado actual de `/api/Materials` en este proyecto usa `unitOfMeasure`.
+ */
+export function buildMaterialCreatePayload(input: {
+  companyId: string;
+  name: string;
+  description: string;
+  unit: string;
+  code: string;
+}): MaterialCreateBody {
+  return {
+    companyId: input.companyId.trim(),
+    name: input.name.trim(),
+    ...(input.unit.trim().length > 0 ? { unitOfMeasure: input.unit.trim() } : {}),
+  };
+}
+
+/**
+ * Builder del payload para actualizar materiales desde la UI.
+ */
+export function buildMaterialUpdatePayload(input: {
+  name: string;
+  description: string;
+  unit: string;
+  code: string;
+}): MaterialUpdateBody {
+  return {
+    name: input.name.trim(),
+    // Si viene vacío, se envía `null` para limpiar el campo en backend (coherente con `bodyUpdate`).
+    unitOfMeasure: input.unit.trim().length === 0 ? null : input.unit.trim(),
+  };
 }
 
 export const materialsApi = {
