@@ -181,6 +181,21 @@ export interface WorkService {
   description: string;
 }
 
+/**
+ * Material de catálogo (GET/POST/PUT/DELETE `/api/Materials`).
+ * Campos opcionales en API se normalizan a string vacío si faltan.
+ */
+export interface Material {
+  id: string;
+  companyId: string;
+  name: string;
+  description: string;
+  /** Unidad de medida (kg, L, sacos…). */
+  unit: string;
+  /** Código o referencia interna (SKU, etc.). */
+  code: string;
+}
+
 export interface Species {
   id: string;
   name: string;

@@ -528,3 +528,27 @@
  ✓ Compiled in 135ms
  ✓ Compiled in 94ms
  ✓ Compiled in 170ms
+ ✓ Compiled in 185ms
+ ✓ Compiled in 3ms
+ ✓ Compiled in 2.1s
+ ✓ Compiled in 181ms
+ ✓ Compiled in 1865ms
+ ✓ Compiled in 147ms
+ ✓ Compiled in 143ms
+ ✓ Compiled in 193ms
+ ✓ Compiled in 92ms
+ ✓ Compiled in 115ms
+ ✓ Compiled in 212ms
+ ✓ Compiled in 480ms
+  ▲ Next.js 14.2.35 (turbo)
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.8s
+  ▲ Next.js 14.2.35 (turbo)
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1696ms

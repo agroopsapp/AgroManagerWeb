@@ -7,10 +7,13 @@ import type { ReactNode } from "react";
 import {
   IconAlert,
   IconAnimal,
+  IconBriefcase,
+  IconBuildings,
   IconChart,
   IconClipboard,
   IconFarm,
   IconHome,
+  IconPackage,
   IconPin,
   IconSettings,
   IconUser,
@@ -34,7 +37,7 @@ export type DashboardNavSection = {
 
 /**
  * Orden del menú lateral y menú rápido.
- * **Hoy:** fichaje del día y obra en curso. **Gestión:** calendario laboral (vacaciones/festivos), empresa, catálogos y personal (según rol).
+ * **Hoy:** fichaje del día y obra en curso. **Gestión:** calendario laboral (vacaciones/festivos), empresa, materiales, catálogos y personal (según rol).
  */
 export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
   {
@@ -51,7 +54,6 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
     items: [
       { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: IconChart() },
       { href: "/dashboard/time-tracking/partes-de-obra", label: "Partes de obra", icon: IconClipboard() },
-      { href: "/dashboard/materiales", label: "Materiales", icon: IconFarm() },
       { href: "/dashboard/team-hours", label: "Fichajes y partes", icon: IconUser() },
     ],
   },
@@ -59,8 +61,9 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
     title: "Gestión",
     items: [
       { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: IconChart() },
-      { href: "/dashboard/my-company", label: "Mi empresa", icon: IconFarm() },
-      { href: "/dashboard/companies", label: "Empresas", icon: IconFarm() },
+      { href: "/dashboard/my-company", label: "Mi empresa", icon: IconBriefcase() },
+      { href: "/dashboard/companies", label: "Empresas", icon: IconBuildings() },
+      { href: "/dashboard/materiales", label: "Materiales", icon: IconPackage() },
       { href: "/dashboard/services", label: "Servicios", icon: IconPin() },
       { href: "/dashboard/users", label: "Trabajadores", icon: IconUser() },
     ],

@@ -72,9 +72,6 @@ import {
   EquipoTablaBotonPrimeraJornada,
 } from "@/features/time-tracking/components/EquipoTablaAccionesIconos";
 import { TimeEntryStatusBadge } from "@/features/time-tracking/components/TimeEntryStatusBadge";
-import { HorasMensualesDonut } from "@/features/time-tracking/components/charts/HorasMensualesDonut";
-import { FichajeTipoRadialSummary } from "@/features/time-tracking/components/charts/FichajeTipoRadialSummary";
-import { EquipoKpiResumenBarras } from "@/features/time-tracking/components/charts/EquipoKpiResumenBarras";
 import { EquipoRegistrosFiltrosEtiquetas } from "@/features/time-tracking/components/EquipoRegistrosFiltrosEtiquetas";
 import {
   KpiIconAlert,
@@ -195,10 +192,12 @@ export default function TeamHoursPage() {
   const [equipoKpiPagina, setEquipoKpiPagina] = useState<0 | 1>(0);
   // Marcado = comportamiento habitual: ocultar excluidos del fichaje.
   const [ocultarExcluidosFichaje, setOcultarExcluidosFichaje] = useState(true);
-  /** Solo escritorio (lg+): montar filtros en columna lateral; en móvil van en `<details>` para priorizar la tabla. */
+  /** Solo escritorio (lg+): montar filtros en columna lateral; en móvil se abren con un FAB. */
   const [teamHoursIsLgLayout, setTeamHoursIsLgLayout] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false,
   );
+  /** Móvil/tablet (<lg): controla la visibilidad del panel de filtros que se abre desde el FAB. */
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const { user, isReady } = useAuth();
   const router = useRouter();
 
@@ -214,6 +213,22 @@ export default function TeamHoursPage() {
     mq.addEventListener("change", sync);
     return () => mq.removeEventListener("change", sync);
   }, []);
+
+  /* En cuanto pasamos a layout lg+ los filtros viven en la columna lateral,
+     así que cerramos el panel móvil para evitar dos filtros visibles a la vez. */
+  useEffect(() => {
+    if (teamHoursIsLgLayout && mobileFiltersOpen) setMobileFiltersOpen(false);
+  }, [teamHoursIsLgLayout, mobileFiltersOpen]);
+
+  /* Cerrar el panel móvil con Escape — patrón estándar de bottom-sheet/modal. */
+  useEffect(() => {
+    if (!mobileFiltersOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileFiltersOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [mobileFiltersOpen]);
 
   const eq = useEquipo({
     enableEquipoCompanyFilter:
@@ -1138,7 +1153,33 @@ export default function TeamHoursPage() {
 
           <div className="relative">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200/85">
-              Estado del equipo hoy
+              {(() => {
+                const nombrePersona =
+                  eq.filtroPersonaEquipo !== "todas"
+                    ? eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
+                      String(eq.filtroPersonaEquipo)
+                    : null;
+                const sujeto = nombrePersona ? `Estado de ${nombrePersona}` : "Estado del equipo";
+                switch (eq.equipoPeriodo) {
+                  case "dia":
+                    return `${sujeto} · Día`;
+                  case "semana":
+                    return `${sujeto} · Semana`;
+                  case "mes":
+                    return `${sujeto} · Mes`;
+                  case "trimestre":
+                    return `${sujeto} · Trimestre`;
+                  case "anio":
+                    return `${sujeto} · Año`;
+                  default:
+                    return sujeto;
+                }
+              })()}
+              {periodoEtiqueta ? (
+                <span className="ml-2 normal-case tracking-normal text-emerald-100/70">
+                  · {periodoEtiqueta}
+                </span>
+              ) : null}
             </p>
 
             <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[26rem_1px_minmax(0,1fr)] lg:items-center">
@@ -1155,7 +1196,22 @@ export default function TeamHoursPage() {
                     <span className="mt-1 text-[11px] font-semibold leading-tight text-emerald-50/80">
                       Cumplimiento
                       <br />
-                      del día
+                      {(() => {
+                        switch (eq.equipoPeriodo) {
+                          case "dia":
+                            return "del día";
+                          case "semana":
+                            return "de la semana";
+                          case "mes":
+                            return "del mes";
+                          case "trimestre":
+                            return "del trimestre";
+                          case "anio":
+                            return "del año";
+                          default:
+                            return "del periodo";
+                        }
+                      })()}
                     </span>
                   </div>
                 </motion.div>
@@ -1303,65 +1359,8 @@ export default function TeamHoursPage() {
     );
   }
 
-  function TeamHoursResumenVisualAside() {
-    return (
-      <motion.aside
-        className="w-full shrink-0 xl:sticky xl:top-2 xl:z-[2] xl:w-[min(100%,18rem)] 2xl:w-[min(100%,20rem)]"
-        aria-label="Resumen visual del periodo"
-        initial={{ opacity: 1, y: 0 }}
-        animate={resumenAsideAnim}
-      >
-        <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
-          <div className="border-b border-slate-100 pb-2 dark:border-slate-800">
-            <h2 className="agro-kicker">Resumen visual</h2>
-            <p className="agro-muted mt-1 leading-snug">
-              Desglose por tipo de fichaje y objetivo frente a imputación.
-            </p>
-            {eq.equipoSummaryError ? (
-              <p className="mt-2 max-h-40 overflow-y-auto rounded-lg border border-amber-200/90 bg-amber-50 px-2.5 py-1.5 text-xs leading-snug text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
-                {eq.equipoSummaryError}
-              </p>
-            ) : null}
-            {eq.equipoSummaryLoading ? (
-              <p className="mt-2 text-sm font-medium text-emerald-800 dark:text-emerald-200">
-                Cargando resumen para gráficos…
-              </p>
-            ) : null}
-          </div>
-          <div className="mt-2 space-y-2">
-            <div className="min-h-0 min-w-0 rounded-xl border border-slate-200/90 bg-slate-50/50 px-2 py-2.5 dark:border-slate-600/60 dark:bg-slate-900/40 sm:px-2.5">
-              <FichajeTipoRadialSummary
-                bare
-                bareStack
-                horasNormal={eq.fichajeTipoStats.horasNormal}
-                horasManual={eq.fichajeTipoStats.horasManual}
-                horasSinImputar={eq.horasSinImputarTipoFichaje}
-                registrosNormal={eq.fichajeTipoStats.registrosNormal}
-                registrosManual={eq.fichajeTipoStats.registrosManual}
-                diasSinImputar={eq.diasSinImputarEquipo}
-              />
-            </div>
-            <div className="min-h-0 min-w-0 rounded-lg border-t border-slate-200/80 bg-slate-50/80 px-1.5 py-2 pt-2.5 dark:border-slate-700/80 dark:bg-slate-950/35 sm:px-2">
-              <HorasMensualesDonut
-                bare
-                bareStack
-                horasImputadoHastaTope={eq.hDonutImputado}
-                horasFalta={eq.hDonutFalta}
-                horasExtra={eq.hDonutExtra}
-                horasObjetivo={eq.horasObjetivoMesTeorico}
-                horasImputadasTotal={eq.horasImputadasDecimal}
-                registrosEnPeriodo={eq.equipoRegistrosPeriodoKpi}
-                periodo={eq.equipoPeriodo}
-              />
-            </div>
-          </div>
-        </section>
-      </motion.aside>
-    );
-  }
-
   return (
-    <div className="min-w-0 max-w-full pb-6">
+    <div className="min-w-0 max-w-full pb-24 lg:pb-6">
       <header className="space-y-3 pb-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 space-y-1">
@@ -1382,10 +1381,6 @@ export default function TeamHoursPage() {
           ) : null}
           <p className="agro-kicker">Centro de control · Equipo, fichajes y partes</p>
           <h1 className="agro-h1">Fichajes y partes del equipo</h1>
-          <p className="agro-subtitle max-w-2xl">
-            <span className="font-semibold text-slate-800 dark:text-slate-200">{periodoEtiqueta}</span>
-            {" · "}Registros de jornada, partes y resumen del periodo.
-          </p>
           {isWorker ? (
             <p className="mt-2 max-w-2xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
               Como trabajador/a puedes filtrar y revisar el equipo. Los botones{" "}
@@ -1397,13 +1392,7 @@ export default function TeamHoursPage() {
           ) : null}
           </div>
 
-          <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
-            <div className="flex flex-wrap items-center justify-between gap-2 md:justify-end">
-              <span className="agro-muted">
-                {formatDateES(localTodayISO())}
-              </span>
-            </div>
-          </div>
+          {/* Fecha de hoy retirada: la información de periodo ya está en el cuadro verde "Estado del equipo". */}
         </div>
 
         {null}
@@ -1418,19 +1407,26 @@ export default function TeamHoursPage() {
           entre la barra verde y los filtros. Sacándolo del grid, su altura es
           independiente y no afecta a la fila izquierda.
        */}
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:gap-4">
+      {/* Barra verde KPI — versión móvil (<lg): primer elemento visible.
+          Se duplica fuera del grid para garantizar que aparezca antes del aside
+          (que en móvil tiene `order-first`). En lg+ se oculta y la versión
+          de dentro del grid (col-span-2 row 1) es la que se muestra. */}
+      <div className="mb-4 lg:hidden">
+        <TeamHoursEquipoKpiSection idSuffix="-mobile" />
+      </div>
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-4">
 
         {/* Grid principal (lg+: 2 cols filtros + main; en sm: stack). */}
-        <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[16.25rem_minmax(0,1fr)] lg:items-stretch lg:gap-4 xl:flex-1 xl:min-w-0">
+        <div className="flex flex-col gap-4 lg:flex-1 lg:min-w-0 lg:grid lg:grid-cols-[16.25rem_minmax(0,1fr)] lg:items-stretch lg:gap-4">
 
-        {/* ── Fila 1: Barra verde (cols 1-2 en lg+). ── */}
-        {teamHoursIsLgLayout ? (
-          <div className="min-h-0 min-w-0 lg:col-span-2 lg:row-start-1">
-            <TeamHoursEquipoKpiSection idSuffix="" />
-          </div>
-        ) : null}
+        {/* ── Fila 1: Barra verde (cols 1-2 en lg+; oculta en <lg porque arriba ya
+            renderizamos otra instancia móvil para que sea el primer elemento). ── */}
+        <div className="hidden min-h-0 min-w-0 lg:col-span-2 lg:row-start-1 lg:block">
+          <TeamHoursEquipoKpiSection idSuffix="" />
+        </div>
 
-        {/* ── Panel de filtros lateral (solo lg+; en móvil: primer `<details>` encima del grid) ───────── */}
+        {/* ── Panel de filtros lateral (solo lg+; en móvil: `<details>` encima del grid) ───────── */}
         {teamHoursIsLgLayout ? (
           <div className="min-h-0 min-w-0 lg:col-start-1 lg:row-start-2">
             <aside
@@ -1442,37 +1438,8 @@ export default function TeamHoursPage() {
           </div>
         ) : null}
 
-        {!teamHoursIsLgLayout ? (
-          <details className={`group ${cardSurfaceClass} [&_summary::-webkit-details-marker]:hidden`}>
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-3.5 text-left outline-none ring-emerald-500/25 focus-visible:ring-2 dark:ring-emerald-500/30">
-              <span className="min-w-0">
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Mostrar u ocultar
-                </span>
-                <span className="mt-0.5 block text-sm font-semibold text-slate-900 dark:text-white">
-                  Filtros del periodo y alcance
-                </span>
-              </span>
-              <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-xl font-bold leading-none text-emerald-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-emerald-300 group-open:hidden"
-                aria-hidden
-              >
-                +
-              </span>
-              <span
-                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-xl font-bold leading-none text-emerald-900 group-open:flex dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
-                aria-hidden
-              >
-                −
-              </span>
-            </summary>
-            <div className="border-t border-slate-100 px-3 pb-4 pt-3 dark:border-slate-800">
-              <aside aria-label="Filtros de la vista" className={`${cardSurfaceClass} p-3`}>
-                <TeamHoursFiltrosInner />
-              </aside>
-            </div>
-          </details>
-        ) : null}
+        {/* En móvil/tablet los filtros viven en un panel flotante (FAB + bottom-sheet)
+            que se monta al final del componente, fuera del flujo del grid. */}
 
         {/* ── Contenido principal (fila 2, col 2): actividad + registros ── */}
         <div className="min-h-0 min-w-0 space-y-3 lg:col-start-2 lg:row-start-2">
@@ -1674,7 +1641,7 @@ export default function TeamHoursPage() {
           {/* Tabla scroll (sticky thead: NO usar overflow-x:hidden en el mismo ancestro que sticky) */}
           <div
             ref={eq.equipoTablaScrollRef}
-            className={`team-hours-table-scroll isolate w-full min-w-0 max-w-full overflow-x-auto border-t border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950/15 [-webkit-overflow-scrolling:touch] [touch-action:pan-y] ${tablaRegistrosScrollClass}`}
+            className={`team-hours-table-scroll isolate w-full min-w-0 max-w-full overflow-x-auto border-t border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950/15 [-webkit-overflow-scrolling:touch] [touch-action:pan-x_pan-y] ${tablaRegistrosScrollClass}`}
             style={{
               overscrollBehaviorY: "auto",
               overscrollBehaviorX: "contain",
@@ -2111,18 +2078,16 @@ export default function TeamHoursPage() {
         </motion.section>
       )}
             </div>
+          </div>
 
-            {teamHoursIsLgLayout ? null : null}
           </div>
         </div>
+        {/* fin del grid principal — el aside queda como columna hermana DENTRO del flex-row */}
 
-        </div>{/* fin del grid principal — lo siguiente queda como columna hermana, no celda */}
-
-        {/* ── Aside derecho (solo xl+): como columna hermana del grid principal.
-            Su altura es independiente; al crecer no estira las filas del grid. ── */}
-        {teamHoursIsLgLayout ? (
-          <div className="hidden xl:block xl:w-[22.5rem] xl:flex-shrink-0">
-            <div className="xl:sticky xl:top-3 xl:space-y-3">
+        {/* ── Aside (lg+: columna derecha 22.5rem; <lg: aparece ARRIBA, sobre el grid principal,
+            con `order-first` para mantener el patrón "resumen visual primero, tabla al final"). ── */}
+        <div className="block w-full order-first lg:order-none lg:w-[22.5rem] lg:flex-shrink-0">
+          <div className="space-y-3 lg:sticky lg:top-3">
               <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="agro-kicker">Resumen equipo</h2>
@@ -2205,11 +2170,10 @@ export default function TeamHoursPage() {
                       };
                       return prio(a) - prio(b);
                     })
-                    .slice(0, 4)
+                    .slice(0, 3)
                     .map((f, idx) => {
                       const isSinImputar = f.kind === "sinImputar";
                       const isNoLaboral = f.kind === "noLaboral";
-                      const isRegistro = f.kind === "registro";
                       const nombre = eqHoy.resolveEquipoPersonaNombre(f as any);
                       const initials = nombre
                         .split(" ")
@@ -2245,70 +2209,26 @@ export default function TeamHoursPage() {
                         return "Jornada registrada sin parte.";
                       })();
 
-                      const actionLabel = (() => {
-                        if (label === "Sin fichar") return "Revisar";
-                        if (label === "Sin parte") return "Completar parte";
-                        if (label === "Vacaciones") return "Ver plan";
-                        if (label === "Baja") return "Revisar";
-                        return "Revisar";
-                      })();
-
-                      const onAction = () => {
-                        if (isRegistro && !isWorker) {
-                          modal.openEquipoEditModal({
-                            workerId: f.e.workerId,
-                            workDate: f.e.workDate,
-                            existing: f.e,
-                            isWeekendFila: workDateIsWeekend(f.e.workDate),
-                            personaLabel: nombre,
-                            targetUserId: f.e.userId ?? null,
-                          });
-                        }
-                      };
                       return (
                         <div
                           key={`${idx}-${isSinImputar || isNoLaboral ? `h-${f.userId}-${f.workDate}` : `r-${f.e.id}`}`}
-                          className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-900/50"
+                          className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm dark:border-slate-700 dark:bg-slate-900/50"
                         >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="h-9 w-9 shrink-0 rounded-full bg-slate-200 text-[11px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-100 flex items-center justify-center">
-                              {initials || "—"}
-                            </div>
-                            <p
-                              className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-900 dark:text-slate-100"
-                              title={nombre}
-                            >
-                              {nombre}
-                            </p>
-                            <span
-                              className={`agro-badge ${badgeClass} shrink-0`}
-                              title={sub}
-                            >
-                              {label}
-                            </span>
+                          <div className="h-9 w-9 shrink-0 rounded-full bg-slate-200 text-[11px] font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-100 flex items-center justify-center">
+                            {initials || "—"}
                           </div>
-                          <button
-                            type="button"
-                            className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-white dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-200 dark:hover:bg-slate-900/50 dark:disabled:hover:bg-slate-950/40"
-                            onClick={onAction}
-                            title={actionLabel}
-                            aria-label={actionLabel}
-                            disabled={!isRegistro || isWorker}
+                          <p
+                            className="min-w-0 flex-1 truncate text-xs font-semibold text-slate-900 dark:text-slate-100"
+                            title={nombre}
                           >
-                            <svg
-                              className="h-4 w-4"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden
-                            >
-                              <path d="M12 20h9" />
-                              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                            </svg>
-                          </button>
+                            {nombre}
+                          </p>
+                          <span
+                            className={`agro-badge ${badgeClass} shrink-0`}
+                            title={sub}
+                          >
+                            {label}
+                          </span>
                         </div>
                       );
                     })}
@@ -2392,83 +2312,61 @@ export default function TeamHoursPage() {
                * Antes vivía al final de la tabla; ahora aparece aquí, en el aside derecho,
                * tras "Resumen del periodo".
                */}
-              {eq.equipoRange && eq.filtroPersonaEquipo !== "todas" ? (
-                <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
-                  <div className="mb-3">
-                    <h2 className="agro-section-title min-w-0 truncate">
-                      Calendario ·{" "}
-                      {eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
-                        String(eq.filtroPersonaEquipo)}
-                    </h2>
-                    <p className="agro-muted mt-1 text-xs">
-                      {eq.equipoPeriodo === "anio"
-                        ? `${
-                            eq.opcionesMesDentroAnioEquipo.find(
-                              (o) => o.value === eq.equipoAnioMesPagina,
-                            )?.label ?? ""
-                          } ${eq.anioEquipo}`
-                        : "Estado por día."}
-                    </p>
-                  </div>
-                  <EquipoPersonaCalendario
-                    filas={eq.filasEquipoCalendario}
-                    rangeStart={
-                      eq.equipoPeriodo === "anio" && eq.equipoVistaRange
-                        ? eq.equipoVistaRange.start
-                        : eq.equipoRange.start
-                    }
-                    rangeEnd={
-                      eq.equipoPeriodo === "anio" && eq.equipoVistaRange
-                        ? eq.equipoVistaRange.end
-                        : eq.equipoRange.end
-                    }
-                    nombrePersona={
-                      eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
-                      String(eq.filtroPersonaEquipo)
-                    }
-                  />
-                </section>
-              ) : null}
+              {/* Calendario individual: el recuadro está SIEMPRE presente para mantener
+                  el ritmo visual del aside. Si aún no hay persona seleccionada o falta
+                  rango, dentro aparece un mensaje guía en lugar de ocultar la card. */}
+              {(() => {
+                const personaSeleccionada = eq.filtroPersonaEquipo !== "todas";
+                const nombrePersona = personaSeleccionada
+                  ? eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
+                    String(eq.filtroPersonaEquipo)
+                  : null;
+                const puedePintarCalendario = Boolean(eq.equipoRange) && personaSeleccionada;
+                return (
+                  <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
+                    <div className="mb-3">
+                      <h2 className="agro-section-title min-w-0 truncate">
+                        {nombrePersona ? `Calendario · ${nombrePersona}` : "Calendario · persona"}
+                      </h2>
+                      <p className="agro-muted mt-1 text-xs">
+                        {eq.equipoPeriodo === "anio"
+                          ? `${
+                              eq.opcionesMesDentroAnioEquipo.find(
+                                (o) => o.value === eq.equipoAnioMesPagina,
+                              )?.label ?? ""
+                            } ${eq.anioEquipo}`
+                          : "Estado por día."}
+                      </p>
+                    </div>
+                    {puedePintarCalendario && eq.equipoRange ? (
+                      <EquipoPersonaCalendario
+                        filas={eq.filasEquipoCalendario}
+                        rangeStart={
+                          eq.equipoPeriodo === "anio" && eq.equipoVistaRange
+                            ? eq.equipoVistaRange.start
+                            : eq.equipoRange.start
+                        }
+                        rangeEnd={
+                          eq.equipoPeriodo === "anio" && eq.equipoVistaRange
+                            ? eq.equipoVistaRange.end
+                            : eq.equipoRange.end
+                        }
+                        nombrePersona={nombrePersona ?? ""}
+                      />
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+                        Filtra por una persona concreta en el panel de filtros para ver aquí su
+                        calendario del periodo.
+                      </div>
+                    )}
+                  </section>
+                );
+              })()}
 
               {null}
-            </div>
-          </div>
-        ) : null}
-
-        {!teamHoursIsLgLayout ? (
-          <details className="group rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:border-slate-600 dark:bg-slate-900/45 dark:shadow-none [&_summary::-webkit-details-marker]:hidden">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-3.5 text-left outline-none ring-agro-500/25 focus-visible:ring-2 dark:ring-emerald-500/30">
-              <span className="min-w-0">
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Mostrar u ocultar
-                </span>
-                <span className="mt-0.5 block text-sm font-semibold text-slate-900 dark:text-white">
-                  Resumen numérico y gráficos
-                </span>
-              </span>
-              <span
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-xl font-bold leading-none text-agro-700 dark:border-slate-600 dark:bg-slate-800 dark:text-agro-400 group-open:hidden"
-                aria-hidden
-              >
-                +
-              </span>
-              <span
-                className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-agro-200 bg-agro-50 text-xl font-bold leading-none text-agro-800 group-open:flex dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200"
-                aria-hidden
-              >
-                −
-              </span>
-            </summary>
-            <div className="border-t border-slate-100 px-3 pb-4 pt-3 dark:border-slate-800">
-              <div className="flex flex-col gap-3">
-                <TeamHoursEquipoKpiSection idSuffix="-movil" />
-                <TeamHoursObjetivoCard />
-                {null}
-              </div>
-            </div>
-          </details>
-        ) : null}
-      </div>
+            </div>{/* cierre inner aside */}
+          </div>{/* cierre outer aside */}
+        </div>{/* cierre wrapper flex-row (grid + aside hermanos) */}
 
       {/* ── Modal: editar día del equipo ───────────────────────── */}
       {modal.equipoModal &&
@@ -2726,24 +2624,6 @@ export default function TeamHoursPage() {
                           {isNoLaboral ? "No laboral" : "Sin fichar"}
                         </span>
                       </div>
-                      <div className="mt-2">
-                        {!isWorker || workerTeamHoursCanEditDate(fila.workDate) ? (
-                          <EquipoTablaBotonPrimeraJornada
-                            onCrearJornada={() =>
-                              modal.openEquipoEditModal({
-                                workerId: fila.workerId,
-                                workDate: fila.workDate,
-                                existing: null,
-                                isWeekendFila: isNoLaboral ? true : false,
-                                personaLabel: eqHoy.resolveEquipoPersonaNombre(fila),
-                                targetUserId: fila.userId,
-                              })
-                            }
-                          />
-                        ) : (
-                          <p className="agro-muted">No editable fuera de la ventana permitida.</p>
-                        )}
-                      </div>
                     </div>
                   );
                 }
@@ -2783,40 +2663,6 @@ export default function TeamHoursPage() {
                       </div>
                       <span className={`agro-badge ${badge}`}>{badgeTxt}</span>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-700 dark:text-slate-200">
-                      <div>
-                        <span className="agro-muted">Entrada</span>
-                        <div className="font-semibold">{formatTimeLocal(e.checkInUtc)}</div>
-                      </div>
-                      <div>
-                        <span className="agro-muted">Salida</span>
-                        <div className="font-semibold">{e.checkOutUtc ? formatTimeLocal(e.checkOutUtc) : "—"}</div>
-                      </div>
-                    </div>
-                    <div className="mt-3">
-                      {!isWorker || workerTeamHoursCanEditDate(e.workDate) ? (
-                        <EquipoTablaAccionesDuo
-                          onEditarHora={() =>
-                            modal.openEquipoEditModal({
-                              workerId: e.workerId,
-                              workDate: e.workDate,
-                              existing: e,
-                              isWeekendFila: workDateIsWeekend(e.workDate),
-                              personaLabel: eqHoy.resolveEquipoPersonaNombre(fila),
-                              targetUserId: e.userId ?? null,
-                            })
-                          }
-                          onEditarParte={() => {
-                            setParteEquipoValidationError(null);
-                            return part.openEquipoPartEditor(e);
-                          }}
-                          parteDisabled={!e.checkOutUtc}
-                          tieneParte={hasPart}
-                        />
-                      ) : (
-                        <p className="agro-muted">No editable fuera de la ventana permitida.</p>
-                      )}
-                    </div>
                   </div>
                 );
               })}
@@ -2824,6 +2670,90 @@ export default function TeamHoursPage() {
           </div>
         </div>
       ) : null}
+
+      {/* ── Filtros móvil: FAB + bottom-sheet (solo <lg) ──────────────────────────
+          - El FAB queda fijo abajo a la derecha en móvil/tablet.
+          - Al pulsarlo abre un panel deslizante desde la parte inferior con los
+            mismos controles del aside lateral (`TeamHoursFiltrosInner`).
+          - Se oculta por completo en lg+ (allí los filtros viven en columna lateral). */}
+      {!teamHoursIsLgLayout ? (
+        <>
+          <button
+            type="button"
+            aria-label={mobileFiltersOpen ? "Cerrar filtros" : "Abrir filtros"}
+            aria-expanded={mobileFiltersOpen}
+            aria-controls="team-hours-filtros-mobile"
+            onClick={() => setMobileFiltersOpen((v) => !v)}
+            className="fixed bottom-4 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-900/20 ring-1 ring-emerald-700/40 transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 active:scale-95 dark:bg-emerald-500 dark:ring-emerald-300/30 dark:hover:bg-emerald-400 lg:hidden"
+          >
+            {mobileFiltersOpen ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6"
+                aria-hidden
+              >
+                <path d="M6 6 18 18 M18 6 6 18" />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-6 w-6"
+                aria-hidden
+              >
+                <path d="M3 5h18 M6 12h12 M10 19h4" />
+              </svg>
+            )}
+          </button>
+
+          {mobileFiltersOpen ? (
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-[1px] lg:hidden"
+                aria-hidden
+                onClick={() => setMobileFiltersOpen(false)}
+              />
+              {/* Bottom-sheet */}
+              <div
+                id="team-hours-filtros-mobile"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Filtros del periodo y alcance"
+                className="fixed inset-x-0 bottom-0 z-40 max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white p-4 pb-20 shadow-2xl dark:border-slate-700 dark:bg-slate-900 lg:hidden"
+              >
+                <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-300 dark:bg-slate-600" aria-hidden />
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+                    Filtros
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setMobileFiltersOpen(false)}
+                    className="rounded-md px-2 py-1 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+                <TeamHoursFiltrosInner />
+              </div>
+            </>
+          ) : null}
+        </>
+      ) : null}
+
+      {null}
     </div>
   );
 }
