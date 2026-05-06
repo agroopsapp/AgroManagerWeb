@@ -161,3 +161,17 @@ export type CalendarioLaboralDayMark = {
   /** Texto breve opcional (p. ej. nombre del festivo). */
   note?: string;
 };
+
+/**
+ * Modales informativos de ayuda en «Fichajes y partes del equipo» (`/dashboard/team-hours`).
+ * Ampliar la unión cuando añadas nuevos textos en `TeamHoursInfoModals.tsx`.
+ */
+export type TeamHoursInfoModalId =
+  | "vistaGeneral"
+  | "filtrosYPeriodo"
+  | "tablaRegistros"
+  | "resumenYLateral"
+  | "kpisEstadoEquipo"
+  | "cumplimientoHeatmaps"
+  | "exportacion"
+  | "permisosWorker";

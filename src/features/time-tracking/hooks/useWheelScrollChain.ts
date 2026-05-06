@@ -68,8 +68,13 @@ export function useWheelScrollChain(
         target = target.parentElement;
       }
 
-      window.scrollBy({ top: chainDy, left: 0, behavior: "auto" });
-      e.preventDefault();
+      /**
+       * Antes: `window.scrollBy` + preventDefault siempre. En este proyecto el scroll real del
+       * dashboard vive en `<main>` (layout `overflow-hidden` en el shell), no en el documento:
+       * el fallback no movía nada útil y bloqueaba el gesto — sensación de scroll “infinito” o
+       * atrapado al encadenar desde tablas anidadas.
+       * Si ningún ancestro puede absorber el delta, no interceptamos el evento.
+       */
     };
 
     el.addEventListener("wheel", onWheel, { passive: false });

@@ -6,14 +6,11 @@ import {
   animate,
   motion,
   useAnimationControls,
-  useMotionValue,
   useReducedMotion,
-  useTransform,
 } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { companiesApi, getClientCompanyWithAreas, workServicesApi } from "@/services";
-import { DashboardHoyPageHero, DashboardPageShell } from "@/components/dashboard-page";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { USER_ROLE } from "@/types";
 import { useEquipo } from "@/features/time-tracking/hooks/useEquipo";
@@ -26,7 +23,6 @@ import {
   formatDateEsWeekdayDdMmYyyy,
   formatFechaModificacionUtc,
   formatMinutesShort,
-  formatTiempoAnterior,
   formatTimeLocal,
   localTodayISO,
   workDateIsWeekend,
@@ -48,6 +44,14 @@ import {
   workReportParteApiSummary,
 } from "@/features/time-tracking/utils/formatters";
 import {
+  buildTeamHoursTodaySummary,
+  getTeamHoursTodaySummaryRowBadgeClass,
+  getTeamHoursTodaySummaryRowLabel,
+  getTeamHoursTodaySummaryRowPriority,
+  getTeamHoursTodaySummaryRowSubtitle,
+  isTeamHoursTodaySummaryVisibleRow,
+} from "@/features/time-tracking/utils/teamHoursTodaySummary";
+import {
   equipoTablaEtiquetaBaseClass,
   equipoTablaEtiquetaAusencia,
   equipoTablaSinImputarBadgeClass,
@@ -58,13 +62,6 @@ import { timeEntryApiStatusBadgeClass } from "@/features/time-tracking/utils/tim
 import { downloadEquipoTablePdf } from "@/features/time-tracking/utils/equipoTablePdf";
 import { downloadEquipoPersonaPartesBundlePdf } from "@/features/time-tracking/utils/equipoPersonaPartesPdf";
 import type { EquipoSortKey } from "@/features/time-tracking/types";
-import { EquipoObjetivoMesEncabezado } from "@/features/time-tracking/components/EquipoObjetivoMesEncabezado";
-import { EquipoBarraLaboralesExtra } from "@/features/time-tracking/components/EquipoBarraLaboralesExtra";
-import {
-  EquipoKpiFraccionFichaje,
-  EquipoKpiFraccionParte,
-  EquipoKpiStatCard,
-} from "@/features/time-tracking/components/EquipoKpiStatCard";
 import { EquipoPersonaCalendario } from "@/features/time-tracking/components/EquipoPersonaCalendario";
 import { EquipoCumplimientoSemanalHeatmap } from "@/features/time-tracking/components/EquipoCumplimientoSemanalHeatmap";
 import { EquipoCumplimientoPartesHeatmap } from "@/features/time-tracking/components/EquipoCumplimientoPartesHeatmap";
@@ -73,15 +70,9 @@ import {
   EquipoTablaBotonPrimeraJornada,
 } from "@/features/time-tracking/components/EquipoTablaAccionesIconos";
 import { TimeEntryStatusBadge } from "@/features/time-tracking/components/TimeEntryStatusBadge";
-import { HorasMensualesDonut } from "@/features/time-tracking/components/charts/HorasMensualesDonut";
-import { FichajeTipoDonut } from "@/features/time-tracking/components/charts/FichajeTipoDonut";
 import { EquipoRegistrosFiltrosEtiquetas } from "@/features/time-tracking/components/EquipoRegistrosFiltrosEtiquetas";
-import {
-  KpiIconAlert,
-  KpiIconClipboardCheck,
-  KpiIconClock,
-  KpiIconUsers,
-} from "@/components/icons/KpiLineIcons";
+import { TeamHoursEquipoKpiSection } from "@/features/time-tracking/components/team-hours/TeamHoursEquipoKpiSection";
+import { TeamHoursObjetivoCard } from "@/features/time-tracking/components/team-hours/TeamHoursObjetivoCard";
 
 const EquipoPartModal = dynamic(
   () => import("@/features/time-tracking/components/EquipoPartModal").then((m) => m.EquipoPartModal),
@@ -134,32 +125,6 @@ function chipClass(active: boolean, activeColors: string, extra = ""): string {
 }
 
 // ---------------------------------------------------------------------------
-// AnimatedNumber: transición suave entre valores (count up/down) sin saltos.
-// ---------------------------------------------------------------------------
-function AnimatedNumber({
-  value,
-  format,
-  duration = 0.55,
-}: {
-  value: number;
-  format?: (v: number) => string;
-  duration?: number;
-}) {
-  const fmt = format ?? ((v: number) => Math.round(v).toLocaleString("es-ES"));
-  const [display, setDisplay] = useState<number>(Number.isFinite(value) ? value : 0);
-  useEffect(() => {
-    const target = Number.isFinite(value) ? value : 0;
-    const controls = animate(display, target, {
-      duration,
-      ease: [0.16, 1, 0.3, 1],
-      onUpdate: (v) => setDisplay(v),
-    });
-    return () => controls.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, duration]);
-  return <>{fmt(display)}</>;
-}
-
 // ---------------------------------------------------------------------------
 // Sort arrow indicator
 // ---------------------------------------------------------------------------
@@ -180,6 +145,10 @@ function SortArrow({
   );
 }
 
+function workerTeamHoursCanEditDate(workDate: string) {
+  return workDateWithinLastNDays(workDate, WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS);
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -191,10 +160,8 @@ export default function TeamHoursPage() {
   const [hoyUseToday, setHoyUseToday] = useState(true);
   /** Tabla de registros: por defecto solo las primeras N filas del resultado filtrado. */
   const [tablaRegistrosVerTodos, setTablaRegistrosVerTodos] = useState(false);
-  /** Resumen KPI superior: tarjetas (1) o barras (2). */
-  const [equipoKpiPagina, setEquipoKpiPagina] = useState<0 | 1>(0);
-  // Marcado = comportamiento habitual: ocultar excluidos del fichaje.
-  const [ocultarExcluidosFichaje, setOcultarExcluidosFichaje] = useState(true);
+  /** Siempre ocultar usuarios excluidos del fichaje (solo vista “contabilidad”); no es configurable. */
+  const includeExcludedFromTimeTracking = false;
   /** Solo escritorio (lg+): montar filtros en columna lateral; en móvil se abren con un FAB. */
   const [teamHoursIsLgLayout, setTeamHoursIsLgLayout] = useState(() =>
     typeof window !== "undefined" ? window.matchMedia("(min-width: 1024px)").matches : false,
@@ -238,7 +205,7 @@ export default function TeamHoursPage() {
       user?.role === USER_ROLE.SuperAdmin ||
       user?.role === USER_ROLE.Manager ||
       user?.role === USER_ROLE.Admin,
-    includeExcludedFromTimeTracking: !ocultarExcluidosFichaje,
+    includeExcludedFromTimeTracking,
   });
 
   /**
@@ -250,7 +217,7 @@ export default function TeamHoursPage() {
       user?.role === USER_ROLE.SuperAdmin ||
       user?.role === USER_ROLE.Manager ||
       user?.role === USER_ROLE.Admin,
-    includeExcludedFromTimeTracking: !ocultarExcluidosFichaje,
+    includeExcludedFromTimeTracking,
   });
 
   useEffect(() => {
@@ -275,12 +242,34 @@ export default function TeamHoursPage() {
     hoyUseToday,
   ]);
 
-  useEffect(() => {
-    // Evita quedarse con una persona que ya no existe en el combo al cambiar el modo.
-    eq.setFiltroPersonaEquipo("todas");
-  }, [ocultarExcluidosFichaje]);
-
   useWheelScrollChain(eq.equipoTablaScrollRef, eq.diasCalendarioMesEquipo.length > 0);
+
+  /**
+   * Móvil: el scroll real está en `<main>` del dashboard. El rebote/overscroll nativo al arrastrar
+   * sobre zonas vacías (debajo del grid) parece “ampliar” el scroll más allá del contenido y del
+   * límite del grid. Solo desactivamos el overscroll vertical del main si el ancho es menor que lg.
+   */
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const syncMainOverscroll = () => {
+      const main = document.querySelector("main");
+      if (!(main instanceof HTMLElement)) return;
+      if (mq.matches) {
+        main.style.overscrollBehaviorY = "none";
+      } else {
+        main.style.removeProperty("overscroll-behavior-y");
+      }
+    };
+    syncMainOverscroll();
+    mq.addEventListener("change", syncMainOverscroll);
+    return () => {
+      mq.removeEventListener("change", syncMainOverscroll);
+      const main = document.querySelector("main");
+      if (main instanceof HTMLElement) {
+        main.style.removeProperty("overscroll-behavior-y");
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setTablaRegistrosVerTodos(false);
@@ -296,18 +285,19 @@ export default function TeamHoursPage() {
     eq.equipoSuperAdminCompanyId,
     eq.equipoServiceId,
     eq.equipoTablaFiltroExtra,
-    ocultarExcluidosFichaje,
   ]);
 
   /**
    * Altura del contenedor de scroll de la tabla:
    * - Compacto: solo se ven ~7 filas; el resto es scrollable dentro del propio grid.
-   * - Expandido: ocupa hasta 82vh (comportamiento original).
-   * El alto compacto incluye `thead` sticky + 7 filas + un pequeño margen.
+   * - Expandido: tope con `svh` (estable con barras del navegador en móvil) + rem máximo.
+   *
+   * Importante: no usar `max-h-none` al expandir; el scroll debe quedar dentro del grid.
+   * En pantalla estrecha un tope algo más bajo con `dvh` evita que el bloque compita con el chrome del móvil.
    */
   const tablaRegistrosScrollClass = tablaRegistrosVerTodos
-    ? "max-h-none lg:max-h-[min(82vh,calc(100dvh-12.5rem))] lg:overflow-y-auto"
-    : "max-h-[26rem] overflow-y-auto";
+    ? "max-lg:max-h-[min(30rem,calc(100dvh-13rem))] lg:max-h-[min(42rem,calc(100svh-11rem))] overflow-y-auto overflow-x-auto touch-pan-x touch-pan-y"
+    : "max-h-[26rem] overflow-y-auto overflow-x-auto touch-pan-x touch-pan-y";
 
   /**
    * Refetch combinado: la rejilla principal (`eq`) y el panel "Resumen equipo" (`eqHoy`)
@@ -595,9 +585,6 @@ export default function TeamHoursPage() {
   if (!isReady || !user) return null;
 
   const isWorker = user.role === USER_ROLE.Worker;
-  const workerTeamHoursCanEditDate = (workDate: string) =>
-    workDateWithinLastNDays(workDate, WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS);
-
   const mesTablaDetalleNombre =
     eq.equipoPeriodo === "anio"
       ? eq.opcionesMesDentroAnioEquipo.find((o) => o.value === eq.equipoAnioMesPagina)?.label ??
@@ -606,69 +593,19 @@ export default function TeamHoursPage() {
 
   const hoyResumen = useMemo(() => {
     const diaSeleccionado = hoyUseToday ? localTodayISO() : (eqHoy.equipoDia || localTodayISO());
-    const filas = eqHoy.equipoFilasVista;
-
-    let empezadas = 0;
-    let vacaciones = 0;
-    let baja = 0;
-    let noLaboral = 0;
-    let sinFichar = 0;
-    let sinParte = 0;
-    let itemsTarjeta = 0;
-
-    for (const f of filas) {
-      const workDate =
-        f.kind === "registro"
-          ? f.e.workDate
-          : f.kind === "noLaboral" || f.kind === "sinImputar"
-            ? f.workDate
-            : null;
-      if (!workDate || workDate !== diaSeleccionado) continue;
-
-      if (f.kind === "noLaboral") {
-        // No laboral (fin de semana / festivo de rejilla) NO se muestra en el panel.
-        noLaboral += 1;
-        continue;
-      }
-      if (f.kind === "sinImputar") {
-        sinFichar += 1;
-        itemsTarjeta += 1;
-        continue;
-      }
-      if (f.kind !== "registro") continue;
-      const e = f.e;
-      const abs = equipoAbsenceEtiquetaKind(e);
-      if (e.checkInUtc) empezadas += 1;
-      if (abs === "vacaciones") {
-        vacaciones += 1;
-        itemsTarjeta += 1;
-        continue;
-      }
-      if (abs === "baja") {
-        baja += 1;
-        itemsTarjeta += 1;
-        continue;
-      }
-      if (abs === "no_laboral") {
-        // Día no laborable a nivel de registro: tampoco se muestra.
-        continue;
-      }
-
-      // Si han fichado, solo mostramos los que NO tienen parte creado.
-      // Si han fichado y tienen parte: NO se muestra.
-      if (e.checkInUtc && !timeEntryConParteEnServidor(e)) {
-        sinParte += 1;
-        itemsTarjeta += 1;
-      }
-    }
-
-    const pendientesCriticos = sinFichar + sinParte;
-    return {
-      diaSeleccionado,
-      filas,
-      counts: { empezadas, vacaciones, baja, noLaboral, sinFichar, sinParte, pendientesCriticos, itemsTarjeta },
-    };
+    return buildTeamHoursTodaySummary(eqHoy.equipoFilasVista, diaSeleccionado);
   }, [eqHoy.equipoFilasVista, eqHoy.equipoDia, hoyUseToday]);
+
+  const hoyResumenFilasVisibles = useMemo(
+    () =>
+      hoyResumen.filas
+        .filter((fila) => isTeamHoursTodaySummaryVisibleRow(fila, hoyResumen.diaSeleccionado))
+        .sort(
+          (a, b) =>
+            getTeamHoursTodaySummaryRowPriority(a) - getTeamHoursTodaySummaryRowPriority(b),
+        ),
+    [hoyResumen],
+  );
 
   function TeamHoursFiltrosInner() {
     return (
@@ -879,17 +816,6 @@ export default function TeamHoursPage() {
                   </option>
                 ))}
               </select>
-              <label
-                className="inline-flex items-center gap-2 text-[10px] font-semibold text-slate-600 dark:text-slate-300 select-none"
-                title="Oculta a los empleados con «Excluir del registro de jornada» activado."
-              >
-                <input
-                  type="checkbox"
-                  checked={ocultarExcluidosFichaje}
-                  onChange={(e) => setOcultarExcluidosFichaje(e.target.checked)}
-                />
-                Ocultar excl.
-              </label>
             </div>
           </div>
 
@@ -1008,362 +934,8 @@ export default function TeamHoursPage() {
     );
   }
 
-  function TeamHoursEquipoKpiSection({ idSuffix }: { idSuffix: string }) {
-    const cumplimientoPct = useMemo(() => {
-      const objetivo = Number(eq.horasObjetivoMesTeorico ?? 0);
-      const imputadas = Number(eq.horasImputadasDecimal ?? 0);
-      if (!objetivo || objetivo <= 0) return 0;
-      return Math.max(0, Math.min(100, Math.round((imputadas / objetivo) * 100)));
-    }, [eq.horasImputadasDecimal, eq.horasObjetivoMesTeorico]);
-
-    /**
-     * Donut con conic-gradient animado: actualizamos la `bg` cada frame con
-     * useMotionValue → useTransform, así no hay saltos al cambiar filtros.
-     */
-    const cumplimientoMv = useMotionValue(cumplimientoPct);
-    useEffect(() => {
-      const controls = animate(cumplimientoMv, cumplimientoPct, {
-        duration: 0.6,
-        ease: [0.16, 1, 0.3, 1],
-      });
-      return () => controls.stop();
-    }, [cumplimientoPct, cumplimientoMv]);
-    const cumplimientoRingBg = useTransform(
-      cumplimientoMv,
-      (v) => `conic-gradient(#4ade80 ${v * 3.6}deg, rgba(255,255,255,0.10) 0deg)`,
-    );
-
-    /**
-     * IMPORTANTe: este panel debe seguir el filtro lateral (incluida la "vista rápida"),
-     * así que derivamos contadores/KPIs desde `eq.equipoFilasVista`.
-     */
-    const kpiScope = useMemo(() => {
-      // Periodo "Año": el proyecto define que el summary/gráficos usan el año completo,
-      // mientras la tabla es un mes. Aquí respetamos esa norma usando el summary.
-      if (eq.equipoPeriodo === "anio" && eq.equipoSummary?.kpiTeamGrid) {
-        const g = eq.equipoSummary.kpiTeamGrid;
-        const jornadasLaborables = Math.max(0, Math.round(g.laborablePersonDaySlots ?? 0));
-        const jornadasFichadas = Math.max(
-          0,
-          Math.round(
-            (g.slotsWithAnyTimeEntry > 0 ? g.slotsWithAnyTimeEntry : g.slotsWithClosedTimeEntry) ?? 0,
-          ),
-        );
-        const sinFichar = Math.max(0, Math.round(g.slotsWithoutEntry ?? 0));
-        const jornadasCerradas = Math.max(0, Math.round(g.slotsWithClosedTimeEntry ?? 0));
-        const partesCompletados = Math.max(0, Math.round(g.closedEntriesWithServerPart ?? 0));
-        const sinParte = Math.max(0, Math.round(g.closedEntriesWithoutServerPart ?? 0));
-        const minutosImputados = Math.max(0, Math.round(eq.equipoSummary.workedMinutesTotal ?? 0));
-
-        const jornadasFichadasPct =
-          jornadasLaborables > 0 ? Math.round((jornadasFichadas / jornadasLaborables) * 100) : 0;
-        const partesPct =
-          jornadasCerradas > 0 ? Math.round((partesCompletados / jornadasCerradas) * 100) : 0;
-
-        return {
-          haFichado: jornadasFichadas,
-          sinFichar,
-          // En summary no tenemos "vacaciones" desglosado; lo dejamos en 0 para año.
-          vacaciones: 0,
-          sinParte,
-          minutosImputados,
-          jornadasLaborables,
-          jornadasFichadas,
-          jornadasCerradas,
-          partesCompletados,
-          jornadasFichadasPct,
-          partesPct,
-        };
-      }
-
-      let haFichado = 0;
-      let sinFichar = 0;
-      let vacaciones = 0;
-      let sinParte = 0;
-
-      let jornadasLaborables = 0;
-      let jornadasFichadas = 0;
-      let jornadasCerradas = 0;
-      let partesCompletados = 0;
-
-      let minutosImputados = 0;
-
-      for (const fila of eq.equipoFilasVista) {
-        if (fila.kind === "sinImputar") {
-          sinFichar += 1;
-          jornadasLaborables += 1;
-          continue;
-        }
-        if (fila.kind !== "registro") continue;
-
-        jornadasLaborables += 1;
-        jornadasFichadas += 1;
-        haFichado += 1;
-
-        const e = fila.e;
-        const ausencia = equipoAbsenceEtiquetaKind(e);
-        if (ausencia === "vacaciones") vacaciones += 1;
-
-        if (e.checkOutUtc) {
-          jornadasCerradas += 1;
-          if (timeEntryConParteEnServidor(e)) partesCompletados += 1;
-          else sinParte += 1;
-        }
-
-        minutosImputados += effectiveWorkMinutesEntry(e);
-      }
-
-      const jornadasFichadasPct =
-        jornadasLaborables > 0 ? Math.round((jornadasFichadas / jornadasLaborables) * 100) : 0;
-      const partesPct =
-        jornadasCerradas > 0 ? Math.round((partesCompletados / jornadasCerradas) * 100) : 0;
-
-      return {
-        haFichado,
-        sinFichar,
-        vacaciones,
-        sinParte,
-        minutosImputados,
-        jornadasLaborables,
-        jornadasFichadas,
-        jornadasCerradas,
-        partesCompletados,
-        jornadasFichadasPct,
-        partesPct,
-      };
-    }, [eq.equipoFilasVista]);
-
-    return (
-      <motion.section
-        className={`${cardSurfaceClass} overflow-hidden`}
-        initial={{ opacity: 1, y: 0 }}
-        animate={kpiBlockAnim}
-      >
-        <div
-          className="relative overflow-hidden bg-gradient-to-r from-emerald-950 via-emerald-950 to-emerald-900 px-5 py-5 text-emerald-50"
-        >
-          {/* Fondo fotográfico difuminado (premium) */}
-          <div
-            className="absolute inset-0 scale-[1.08] bg-center bg-cover opacity-[0.38] blur-[6px] saturate-[1.08] contrast-[1.03]"
-            style={{ backgroundImage: "url('/login-bg.png')" }}
-            aria-hidden
-          />
-          {/* Velo oscuro para mantener contraste */}
-          <div className="absolute inset-0 bg-emerald-950/35" aria-hidden />
-          <div className="absolute inset-0 opacity-[0.14]" aria-hidden>
-            <div className="h-full w-full bg-[radial-gradient(circle_at_20%_30%,rgba(74,222,128,0.35),transparent_50%),radial-gradient(circle_at_80%_40%,rgba(34,197,94,0.25),transparent_45%),linear-gradient(to_bottom,rgba(255,255,255,0.06),transparent)]" />
-          </div>
-
-          <div className="relative">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200/85">
-              {(() => {
-                const nombrePersona =
-                  eq.filtroPersonaEquipo !== "todas"
-                    ? eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
-                      String(eq.filtroPersonaEquipo)
-                    : null;
-                const sujeto = nombrePersona ? `Estado de ${nombrePersona}` : "Estado del equipo";
-                switch (eq.equipoPeriodo) {
-                  case "dia":
-                    return `${sujeto} · Día`;
-                  case "semana":
-                    return `${sujeto} · Semana`;
-                  case "mes":
-                    return `${sujeto} · Mes`;
-                  case "trimestre":
-                    return `${sujeto} · Trimestre`;
-                  case "anio":
-                    return `${sujeto} · Año`;
-                  default:
-                    return sujeto;
-                }
-              })()}
-              {periodoEtiqueta ? (
-                <span className="ml-2 normal-case tracking-normal text-emerald-100/70">
-                  · {periodoEtiqueta}
-                </span>
-              ) : null}
-            </p>
-
-            <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[26rem_1px_minmax(0,1fr)] lg:items-center">
-              {/* Bloque izquierdo: donut + lista */}
-              <div className="flex items-center gap-6">
-                <motion.div
-                  className="relative h-[148px] w-[148px] shrink-0 rounded-full p-[12px]"
-                  style={{ background: cumplimientoRingBg }}
-                >
-                  <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-emerald-950/70 ring-1 ring-white/10">
-                    <span className="text-4xl font-semibold tracking-tight tabular-nums text-white">
-                      <AnimatedNumber value={cumplimientoPct} format={(v) => `${Math.round(v)}%`} />
-                    </span>
-                    <span className="mt-1 text-[11px] font-semibold leading-tight text-emerald-50/80">
-                      Cumplimiento
-                      <br />
-                      {(() => {
-                        switch (eq.equipoPeriodo) {
-                          case "dia":
-                            return "del día";
-                          case "semana":
-                            return "de la semana";
-                          case "mes":
-                            return "del mes";
-                          case "trimestre":
-                            return "del trimestre";
-                          case "anio":
-                            return "del año";
-                          default:
-                            return "del periodo";
-                        }
-                      })()}
-                    </span>
-                  </div>
-                </motion.div>
-
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex items-center gap-2 rounded-full bg-white/8 px-3 py-2 ring-1 ring-white/10">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" aria-hidden />
-                    <span className="tabular-nums font-semibold text-white">
-                      <AnimatedNumber value={kpiScope.haFichado} />
-                    </span>
-                    <span className="text-sm text-emerald-50/80">Ha fichado</span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-full bg-white/8 px-3 py-2 ring-1 ring-white/10">
-                    <span className="h-2 w-2 rounded-full bg-rose-400" aria-hidden />
-                    <span className="tabular-nums font-semibold text-white">
-                      <AnimatedNumber value={kpiScope.sinFichar} />
-                    </span>
-                    <span className="text-sm text-emerald-50/80">Sin fichar</span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-full bg-white/8 px-3 py-2 ring-1 ring-white/10">
-                    <span className="h-2 w-2 rounded-full bg-sky-400" aria-hidden />
-                    <span className="tabular-nums font-semibold text-white">
-                      <AnimatedNumber value={kpiScope.vacaciones} />
-                    </span>
-                    <span className="text-sm text-emerald-50/80">Vacaciones</span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-full bg-white/8 px-3 py-2 ring-1 ring-white/10">
-                    <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden />
-                    <span className="tabular-nums font-semibold text-white">
-                      <AnimatedNumber value={kpiScope.sinParte} />
-                    </span>
-                    <span className="text-sm text-emerald-50/80">Sin parte</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="hidden h-24 w-px bg-white/12 lg:block" aria-hidden />
-
-              {/* Bloque derecho: 4 KPIs (como mock: icono arriba centrado) */}
-              <div className="min-w-0">
-                <div className="grid grid-cols-2 gap-5 xl:grid-cols-4">
-                  <div className="flex min-w-0 flex-col items-center text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/5">
-                      <KpiIconClock className="text-white/85" />
-                    </div>
-                    <p className="mt-3 text-2xl font-semibold tabular-nums tracking-tight text-white">
-                      <AnimatedNumber
-                        value={kpiScope.minutosImputados}
-                        format={(v) => formatMinutesShort(Math.round(v))}
-                      />
-                    </p>
-                    <p className="mt-1 text-[11px] font-semibold text-emerald-50/90">Horas imputadas</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-emerald-50/70">
-                      de {Number(eq.horasObjetivoMesTeorico ?? 0).toLocaleString("es-ES")} h objetivo
-                    </p>
-                  </div>
-
-                  <div className="flex min-w-0 flex-col items-center text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/5">
-                      <KpiIconUsers className="text-white/85" />
-                    </div>
-                    <p className="mt-3 text-2xl font-semibold tabular-nums tracking-tight text-white">
-                      <AnimatedNumber value={kpiScope.jornadasFichadas} />{" "}
-                      <span className="text-white/70">/</span>{" "}
-                      <AnimatedNumber value={kpiScope.jornadasLaborables} />
-                    </p>
-                    <p className="mt-1 text-[11px] font-semibold text-emerald-50/90">Jornadas fichadas</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-emerald-50/70">
-                      <AnimatedNumber
-                        value={kpiScope.jornadasFichadasPct}
-                        format={(v) => `${Math.round(v)}`}
-                      />
-                      % del equipo
-                    </p>
-                  </div>
-
-                  <div className="flex min-w-0 flex-col items-center text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/5">
-                      <KpiIconClipboardCheck className="text-white/85" />
-                    </div>
-                    <p className="mt-3 text-2xl font-semibold tabular-nums tracking-tight text-white">
-                      <AnimatedNumber value={kpiScope.partesCompletados} />{" "}
-                      <span className="text-white/70">/</span>{" "}
-                      <AnimatedNumber value={kpiScope.jornadasCerradas} />
-                    </p>
-                    <p className="mt-1 text-[11px] font-semibold text-emerald-50/90">Partes completados</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-emerald-50/70">
-                      <AnimatedNumber
-                        value={kpiScope.partesPct}
-                        format={(v) => `${Math.round(v)}`}
-                      />
-                      % del equipo
-                    </p>
-                  </div>
-
-                  <div className="flex min-w-0 flex-col items-center text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/5">
-                      <KpiIconAlert className="text-white/85" />
-                    </div>
-                    <p className="mt-3 text-2xl font-semibold tabular-nums tracking-tight text-white">
-                      <AnimatedNumber value={kpiScope.sinFichar} />
-                    </p>
-                    <p className="mt-1 text-[11px] font-semibold text-emerald-50/90">Sin imputar</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-emerald-50/70">
-                      requiere revisión
-                    </p>
-                  </div>
-                </div>
-
-                {/* Control de vista (1/2) eliminado: panel fijo como el mock */}
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.section>
-    );
-  }
-
-  function TeamHoursObjetivoCard() {
-    return (
-      <motion.section
-        className={`${cardSurfaceClass} p-3 sm:p-4`}
-        initial={{ opacity: 1, y: 0 }}
-        animate={objetivoBlockAnim}
-        aria-label="Objetivo del periodo e imputación"
-      >
-        <EquipoObjetivoMesEncabezado
-          diasLaborables={eq.diasLaborablesMesEquipo}
-          personasEnObjetivo={eq.personasEnObjetivo}
-          horasObjetivo={eq.horasObjetivoMesTeorico}
-          filtroTodasPersonas={eq.filtroPersonaEquipo === "todas"}
-          periodo={eq.equipoPeriodo}
-          compact
-        />
-        <EquipoBarraLaboralesExtra
-          horasObjetivo={eq.horasObjetivoMesTeorico}
-          horasImputadasLabor={eq.hDonutImputado}
-          horasFalta={eq.horasFaltaParaObjetivo}
-          horasExtra={eq.hDonutExtra}
-          horasImputadasTotal={eq.horasImputadasDecimal}
-          compact
-          hideTotalImputado
-        />
-      </motion.section>
-    );
-  }
-
   return (
-    <div className="min-w-0 max-w-full pb-24 lg:pb-6">
+    <div className="min-w-0 max-w-full overflow-x-clip pb-24 max-lg:[overflow-anchor:none] lg:pb-6">
       <header className="space-y-3 pb-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 space-y-1">
@@ -1415,18 +987,26 @@ export default function TeamHoursPage() {
           (que en móvil tiene `order-first`). En lg+ se oculta y la versión
           de dentro del grid (col-span-2 row 1) es la que se muestra. */}
       <div className="mb-4 lg:hidden">
-        <TeamHoursEquipoKpiSection idSuffix="-mobile" />
+        <TeamHoursEquipoKpiSection
+          eq={eq}
+          periodoEtiqueta={periodoEtiqueta}
+          animate={kpiBlockAnim}
+        />
       </div>
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-4">
 
         {/* Grid principal (lg+: 2 cols filtros + main; en sm: stack). */}
-        <div className="flex flex-col gap-4 lg:flex-1 lg:min-w-0 lg:grid lg:grid-cols-[16.25rem_minmax(0,1fr)] lg:items-stretch lg:gap-4">
+        <div className="flex flex-col gap-4 lg:flex-1 lg:min-w-0 lg:grid lg:grid-cols-[16.25rem_minmax(0,1fr)] lg:items-start lg:gap-4">
 
         {/* ── Fila 1: Barra verde (cols 1-2 en lg+; oculta en <lg porque arriba ya
             renderizamos otra instancia móvil para que sea el primer elemento). ── */}
         <div className="hidden min-h-0 min-w-0 lg:col-span-2 lg:row-start-1 lg:block">
-          <TeamHoursEquipoKpiSection idSuffix="" />
+          <TeamHoursEquipoKpiSection
+            eq={eq}
+            periodoEtiqueta={periodoEtiqueta}
+            animate={kpiBlockAnim}
+          />
         </div>
 
         {/* ── Panel de filtros lateral (solo lg+; en móvil: `<details>` encima del grid) ───────── */}
@@ -1445,13 +1025,17 @@ export default function TeamHoursPage() {
             que se monta al final del componente, fuera del flujo del grid. */}
 
         {/* ── Contenido principal (fila 2, col 2): actividad + registros ── */}
-        <div className="min-h-0 min-w-0 space-y-3 lg:col-start-2 lg:row-start-2">
+        {/* `lg:self-start`: sin esto, `lg:items-stretch` del grid estira esta celda a la altura del
+            sidebar de filtros → hueco enorme bajo la tabla y scroll “infinito” en el main. */}
+        <div className="min-h-0 min-w-0 space-y-3 lg:col-start-2 lg:row-start-2 lg:self-start">
 
           {/* El calendario de la persona se ha movido a la columna derecha (recuadro tras "Resumen del periodo"). */}
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:gap-3">
-            <div className="min-h-0 min-w-0 flex-1 space-y-3">
-              {teamHoursIsLgLayout ? <TeamHoursObjetivoCard /> : null}
+            <div className="min-h-0 min-w-0 w-full space-y-3">
+              {teamHoursIsLgLayout ? (
+                <TeamHoursObjetivoCard eq={eq} animate={objetivoBlockAnim} />
+              ) : null}
 
       {/* Tabla / vacío (principal): animación tipo desplegable desde arriba */}
       {eq.diasCalendarioMesEquipo.length === 0 ? (
@@ -1639,9 +1223,9 @@ export default function TeamHoursPage() {
           {/* Tabla scroll (sticky thead: NO usar overflow-x:hidden en el mismo ancestro que sticky) */}
           <div
             ref={eq.equipoTablaScrollRef}
-            className={`team-hours-table-scroll isolate w-full min-w-0 max-w-full overflow-x-auto border-t border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950/15 [-webkit-overflow-scrolling:touch] [touch-action:pan-x_pan-y] ${tablaRegistrosScrollClass}`}
+            className={`team-hours-table-scroll isolate w-full min-w-0 max-w-full border-t border-slate-100 bg-white dark:border-slate-800 dark:bg-slate-950/15 [-webkit-overflow-scrolling:touch] ${tablaRegistrosScrollClass}`}
             style={{
-              overscrollBehaviorY: "auto",
+              overscrollBehaviorY: "contain",
               overscrollBehaviorX: "contain",
             }}
           >
@@ -2133,41 +1717,7 @@ export default function TeamHoursPage() {
                 </div>
 
                 <div className="mt-3 space-y-2">
-                  {hoyResumen.filas
-                    .filter((f) => {
-                      // Panel "día seleccionado": ignorar filas de otros días.
-                      const workDate =
-                        f.kind === "registro" ? f.e.workDate : f.kind === "noLaboral" || f.kind === "sinImputar" ? f.workDate : null;
-                      if (!workDate || workDate !== hoyResumen.diaSeleccionado) return false;
-
-                      // 1) Sin fichar (laborable sin entrada): siempre se muestra.
-                      if (f.kind === "sinImputar") return true;
-                      // No laboral (rejilla): NO se muestra.
-                      if (f.kind === "noLaboral") return false;
-                      if (f.kind !== "registro") return false;
-
-                      const e = f.e;
-                      const abs = equipoAbsenceEtiquetaKind(e);
-                      // 2) Baja y 3) Vacaciones: siempre se muestran.
-                      if (abs === "baja" || abs === "vacaciones") return true;
-                      // No laborable a nivel registro: NO se muestra.
-                      if (abs === "no_laboral") return false;
-                      // 4) Si ha fichado y NO tiene parte: se muestra.
-                      // Si ha fichado y tiene parte: NO se muestra.
-                      return Boolean(e.checkInUtc) && !timeEntryConParteEnServidor(e);
-                    })
-                    .sort((a, b) => {
-                      // Orden: Sin fichar (0) → Baja (1) → Vacaciones (2) → Sin parte (3)
-                      const prio = (f: typeof a) => {
-                        if (f.kind === "sinImputar") return 0;
-                        if (f.kind !== "registro") return 99;
-                        const abs = equipoAbsenceEtiquetaKind(f.e);
-                        if (abs === "baja") return 1;
-                        if (abs === "vacaciones") return 2;
-                        return 3;
-                      };
-                      return prio(a) - prio(b);
-                    })
+                  {hoyResumenFilasVisibles
                     .slice(0, 3)
                     .map((f, idx) => {
                       const isSinImputar = f.kind === "sinImputar";
@@ -2180,32 +1730,9 @@ export default function TeamHoursPage() {
                         .map((p) => p[0]?.toUpperCase())
                         .join("");
 
-                      const label = (() => {
-                        if (isSinImputar) return "Sin fichar";
-                        if (isNoLaboral) return "No laboral";
-                        const abs = equipoAbsenceEtiquetaKind(f.e);
-                        if (abs === "baja") return "Baja";
-                        if (abs === "vacaciones") return "Vacaciones";
-                        if (!timeEntryConParteEnServidor(f.e)) return "Sin parte";
-                        return "Revisar";
-                      })();
-
-                      const badgeClass = (() => {
-                        if (label === "Vacaciones") return "agro-badge-info";
-                        if (label === "Baja") return "agro-badge-warn";
-                        if (label === "Sin parte") return "agro-badge-warn";
-                        if (label === "No laboral") return "agro-badge-info";
-                        return "agro-badge-danger";
-                      })();
-
-                      const sub = (() => {
-                        if (isSinImputar) return "No tiene registro de entrada.";
-                        if (isNoLaboral) return "Día marcado como no laborable.";
-                        const abs = equipoAbsenceEtiquetaKind(f.e);
-                        if (abs === "baja") return "De baja médica.";
-                        if (abs === "vacaciones") return "En periodos de vacaciones.";
-                        return "Jornada registrada sin parte.";
-                      })();
+                      const label = getTeamHoursTodaySummaryRowLabel(f);
+                      const badgeClass = getTeamHoursTodaySummaryRowBadgeClass(label);
+                      const sub = getTeamHoursTodaySummaryRowSubtitle(f);
 
                       return (
                         <div
@@ -2230,7 +1757,7 @@ export default function TeamHoursPage() {
                         </div>
                       );
                     })}
-                  {hoyResumen.filas.length === 0 ? (
+                  {hoyResumenFilasVisibles.length === 0 ? (
                     <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
                       No hay datos de hoy con los filtros actuales.
                     </p>
@@ -2670,7 +2197,8 @@ export default function TeamHoursPage() {
       ) : null}
 
       {/* ── Filtros móvil: FAB + bottom-sheet (solo <lg) ──────────────────────────
-          - El FAB queda fijo abajo a la derecha en móvil/tablet.
+          - El FAB queda fijo abajo a la derecha en móvil/tablet (z por encima del sheet).
+          - Abierto: mismo botón sirve para cerrar (✕); no duplicamos «Cerrar» arriba en el panel.
           - Al pulsarlo abre un panel deslizante desde la parte inferior con los
             mismos controles del aside lateral (`TeamHoursFiltrosInner`).
           - Se oculta por completo en lg+ (allí los filtros viven en columna lateral). */}
@@ -2682,7 +2210,7 @@ export default function TeamHoursPage() {
             aria-expanded={mobileFiltersOpen}
             aria-controls="team-hours-filtros-mobile"
             onClick={() => setMobileFiltersOpen((v) => !v)}
-            className="fixed bottom-4 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-900/20 ring-1 ring-emerald-700/40 transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 active:scale-95 dark:bg-emerald-500 dark:ring-emerald-300/30 dark:hover:bg-emerald-400 lg:hidden"
+            className="fixed bottom-4 right-4 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-900/20 ring-1 ring-emerald-700/40 transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 active:scale-95 dark:bg-emerald-500 dark:ring-emerald-300/30 dark:hover:bg-emerald-400 lg:hidden"
           >
             {mobileFiltersOpen ? (
               <svg
@@ -2729,20 +2257,13 @@ export default function TeamHoursPage() {
                 role="dialog"
                 aria-modal="true"
                 aria-label="Filtros del periodo y alcance"
-                className="fixed inset-x-0 bottom-0 z-40 max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white p-4 pb-20 shadow-2xl dark:border-slate-700 dark:bg-slate-900 lg:hidden"
+                className="fixed inset-x-0 bottom-0 z-40 max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-slate-200 bg-white p-4 pb-24 shadow-2xl dark:border-slate-700 dark:bg-slate-900 lg:hidden"
               >
                 <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-300 dark:bg-slate-600" aria-hidden />
-                <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="mb-3">
                   <h2 className="text-base font-semibold text-slate-900 dark:text-white">
                     Filtros
                   </h2>
-                  <button
-                    type="button"
-                    onClick={() => setMobileFiltersOpen(false)}
-                    className="rounded-md px-2 py-1 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
-                  >
-                    Cerrar
-                  </button>
                 </div>
                 <TeamHoursFiltrosInner />
               </div>
