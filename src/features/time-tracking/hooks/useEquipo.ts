@@ -46,6 +46,8 @@ import {
   workReportsApi,
   workServicesApi,
   type TimeEntryRowsSummaryDto,
+  type TimeEntryRowsHeatmapDto,
+  type TimeEntryRowsHeatmapPartsDto,
 } from "@/services";
 import { mapTimeEntryRowsItemToMock } from "@/features/time-tracking/utils/mapTimeEntryRowsItemToMock";
 import type {
@@ -327,6 +329,15 @@ export function useEquipo(options?: UseEquipoOptions) {
   const [equipoSummary, setEquipoSummary] = useState<TimeEntryRowsSummaryDto | null>(null);
   const [equipoSummaryLoading, setEquipoSummaryLoading] = useState(false);
   const [equipoSummaryError, setEquipoSummaryError] = useState<string | null>(null);
+  /** Heatmap GET /api/TimeEntries/rows/heatmap (cumplimiento semanal por día). */
+  const [equipoHeatmap, setEquipoHeatmap] = useState<TimeEntryRowsHeatmapDto | null>(null);
+  const [equipoHeatmapLoading, setEquipoHeatmapLoading] = useState(false);
+  const [equipoHeatmapError, setEquipoHeatmapError] = useState<string | null>(null);
+  /** Heatmap GET /api/TimeEntries/rows/heatmap-parts (disciplina de partes por día). */
+  const [equipoHeatmapParts, setEquipoHeatmapParts] =
+    useState<TimeEntryRowsHeatmapPartsDto | null>(null);
+  const [equipoHeatmapPartsLoading, setEquipoHeatmapPartsLoading] = useState(false);
+  const [equipoHeatmapPartsError, setEquipoHeatmapPartsError] = useState<string | null>(null);
   const [equipoFetchNonce, setEquipoFetchNonce] = useState(0);
   const equipoFetchSeq = useRef(0);
 
@@ -657,6 +668,12 @@ export function useEquipo(options?: UseEquipoOptions) {
       setEquipoSummary(null);
       setEquipoSummaryError(null);
       setEquipoSummaryLoading(false);
+      setEquipoHeatmap(null);
+      setEquipoHeatmapError(null);
+      setEquipoHeatmapLoading(false);
+      setEquipoHeatmapParts(null);
+      setEquipoHeatmapPartsError(null);
+      setEquipoHeatmapPartsLoading(false);
       return;
     }
 
@@ -676,6 +693,10 @@ export function useEquipo(options?: UseEquipoOptions) {
     setEquipoRowsError(null);
     setEquipoSummaryLoading(true);
     setEquipoSummaryError(null);
+    setEquipoHeatmapLoading(true);
+    setEquipoHeatmapError(null);
+    setEquipoHeatmapPartsLoading(true);
+    setEquipoHeatmapPartsError(null);
 
     timeTrackingApi
       .getTimeEntryRowsAllItems({
@@ -789,6 +810,86 @@ export function useEquipo(options?: UseEquipoOptions) {
         if (seq === equipoFetchSeq.current) setEquipoSummaryLoading(false);
       });
 
+    /**
+     * Heatmap: solo tiene sentido visual para periodos cortos (≤ mes).
+     * En `trimestre` y `anio` lo desactivamos para ahorrar fetch y porque el
+     * componente no se renderiza en esos casos (la página muestra un mensaje).
+     */
+    const heatmapAplica =
+      equipoPeriodo === "dia" || equipoPeriodo === "semana" || equipoPeriodo === "mes";
+    if (!heatmapAplica) {
+      setEquipoHeatmap(null);
+      setEquipoHeatmapError(null);
+      setEquipoHeatmapLoading(false);
+      setEquipoHeatmapParts(null);
+      setEquipoHeatmapPartsError(null);
+      setEquipoHeatmapPartsLoading(false);
+    } else {
+      timeTrackingApi
+        .getTimeEntryRowsHeatmap({
+          from: equipoRange.start,
+          to: equipoRange.end,
+          userId: userIdForApi,
+          excludedFromTimeTracking: excludedFromTimeTrackingForApi,
+          serviceId: serviceIdForApi,
+          clientCompanyId: clientCompanyIdForApi,
+          signal: ac.signal,
+        })
+        .then((heatmap) => {
+          if (seq !== equipoFetchSeq.current) return;
+          setEquipoHeatmap(heatmap);
+          setEquipoHeatmapError(null);
+        })
+        .catch((e: unknown) => {
+          if (ac.signal.aborted) return;
+          if (seq !== equipoFetchSeq.current) return;
+          if (e instanceof DOMException && e.name === "AbortError") return;
+          if (e instanceof Error && e.name === "AbortError") return;
+          setEquipoHeatmap(null);
+          setEquipoHeatmapError(
+            userVisibleMessageFromUnknown(
+              e,
+              "No se pudo cargar el cumplimiento semanal.",
+            ),
+          );
+        })
+        .finally(() => {
+          if (seq === equipoFetchSeq.current) setEquipoHeatmapLoading(false);
+        });
+
+      timeTrackingApi
+        .getTimeEntryRowsHeatmapParts({
+          from: equipoRange.start,
+          to: equipoRange.end,
+          userId: userIdForApi,
+          excludedFromTimeTracking: excludedFromTimeTrackingForApi,
+          serviceId: serviceIdForApi,
+          clientCompanyId: clientCompanyIdForApi,
+          signal: ac.signal,
+        })
+        .then((heatmap) => {
+          if (seq !== equipoFetchSeq.current) return;
+          setEquipoHeatmapParts(heatmap);
+          setEquipoHeatmapPartsError(null);
+        })
+        .catch((e: unknown) => {
+          if (ac.signal.aborted) return;
+          if (seq !== equipoFetchSeq.current) return;
+          if (e instanceof DOMException && e.name === "AbortError") return;
+          if (e instanceof Error && e.name === "AbortError") return;
+          setEquipoHeatmapParts(null);
+          setEquipoHeatmapPartsError(
+            userVisibleMessageFromUnknown(
+              e,
+              "No se pudo cargar la disciplina de partes.",
+            ),
+          );
+        })
+        .finally(() => {
+          if (seq === equipoFetchSeq.current) setEquipoHeatmapPartsLoading(false);
+        });
+    }
+
     return () => ac.abort();
   }, [
     equipoRange?.start,
@@ -800,6 +901,7 @@ export function useEquipo(options?: UseEquipoOptions) {
     equipoSuperAdminCompanyId,
     includeExcludedFromTimeTracking,
     equipoFetchNonce,
+    equipoPeriodo,
   ]);
 
   /** Fichajes tras filtro por empresa cliente (id de ClientCompany en `clientCompanyIdsInReport`). */
@@ -1234,8 +1336,18 @@ export function useEquipo(options?: UseEquipoOptions) {
       filtroPersonaEquipo === "todas" ? null : filtroPersonaEquipo,
     equipoRowsLoading,
     equipoRowsError,
+    /** Summary del API (KPIs/gráficos) para el rango completo del periodo. */
+    equipoSummary,
     equipoSummaryLoading,
     equipoSummaryError,
+    /** Heatmap del API (cumplimiento por día/semana ISO) para el rango completo. */
+    equipoHeatmap,
+    equipoHeatmapLoading,
+    equipoHeatmapError,
+    /** Heatmap de partes del API (disciplina de partes por día/semana ISO). */
+    equipoHeatmapParts,
+    equipoHeatmapPartsLoading,
+    equipoHeatmapPartsError,
     /** totalCount devuelto por el API (primera página / metadatos). */
     equipoRowsTotalCount,
     /** Recuento coherente con GET /rows/summary para KPIs (si summary OK). */

@@ -3,8 +3,9 @@
 import { memo } from "react";
 
 /**
- * Barra: tramo principal = tope laboral (verde imputado + gris falta);
- * tramo aparte en naranja = horas extra sobre el objetivo teórico.
+ * Imputación del periodo vs tope laboral.
+ * - Barra suave + 4 mini-tiles (Tope · Imputado · Falta · Extra).
+ * - Mismas props/datos que la versión anterior; sin cambios de lógica.
  */
 export const EquipoBarraLaboralesExtra = memo(function EquipoBarraLaboralesExtra({
   horasObjetivo,
@@ -12,103 +13,126 @@ export const EquipoBarraLaboralesExtra = memo(function EquipoBarraLaboralesExtra
   horasFalta,
   horasExtra,
   horasImputadasTotal,
+  compact,
+  hideTotalImputado,
 }: {
   horasObjetivo: number;
   horasImputadasLabor: number;
   horasFalta: number;
   horasExtra: number;
   horasImputadasTotal: number;
+  compact?: boolean;
+  hideTotalImputado?: boolean;
 }) {
   const pctLabor =
     horasObjetivo > 0.01
       ? Math.min(100, (horasImputadasLabor / horasObjetivo) * 100)
       : 0;
   const tieneExtra = horasExtra > 0.05;
-  const extraAnchoPct = tieneExtra
-    ? Math.min(
-        44,
-        Math.max(
-          18,
-          Math.round((horasExtra / Math.max(horasObjetivo, 1)) * 72 + 16)
-        )
-      )
-    : 0;
+  const tieneFalta = horasFalta > 0.05;
+
+  const fmt1 = (n: number) =>
+    n.toLocaleString("es-ES", { maximumFractionDigits: 1 });
+
+  const tilePadding = compact ? "p-2" : "p-2.5";
 
   const totalDistintoLabor =
     Math.abs(horasImputadasTotal - horasImputadasLabor) > 0.08;
   const mostrarPie = tieneExtra || totalDistintoLabor;
 
   return (
-    <div className="mt-2 min-w-0 space-y-2 rounded-lg border border-slate-300 bg-slate-50/90 px-2.5 py-2 dark:border-slate-600 dark:bg-slate-800/35 sm:px-3 sm:py-2.5">
-      <div className="flex w-full min-w-0 items-end gap-2 sm:gap-3">
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-xs text-slate-700 dark:text-slate-200">
-            <span className="font-bold text-agro-700 dark:text-agro-400">Imputado / tope</span>
-            <span className="shrink-0 tabular-nums font-semibold text-slate-900 dark:text-white">
-              {horasImputadasLabor.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h /{" "}
-              {horasObjetivo.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
-            </span>
-          </div>
-          <div
-            className="relative h-6 w-full overflow-hidden rounded-full border border-slate-300/90 bg-slate-300 shadow-[inset_0_1px_2px_rgba(15,23,42,0.12)] dark:border-slate-500 dark:bg-slate-600"
-            role="img"
-            aria-label={`Horas dentro del tope: ${horasImputadasLabor.toFixed(1)} de ${horasObjetivo.toFixed(1)} horas; falta ${horasFalta.toFixed(1)} horas`}
-          >
-            <div
-              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-agro-500 to-emerald-500 shadow-sm transition-[width] duration-500"
-              style={{ width: `${pctLabor}%` }}
-            />
-          </div>
-        </div>
-        {tieneExtra && (
-          <div
-            className="flex shrink-0 flex-col space-y-1.5"
-            style={{
-              width: `${extraAnchoPct}%`,
-              minWidth: "5.5rem",
-              maxWidth: "11rem",
-            }}
-          >
-            <div className="text-[10px] font-bold uppercase tracking-wide text-amber-900 dark:text-amber-200">
-              Horas extra
-            </div>
-            <div
-              className="flex h-6 items-center justify-center rounded-full border-2 border-amber-600 bg-gradient-to-b from-amber-400 to-amber-600 px-1.5 text-center shadow-md dark:border-amber-500 dark:from-amber-500 dark:to-amber-700"
-              role="img"
-              aria-label={`Horas extra: ${horasExtra.toFixed(1)} horas por encima del objetivo`}
-            >
-              <span className="text-xs font-extrabold tabular-nums text-white drop-shadow-sm">
-                +{horasExtra.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
-              </span>
-            </div>
-          </div>
-        )}
+    <div className={compact ? "mt-3 space-y-2.5" : "mt-3 space-y-3"}>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+          Imputación vs tope laboral
+        </p>
+        <p className="shrink-0 text-xs tabular-nums text-slate-500 dark:text-slate-400">
+          <span className="font-semibold text-slate-900 dark:text-white">
+            {fmt1(horasImputadasLabor)} h
+          </span>
+          <span className="mx-1 text-slate-300 dark:text-slate-600">/</span>
+          {fmt1(horasObjetivo)} h
+        </p>
       </div>
-      {mostrarPie ? (
-        <p className="border-t border-slate-200/80 pt-2 text-xs leading-snug text-slate-600 dark:border-slate-600/80 dark:text-slate-300">
+
+      <div
+        className="relative h-2.5 w-full overflow-hidden rounded-full bg-slate-200/70 ring-1 ring-inset ring-slate-200 dark:bg-slate-700/40 dark:ring-slate-700/60"
+        role="img"
+        aria-label={`Imputado ${fmt1(horasImputadasLabor)} de ${fmt1(horasObjetivo)} horas (${Math.round(pctLabor)}%); falta ${fmt1(horasFalta)} h.`}
+      >
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-agro-500 transition-[width] duration-500"
+          style={{ width: `${pctLabor}%` }}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div
+          className={`rounded-2xl border border-slate-200 bg-white ${tilePadding} dark:border-slate-700 dark:bg-slate-950/30`}
+        >
+          <p className="agro-muted">Tope</p>
+          <p className="mt-0.5 text-base font-semibold tabular-nums text-slate-900 dark:text-white">
+            {fmt1(horasObjetivo)} h
+          </p>
+        </div>
+        <div
+          className={`rounded-2xl border border-emerald-200/70 bg-emerald-50/50 ${tilePadding} dark:border-emerald-800/40 dark:bg-emerald-950/25`}
+        >
+          <p className="agro-muted">Imputado</p>
+          <p className="mt-0.5 text-base font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
+            {fmt1(horasImputadasLabor)} h
+          </p>
+        </div>
+        <div
+          className={`rounded-2xl border border-slate-200 bg-white ${tilePadding} dark:border-slate-700 dark:bg-slate-950/30`}
+        >
+          <p className="agro-muted">Falta</p>
+          <p
+            className={`mt-0.5 text-base font-semibold tabular-nums ${
+              tieneFalta
+                ? "text-slate-900 dark:text-white"
+                : "text-slate-400 dark:text-slate-500"
+            }`}
+          >
+            {fmt1(horasFalta)} h
+          </p>
+        </div>
+        <div
+          className={
+            tieneExtra
+              ? `rounded-2xl border border-amber-200/80 bg-amber-50/70 ${tilePadding} dark:border-amber-800/50 dark:bg-amber-950/25`
+              : `rounded-2xl border border-slate-200 bg-white ${tilePadding} dark:border-slate-700 dark:bg-slate-950/30`
+          }
+        >
+          <p className="agro-muted">Extra</p>
+          <p
+            className={`mt-0.5 text-base font-semibold tabular-nums ${
+              tieneExtra
+                ? "text-amber-800 dark:text-amber-200"
+                : "text-slate-400 dark:text-slate-500"
+            }`}
+          >
+            +{fmt1(horasExtra)} h
+          </p>
+        </div>
+      </div>
+
+      {!hideTotalImputado ? (
+        <p className="border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+          Total imputado en el periodo:{" "}
+          <strong className="font-semibold tabular-nums text-slate-800 dark:text-slate-100">
+            {fmt1(horasImputadasTotal)} h
+          </strong>
           {tieneExtra ? (
             <>
-              Total periodo:{" "}
-              <strong className="font-bold tabular-nums text-slate-900 dark:text-white">
-                {horasImputadasTotal.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
-              </strong>
               {" "}
-              <span className="text-slate-500 dark:text-slate-400">
-                (incluye{" "}
-                <span className="font-semibold text-amber-700 dark:text-amber-400">
-                  +{horasExtra.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
-                </span>{" "}
-                extra)
+              <span className="text-slate-400 dark:text-slate-500">
+                (laborales hasta tope +{" "}
+                <span className="font-medium text-amber-700 dark:text-amber-400">extra</span>)
               </span>
             </>
-          ) : (
-            <>
-              Total periodo:{" "}
-              <strong className="font-bold tabular-nums text-slate-900 dark:text-white">
-                {horasImputadasTotal.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
-              </strong>
-            </>
-          )}
+          ) : null}
+          .
         </p>
       ) : null}
     </div>

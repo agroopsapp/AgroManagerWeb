@@ -38,6 +38,7 @@ export const DASHBOARD_ALLOWED_PATHS_FICHADOR = [
   "/dashboard/time-tracking",
   "/dashboard/time-tracking/vacaciones-y-festivos",
   "/dashboard/time-tracking/partes-de-obra",
+  "/dashboard/materiales",
   "/dashboard/team-hours",
 ] as const;
 
@@ -51,6 +52,7 @@ export function isDashboardAllowedPathFichador(pathname: string | null): pathnam
 export function isDashboardAllowedPathFichadorOrChild(pathname: string | null): boolean {
   if (!pathname) return false;
   if (pathname === "/dashboard/team-hours") return true;
+  if (pathname === "/dashboard/materiales") return true;
   if (pathname === "/dashboard/time-tracking") return true;
   return pathname.startsWith("/dashboard/time-tracking/");
 }

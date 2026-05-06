@@ -1,6 +1,8 @@
 import { apiClient } from "@/lib/api-client";
 import type { Material, MaterialCreateBody, MaterialUpdateBody } from "@/features/materials/types";
 
+export type { MaterialCreateBody, MaterialUpdateBody };
+
 const BASE = "/api/Materials";
 
 function unwrapList(raw: unknown): unknown[] {

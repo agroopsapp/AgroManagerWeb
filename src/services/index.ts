@@ -28,7 +28,13 @@ export { rolesApi } from "./roles.service";
 export { animalsApi } from "./animals.service";
 export { incidentsApi } from "./incidents.service";
 export { workServicesApi } from "./work-services.service";
-export { materialsApi } from "./materials.service";
+export {
+  materialsApi,
+  buildMaterialCreatePayload,
+  buildMaterialUpdatePayload,
+  type MaterialCreateBody,
+  type MaterialUpdateBody,
+} from "./materials.service";
 export { workReportsApi } from "./work-reports.service";
 export {
   multiDayWorkReportsApi,

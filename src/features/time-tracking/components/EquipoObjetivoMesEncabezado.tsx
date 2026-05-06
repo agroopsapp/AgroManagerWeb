@@ -12,41 +12,52 @@ const PERIODO_LABEL: Record<Periodo, string> = {
   anio: "del año",
 };
 
-/** Encabezado compacto: tope en negrita y fórmula en una sola línea secundaria. */
+/**
+ * Encabezado del objetivo del periodo: kicker + fórmula compacta.
+ * Estilo alineado con el resto de tarjetas (agro-kicker / agro-muted).
+ */
 export const EquipoObjetivoMesEncabezado = memo(function EquipoObjetivoMesEncabezado({
   diasLaborables,
   personasEnObjetivo,
   horasObjetivo,
   filtroTodasPersonas,
   periodo,
+  compact,
 }: {
   diasLaborables: number;
   personasEnObjetivo: number;
   horasObjetivo: number;
   filtroTodasPersonas: boolean;
   periodo: Periodo;
+  compact?: boolean;
 }) {
   const periodoLabel = PERIODO_LABEL[periodo] ?? "del periodo";
+  const horasObjetivoFmt = horasObjetivo.toLocaleString("es-ES", { maximumFractionDigits: 1 });
 
   return (
     <div className="min-w-0">
-      <p className="text-sm font-semibold tracking-tight text-slate-800 dark:text-slate-100">
-        Objetivo {periodoLabel}
-      </p>
-      <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-sm leading-snug">
-        <strong className="text-lg font-bold tabular-nums text-agro-800 dark:text-agro-300">
-          {horasObjetivo.toLocaleString("es-ES", { maximumFractionDigits: 1 })} h
-        </strong>
-        <span className="text-slate-500 dark:text-slate-400">·</span>
-        <span className="text-slate-600 dark:text-slate-300">
-          {diasLaborables} laborables × 8 h
-          {filtroTodasPersonas ? (
-            <>
-              {" "}
-              × {personasEnObjetivo} {personasEnObjetivo === 1 ? "persona" : "personas"}
-            </>
-          ) : null}
+      <p className="agro-kicker">Objetivo {periodoLabel}</p>
+      <p className={`agro-muted leading-snug ${compact ? "mt-1" : "mt-1.5"}`}>
+        <span className="font-semibold text-slate-700 tabular-nums dark:text-slate-200">
+          {diasLaborables}
+        </span>{" "}
+        días (lun–vie) ×{" "}
+        <span className="font-semibold text-slate-700 tabular-nums dark:text-slate-200">8 h</span>
+        {filtroTodasPersonas ? (
+          <>
+            {" "}
+            ×{" "}
+            <span className="font-semibold text-slate-700 tabular-nums dark:text-slate-200">
+              {personasEnObjetivo}
+            </span>{" "}
+            pers.
+          </>
+        ) : null}
+        {" · "}
+        <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+          {horasObjetivoFmt} h
         </span>
+        <span className="text-slate-400 dark:text-slate-500"> objetivo teórico</span>
       </p>
     </div>
   );

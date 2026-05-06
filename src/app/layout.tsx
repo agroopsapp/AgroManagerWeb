@@ -15,7 +15,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className="antialiased bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
+      <body className="antialiased bg-[#F6F8F7] text-slate-900 dark:bg-slate-950 dark:text-slate-100">
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){var t=localStorage.getItem('agromanager_theme');var d=t==='dark';document.documentElement.classList.toggle('dark',d);document.body.classList.toggle('dark',d);})();`,

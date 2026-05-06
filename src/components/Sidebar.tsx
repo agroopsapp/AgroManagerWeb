@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFeatures } from "@/contexts/FeaturesContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -21,7 +22,7 @@ export interface SidebarProps {
 
 /** Fondo gris, distinto del `main` (slate-50 / slate-900). */
 const asideSurfaceClass =
-  "border-r border-slate-400/80 bg-slate-300 shadow-[inset_-1px_0_0_0_rgba(15,23,42,0.06)] dark:border-slate-700 dark:bg-slate-950 dark:shadow-[inset_-1px_0_0_0_rgba(0,0,0,0.25)]";
+  "border-r border-emerald-950/25 bg-gradient-to-b from-[#063D2E] via-[#063D2E] to-[#0B5A3D] text-emerald-50 shadow-[inset_-1px_0_0_0_rgba(0,0,0,0.25)] dark:border-emerald-700/40";
 
 const asideClass = (collapsed: boolean, mobileDrawer?: boolean) =>
   mobileDrawer
@@ -32,7 +33,8 @@ const asideClass = (collapsed: boolean, mobileDrawer?: boolean) =>
 
 export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mobileDrawer }: SidebarProps) {
   const { enableAnimals, enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const router = useRouter();
   const role = user?.role;
 
   const visibility = {
@@ -45,8 +47,18 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
   const showLabels = mobileDrawer || !collapsed;
 
   return (
-    <aside className={asideClass(collapsed, mobileDrawer)}>
-      <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-2 md:p-3">
+    <aside className={`${asideClass(collapsed, mobileDrawer)} relative`}>
+      {/* Fondo fotográfico: parte inferior (arranca a media altura del menú) */}
+      <div className="pointer-events-none absolute inset-x-0 top-[44%] bottom-0 overflow-hidden" aria-hidden>
+        <div
+          className="absolute inset-0 scale-[1.04] bg-cover bg-center opacity-[0.95] mix-blend-soft-light saturate-[1.25] contrast-[1.12] brightness-[1.06]"
+          style={{ backgroundImage: "url('/login-bg.png')" }}
+        />
+        {/* Suave transición arriba y protección abajo para legibilidad */}
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/15 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/88 via-emerald-950/25 to-transparent" />
+      </div>
+      <nav className="relative z-10 flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-2 md:p-3">
         {DASHBOARD_NAV_SECTIONS.map((section) => {
           const visibleItems = section.items.filter((item) => isDashboardNavLinkVisible(item, visibility));
           if (visibleItems.length === 0) return null;
@@ -54,7 +66,7 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
           return (
             <div key={section.title} className="flex shrink-0 flex-col gap-1">
               {showLabels && (
-                <p className="mb-0.5 px-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                <p className="mb-0.5 px-2 text-xs font-semibold uppercase tracking-wide text-emerald-200/80">
                   {section.title}
                 </p>
               )}
@@ -69,12 +81,12 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
                     href={href}
                     title={showLabels ? undefined : label}
                     onClick={() => onNavigate?.()}
-                    className={`flex items-center rounded-lg px-3 py-3 text-sm font-medium transition md:py-2.5 ${
+                    className={`flex items-center rounded-xl px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
                       showLabels ? "gap-3 px-4" : "justify-center md:px-3"
                     } ${
                       isActive
-                        ? "bg-agro-100 text-agro-800 dark:bg-agro-900/40 dark:text-agro-200"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                        ? "bg-white/12 text-white ring-1 ring-white/15"
+                        : "text-emerald-50/80 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     <span className="text-lg shrink-0" aria-hidden>
@@ -91,7 +103,7 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
           type="button"
           onClick={onToggle}
           aria-label={mobileDrawer ? "Cerrar menú" : collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="mt-auto flex w-full shrink-0 items-center justify-center rounded-lg px-3 py-2.5 text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700 md:px-3"
+          className="mt-auto flex w-full shrink-0 items-center justify-center rounded-xl px-3 py-2.5 text-emerald-50/80 transition hover:bg-white/10 hover:text-white md:px-3"
         >
           {mobileDrawer ? (
             <span className="text-sm font-semibold">Cerrar menú</span>
@@ -100,6 +112,24 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
               {collapsed ? "»" : "«"}
             </span>
           )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            logout();
+            router.push("/login");
+          }}
+          className={`flex items-center rounded-xl px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
+            showLabels ? "gap-3 px-4" : "justify-center md:px-3"
+          } text-emerald-50/80 hover:bg-white/10 hover:text-white`}
+          aria-label="Cerrar sesión"
+          title={showLabels ? undefined : "Cerrar sesión"}
+        >
+          <span className="text-lg shrink-0" aria-hidden>
+            ⎋
+          </span>
+          {showLabels && <span className="truncate">Cerrar sesión</span>}
         </button>
       </nav>
     </aside>

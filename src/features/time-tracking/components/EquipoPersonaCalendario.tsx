@@ -11,36 +11,42 @@ import {
   type EquipoCalCellKind,
 } from "@/features/time-tracking/utils/equipoCalendar";
 
-const WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] as const;
+/** Misma serigrafía que los heatmaps de cumplimiento (L / M / X …). */
+const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"] as const;
+
+/* Estilo de leyenda en pills: idéntico al de los heatmaps. */
+const LEGEND_PILL =
+  "inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200";
+const LEGEND_DOT = "h-1.5 w-1.5 shrink-0 rounded-full";
 
 const TOOLTIP_MAX_W = 320;
 const VIEW_MARGIN = 10;
 const TIP_GAP = 6;
 
 function cellClass(kind: EquipoCalCellKind | undefined, inRange: boolean): string {
-  /* Celdas cuadradas (aspect-square) + ancho máximo del grid: evita barras anchas vacías. */
+  /* Misma base tipográfica que `EquipoCumplimientoSemanalHeatmap` (text-base / sm:text-lg). */
   if (!inRange) {
     return "aspect-square w-full min-h-0 rounded-xl bg-slate-100/70 ring-1 ring-inset ring-slate-200/80 dark:bg-slate-800/40 dark:ring-slate-700/60";
   }
   const base =
-    "flex aspect-square w-full min-h-0 flex-col items-center justify-center rounded-xl border p-1 text-center tabular-nums shadow-sm outline-none transition hover:z-[1] hover:ring-2 hover:ring-agro-500/25 focus-visible:z-[1] focus-visible:ring-2 focus-visible:ring-agro-500/40 dark:hover:ring-agro-400/20";
+    "flex aspect-square w-full min-h-0 flex-col items-center justify-center rounded-xl border p-0.5 text-center tabular-nums shadow-sm outline-none transition hover:z-[1] hover:ring-2 hover:ring-agro-500/25 focus-visible:z-[1] focus-visible:ring-2 focus-visible:ring-agro-500/40 dark:hover:ring-agro-400/20 sm:p-1";
   switch (kind) {
     case "no_laboral":
-      return `${base} border-slate-200/90 bg-slate-100 text-lg font-bold text-slate-700 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 sm:text-xl`;
+      return `${base} border-slate-200/90 bg-slate-100 text-base font-bold text-slate-700 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 sm:text-lg`;
     case "sin_imputar":
-      return `${base} border-rose-300/80 bg-rose-50 text-lg font-bold text-rose-900 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-100 sm:text-xl`;
+      return `${base} border-rose-300/80 bg-rose-50 text-base font-bold text-rose-900 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-100 sm:text-lg`;
     case "fichaje_con_parte":
-      return `${base} border-teal-400/80 bg-teal-50 text-lg font-bold text-teal-950 dark:border-teal-600 dark:bg-teal-950/50 dark:text-teal-50 sm:text-xl`;
+      return `${base} border-teal-400/80 bg-teal-50 text-base font-bold text-teal-950 dark:border-teal-600 dark:bg-teal-950/50 dark:text-teal-50 sm:text-lg`;
     case "fichaje_sin_parte":
-      return `${base} border-amber-400/80 bg-amber-50 text-lg font-bold text-amber-950 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-50 sm:text-xl`;
+      return `${base} border-amber-400/80 bg-amber-50 text-base font-bold text-amber-950 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-50 sm:text-lg`;
     case "vacaciones":
-      return `${base} border-sky-300/80 bg-sky-50 text-lg font-bold text-sky-950 dark:border-sky-600 dark:bg-sky-950/45 dark:text-sky-50 sm:text-xl`;
+      return `${base} border-sky-300/80 bg-sky-50 text-base font-bold text-sky-950 dark:border-sky-600 dark:bg-sky-950/45 dark:text-sky-50 sm:text-lg`;
     case "baja":
-      return `${base} border-violet-300/80 bg-violet-50 text-lg font-bold text-violet-950 dark:border-violet-600 dark:bg-violet-950/40 dark:text-violet-50 sm:text-xl`;
+      return `${base} border-violet-300/80 bg-violet-50 text-base font-bold text-violet-950 dark:border-violet-600 dark:bg-violet-950/40 dark:text-violet-50 sm:text-lg`;
     case "dia_no_laboral_reg":
-      return `${base} border-stone-300/80 bg-stone-50 text-lg font-bold text-stone-900 dark:border-stone-600 dark:bg-stone-900/45 dark:text-stone-100 sm:text-xl`;
+      return `${base} border-stone-300/80 bg-stone-50 text-base font-bold text-stone-900 dark:border-stone-600 dark:bg-stone-900/45 dark:text-stone-100 sm:text-lg`;
     default:
-      return `${base} border-slate-200 bg-slate-50 text-lg font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300 sm:text-xl`;
+      return `${base} border-slate-200 bg-slate-50 text-base font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300 sm:text-lg`;
   }
 }
 
@@ -59,31 +65,21 @@ function CalDayCell({
   const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
-  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const model = useMemo(
     () => buildEquipoCalTooltipModel(dateISO, fila, kind),
     [dateISO, fila, kind],
   );
 
-  const clearHide = () => {
-    if (hideTimer.current != null) {
-      clearTimeout(hideTimer.current);
-      hideTimer.current = null;
-    }
-  };
-
-  const showTip = () => {
-    clearHide();
-    setOpen(true);
-  };
-
+  /**
+   * Mostrar/ocultar inmediato: sin retraso para que al pasar el ratón de una celda
+   * a otra no queden tooltips solapados. El tooltip es pointer-events-none, así
+   * que no captura el cursor: el `mouseleave` de la celda siempre dispara el cierre.
+   */
+  const showTip = () => setOpen(true);
   const hideTip = () => {
-    clearHide();
-    hideTimer.current = setTimeout(() => {
-      setOpen(false);
-      setTipPos(null);
-    }, 280);
+    setOpen(false);
+    setTipPos(null);
   };
 
   const placeTooltip = useCallback(() => {
@@ -130,7 +126,7 @@ function CalDayCell({
     <div
       ref={tipRef}
       role="tooltip"
-      className="pointer-events-auto rounded-xl border border-slate-200 bg-white p-3.5 text-left shadow-xl dark:border-slate-600 dark:bg-slate-800"
+      className="pointer-events-none rounded-xl border border-slate-200 bg-white p-3.5 text-left shadow-xl dark:border-slate-600 dark:bg-slate-800"
       style={{
         position: "fixed",
         top: tipPos?.top ?? -9999,
@@ -139,8 +135,6 @@ function CalDayCell({
         zIndex: 10050,
         maxWidth: `min(20rem, calc(100vw - ${VIEW_MARGIN * 2}px))`,
       }}
-      onMouseEnter={showTip}
-      onMouseLeave={hideTip}
     >
       <p className="border-b border-slate-100 pb-2 text-base font-bold text-slate-900 dark:border-slate-600 dark:text-white">
         {model.title}
@@ -171,7 +165,7 @@ function CalDayCell({
       tabIndex={0}
     >
       <div className={cellClass(kind, true)}>
-        <span>{dayOfMonthFromISO(dateISO)}</span>
+        <span className="tabular-nums">{dayOfMonthFromISO(dateISO)}</span>
       </div>
       {open && typeof document !== "undefined"
         ? createPortal(tipContent, document.body)
@@ -213,36 +207,12 @@ export const EquipoPersonaCalendario = memo(function EquipoPersonaCalendario({
 
   return (
     <div className="min-w-0" aria-label={`Calendario de ${nombrePersona}`}>
-      <div className="mb-4 sm:mb-5">
-        <h3 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white sm:text-xl">
-          Calendario · {nombrePersona}
-        </h3>
-        <details className="group mt-2 max-w-2xl rounded-lg border border-slate-200/80 bg-white/80 px-3 py-2 dark:border-slate-600/80 dark:bg-slate-900/40">
-          <summary className="cursor-pointer list-none text-sm font-medium text-agro-800 outline-none marker:hidden dark:text-agro-400 [&::-webkit-details-marker]:hidden">
-            <span className="inline-flex items-center gap-2">
-              Cómo leer este calendario
-              <span className="text-xs font-normal text-slate-400 group-open:hidden dark:text-slate-500">
-                (mostrar)
-              </span>
-              <span className="hidden text-xs font-normal text-slate-400 group-open:inline dark:text-slate-500">
-                (ocultar)
-              </span>
-            </span>
-          </summary>
-          <p className="mt-2 border-t border-slate-100 pt-2 text-sm leading-relaxed text-slate-600 dark:border-slate-700 dark:text-slate-300">
-            Fichaje laboral en dos estados: <strong className="text-teal-800 dark:text-teal-300">con parte</strong> en
-            servidor (verde azulado) o <strong className="text-amber-800 dark:text-amber-300">sin parte</strong>{" "}
-            (ámbar). Pasa el ratón o enfoca un día para ver el detalle y la ubicación si el API la envía.
-          </p>
-        </details>
-      </div>
-
       <div className="mx-auto w-full max-w-md sm:max-w-lg md:max-w-xl">
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+        <div className="grid grid-cols-7 items-stretch gap-x-1.5 gap-y-1.5 sm:gap-2">
           {WEEKDAYS.map((d) => (
             <div
               key={d}
-              className="pb-2 text-center text-xs font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300 sm:pb-2.5 sm:text-sm"
+              className="pb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:pb-2.5"
             >
               {d}
             </div>
@@ -275,50 +245,32 @@ export const EquipoPersonaCalendario = memo(function EquipoPersonaCalendario({
       </div>
 
       <ul
-        className="mx-auto mt-5 grid max-w-xl grid-cols-1 gap-x-6 gap-y-2.5 text-sm text-slate-700 dark:text-slate-200 sm:grid-cols-2 sm:gap-y-3 md:grid-cols-3"
+        className="mx-auto mt-4 flex max-w-xl flex-wrap gap-2"
         aria-label="Leyenda del calendario"
       >
-        <li className="flex min-w-0 items-center gap-2.5">
-          <span
-            className="h-4 w-4 shrink-0 rounded-md border-2 border-teal-400 bg-teal-50 shadow-sm dark:border-teal-500 dark:bg-teal-950/55"
-            aria-hidden
-          />
-          <span className="font-medium leading-snug">Fichaje con parte</span>
+        <li className={LEGEND_PILL}>
+          <span className={`${LEGEND_DOT} bg-teal-500 dark:bg-teal-400`} aria-hidden />
+          Fichaje con parte
         </li>
-        <li className="flex min-w-0 items-center gap-2.5">
-          <span
-            className="h-4 w-4 shrink-0 rounded-md border-2 border-amber-400 bg-amber-50 shadow-sm dark:border-amber-500 dark:bg-amber-950/45"
-            aria-hidden
-          />
-          <span className="font-medium leading-snug">Fichaje sin parte</span>
+        <li className={LEGEND_PILL}>
+          <span className={`${LEGEND_DOT} bg-amber-400 dark:bg-amber-300`} aria-hidden />
+          Fichaje sin parte
         </li>
-        <li className="flex min-w-0 items-center gap-2.5">
-          <span
-            className="h-4 w-4 shrink-0 rounded-md border-2 border-rose-300 bg-rose-100 shadow-sm dark:border-rose-600 dark:bg-rose-950/55"
-            aria-hidden
-          />
-          <span className="font-medium leading-snug">Sin imputar</span>
+        <li className={LEGEND_PILL}>
+          <span className={`${LEGEND_DOT} bg-rose-400 dark:bg-rose-300`} aria-hidden />
+          Sin imputar
         </li>
-        <li className="flex min-w-0 items-center gap-2.5">
-          <span
-            className="h-4 w-4 shrink-0 rounded-md border-2 border-slate-300 bg-slate-100 shadow-sm dark:border-slate-500 dark:bg-slate-800/70"
-            aria-hidden
-          />
-          <span className="font-medium leading-snug">No laboral (rejilla)</span>
+        <li className={LEGEND_PILL}>
+          <span className={`${LEGEND_DOT} bg-slate-400 dark:bg-slate-500`} aria-hidden />
+          No laboral (rejilla)
         </li>
-        <li className="flex min-w-0 items-center gap-2.5">
-          <span
-            className="h-4 w-4 shrink-0 rounded-md border-2 border-sky-300 bg-sky-100 shadow-sm dark:border-sky-600 dark:bg-sky-950/50"
-            aria-hidden
-          />
-          <span className="font-medium leading-snug">Vacaciones</span>
+        <li className={LEGEND_PILL}>
+          <span className={`${LEGEND_DOT} bg-sky-400 dark:bg-sky-300`} aria-hidden />
+          Vacaciones
         </li>
-        <li className="flex min-w-0 items-center gap-2.5">
-          <span
-            className="h-4 w-4 shrink-0 rounded-md border-2 border-violet-300 bg-violet-100 shadow-sm dark:border-violet-600 dark:bg-violet-950/45"
-            aria-hidden
-          />
-          <span className="font-medium leading-snug">Baja</span>
+        <li className={LEGEND_PILL}>
+          <span className={`${LEGEND_DOT} bg-violet-400 dark:bg-violet-300`} aria-hidden />
+          Baja
         </li>
       </ul>
     </div>
