@@ -18,6 +18,8 @@ export interface AuthUser {
   role: UserRole;
   /** GUID empresa (login API / BD); ausente si el usuario no tiene empresa asignada. */
   companyId?: string;
+  /** Si true, el usuario no participa en fichaje (API `excludedFromTimeTracking`). */
+  excludedFromTimeTracking?: boolean;
 }
 
 interface StoredAuthState {
@@ -92,11 +94,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("No se ha podido conectar con el servidor de autenticación.");
     }
     const companyId = pickCompanyIdFromLoginUser(data.user);
+    const excluded =
+      data.user.excludedFromTimeTracking ?? data.user.ExcludedFromTimeTracking ?? undefined;
     const authUser: AuthUser = {
       id: data.user.id,
       email: data.user.email,
       role: normalizeUserRoleFromApi(data.user.role),
       ...(companyId ? { companyId } : {}),
+      ...(excluded === true ? { excludedFromTimeTracking: true } : {}),
     };
     const expiresInSec =
       typeof data.expiresIn === "number" && data.expiresIn > 0

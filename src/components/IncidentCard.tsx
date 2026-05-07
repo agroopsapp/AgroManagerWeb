@@ -147,7 +147,7 @@ export default function IncidentCard({ case: incident, animalName, animalIdentif
               <button
                 type="button"
                 onClick={() => onStatusChange(incident.id, "resolved")}
-                className="flex-1 rounded-lg bg-green-600 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+                className="flex-1 rounded-lg bg-emerald-700 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98]"
               >
                 Marcar resuelto
               </button>

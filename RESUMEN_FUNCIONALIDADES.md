@@ -2,6 +2,7 @@
 
 ## Prioridad del producto y criterios de desarrollo (obligatorio leer)
 
+- **Clave (estado del proyecto):** esto es una **demo comercial** a punto de venderse. Prioridades: **estabilidad**, **cero errores de build**, **UX fluida**, y cambios de **riesgo mínimo** (evitar refactors grandes o experimentales justo antes de una entrega/demo).
 - **Qué es lo importante:** el **fichador** (registro de jornada y todo el bloque **Jornada** conectado: vacaciones/festivos, partes de obra, **Fichajes y partes** del equipo, y la administración ligera de empresa/servicios según rol). El resto (operativa, tareas, animales, panel, etc.) es **complementario** y solo aplica si las banderas en **Ajustes** lo activan; no sustituye al fichador como eje.
 
 - **Arquitectura en front:** se sigue la estructura acordada del repo (páginas ligeras, `features/`, `services/`, `hooks/`, `types/`, validación de contrato con el API). No mezclar lógica de negocio pesada en la UI sin criterio.

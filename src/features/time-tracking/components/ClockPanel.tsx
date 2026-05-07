@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { TimeEntryMock } from "@/features/time-tracking/types";
 import { formatLastModifiedByUser } from "@/features/time-tracking/utils/formatters";
 import {
@@ -8,12 +9,20 @@ import {
   formatTimeLocal,
 } from "@/shared/utils/time";
 
+const digitalClockFormatter = new Intl.DateTimeFormat("es-ES", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
 interface ClockPanelProps {
   // Estado de jornada
   hasOpenEntry: boolean;
   openEntry: TimeEntryMock | null | undefined;
   jornadaCompletadaHoy: boolean;
   closedTodayEntry: TimeEntryMock | null | undefined;
+  /** Si true, el usuario no debe fichar (excluido del módulo). */
+  excludedFromTimeTracking?: boolean;
   // Acciones de fichaje
   actionLoading: "checkin" | "checkout" | null;
   forgotStep: string;
@@ -39,6 +48,7 @@ export function ClockPanel({
   openEntry,
   jornadaCompletadaHoy,
   closedTodayEntry,
+  excludedFromTimeTracking,
   actionLoading,
   forgotStep,
   olvideFicharBotonActivo,
@@ -54,6 +64,13 @@ export function ClockPanel({
   todayEntriesPersonal,
   sessionEmail,
 }: ClockPanelProps) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const estadoEtiqueta = hasOpenEntry
     ? "En curso"
     : jornadaCompletadaHoy
@@ -77,6 +94,9 @@ export function ClockPanel({
           <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-agro-600 dark:text-agro-400">
             Estado de hoy
           </p>
+          <span className="tabular-nums font-mono text-[11px] text-slate-400/90 dark:text-slate-500">
+            {digitalClockFormatter.format(now)}
+          </span>
           <span
             className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${estadoPillClass}`}
           >
@@ -139,11 +159,11 @@ export function ClockPanel({
               type="button"
               onClick={hasOpenEntry ? onCheckOut : onCheckIn}
               disabled={actionLoading !== null || forgotStep !== "closed"}
-              className={`inline-flex min-h-[3rem] items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+              className={`inline-flex min-h-[3rem] items-center justify-center rounded-2xl px-4 py-3 text-sm font-semibold text-white shadow-md transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-70 ${
                 hasOpenEntry
                   ? "bg-rose-600 shadow-rose-600/20 hover:bg-rose-700 focus-visible:ring-rose-500"
-                  : "bg-agro-600 shadow-agro-600/25 hover:bg-agro-700 focus-visible:ring-agro-500"
-              } disabled:cursor-not-allowed disabled:opacity-70`}
+                  : "bg-emerald-700 shadow-emerald-950/20 hover:bg-emerald-800 active:scale-[0.98] focus-visible:ring-emerald-500"
+              }`}
             >
               {actionLoading === "checkin" && "Registrando entrada…"}
               {actionLoading === "checkout" && "Registrando salida…"}
@@ -154,14 +174,22 @@ export function ClockPanel({
             type="button"
             onClick={onOpenForgotModal}
             disabled={
-              !olvideFicharBotonActivo || actionLoading !== null || forgotStep !== "closed"
+              !olvideFicharBotonActivo ||
+              actionLoading !== null ||
+              forgotStep !== "closed"
             }
             className="inline-flex min-h-[2.75rem] items-center justify-center rounded-2xl border border-amber-300/90 bg-amber-50/70 px-4 py-2.5 text-sm font-semibold text-amber-950 transition hover:bg-amber-100/90 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-600/50 dark:bg-amber-950/30 dark:text-amber-100 dark:hover:bg-amber-950/50"
           >
             Olvidé fichar
           </button>
+          {excludedFromTimeTracking === true ? (
+            <p className="rounded-xl bg-slate-50/90 px-3 py-2 text-[11px] leading-relaxed text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">
+              Este usuario está <span className="font-semibold">excluido del fichaje</span>. No es necesario registrar
+              entrada/salida ni usar la corrección de fichaje.
+            </p>
+          ) : null}
           {hayDiasSinCuadrarEnHistorico && (
-            <div className="space-y-2 rounded-2xl bg-slate-50 px-3 py-2.5 text-[11px] leading-relaxed text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
+            <div className="hidden space-y-2 rounded-2xl bg-slate-50 px-3 py-2.5 text-[11px] leading-relaxed text-slate-600 dark:bg-slate-800/60 dark:text-slate-400 sm:block">
               <p>
                 Puedes fichar con normalidad; la regularización de días pasados la coordina
                 administración.
@@ -177,7 +205,7 @@ export function ClockPanel({
               )}
             </div>
           )}
-          <p className="rounded-xl bg-slate-50/90 px-3 py-2 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
+          <p className="hidden rounded-xl bg-slate-50/90 px-3 py-2 text-[11px] leading-relaxed text-slate-500 dark:bg-slate-800/50 dark:text-slate-400 sm:block">
             {jornadaCompletadaHoy
               ? "Normativa: un solo registro de entrada y salida por día natural."
               : "Los horarios se guardan en hora UTC en el servidor para asegurar un registro coherente en todos los dispositivos."}
@@ -192,7 +220,7 @@ export function ClockPanel({
       </div>
 
       {/* Resumen de hoy */}
-      <div className={`min-w-0 ${panelBox}`}>
+      <div className={`hidden min-w-0 ${panelBox} sm:block`}>
         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-agro-600 dark:text-agro-400">
           Resumen de hoy
         </p>

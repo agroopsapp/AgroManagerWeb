@@ -119,7 +119,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-agro-600 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-agro-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-700 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {loading ? (
                   "Entrando..."

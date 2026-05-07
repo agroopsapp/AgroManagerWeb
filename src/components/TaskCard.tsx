@@ -281,7 +281,7 @@ export default function TaskCard({
             <button
               type="button"
               onClick={() => onStatusChange(task.id, "in_progress")}
-              className="w-full rounded-lg bg-agro-600 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700 active:scale-[0.98]"
+              className="w-full rounded-lg bg-emerald-700 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98]"
             >
               Comenzar tarea
             </button>
@@ -298,7 +298,7 @@ export default function TaskCard({
               <button
                 type="button"
                 onClick={() => onStatusChange(task.id, "completed")}
-                className="flex-1 rounded-lg bg-green-600 py-2.5 text-sm font-medium text-white transition hover:bg-green-700 active:scale-[0.98]"
+                className="flex-1 rounded-lg bg-emerald-700 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98]"
               >
                 Finalizar tarea
               </button>

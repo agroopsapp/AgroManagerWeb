@@ -15,6 +15,7 @@ import {
   isDashboardPathAccessibleInFichadorShell,
   isDashboardPathOperativaYAnalisis,
 } from "@/lib/dashboardNavGating";
+import { IconChart, IconClipboard, IconUser } from "@/components/icons/SidebarIcons";
 
 const SIDEBAR_STORAGE_KEY = "agroops_sidebar_collapsed";
 
@@ -104,6 +105,12 @@ export default function DashboardLayout({
     );
   }
 
+  const quickNavItems = [
+    { href: "/dashboard/time-tracking", label: "Registro", icon: IconChart() },
+    { href: "/dashboard/time-tracking/partes-de-obra", label: "Partes", icon: IconClipboard() },
+    { href: "/dashboard/team-hours", label: "Fichajes", icon: IconUser() },
+  ] as const;
+
   return (
     <FlashSuccessProvider>
     <TasksProvider>
@@ -137,21 +144,55 @@ export default function DashboardLayout({
           <div className="hidden min-h-0 shrink-0 self-stretch md:flex md:flex-col">
             <Sidebar pathname={pathname} collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
           </div>
-          <main className="min-h-0 min-w-0 max-w-full flex-1 overflow-y-auto bg-slate-50 px-3 py-3 md:min-h-0 md:p-5 dark:bg-slate-950">
+          <main className="min-h-0 min-w-0 max-w-full flex-1 overflow-y-auto bg-slate-50 px-3 py-3 pb-24 md:min-h-0 md:p-5 dark:bg-slate-950">
             {children}
           </main>
         </div>
 
-        {/* Botón flotante (móvil): abrir navegación sin header */}
-        <button
-          type="button"
-          onClick={() => setMobileSidebarOpen(true)}
-          className="fixed bottom-4 left-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full bg-emerald-700 text-lg font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98] md:hidden"
-          aria-label="Abrir menú"
-          title="Menú"
+        {/* Barra rápida (móvil): cambios de módulo sin abrir menú */}
+        <nav
+          className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-lg shadow-slate-950/10 backdrop-blur-md md:hidden dark:border-slate-700/80 dark:bg-slate-900/85"
+          aria-label="Navegación rápida"
         >
-          ☰
-        </button>
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen(true)}
+            className="flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 px-2 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100/70 dark:text-slate-200 dark:hover:bg-slate-800/60"
+            aria-label="Abrir menú"
+            title="Menú"
+          >
+            <span className="text-base leading-none" aria-hidden>
+              ☰
+            </span>
+            <span className="leading-none">Menú</span>
+          </button>
+          {quickNavItems.map((it) => {
+            const active =
+              it.href === "/dashboard/time-tracking"
+                ? pathname === "/dashboard/time-tracking"
+                : pathname === it.href || pathname.startsWith(`${it.href}/`);
+            const cls = active
+              ? "bg-emerald-700 text-white"
+              : "text-slate-700 hover:bg-slate-100/70 dark:text-slate-200 dark:hover:bg-slate-800/60";
+            return (
+              <Link
+                key={it.href}
+                href={it.href}
+                className={[
+                  "flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 px-2 py-2 text-[11px] font-semibold transition",
+                  cls,
+                ].join(" ")}
+              >
+                <span className={["text-base leading-none", active ? "text-white/95" : ""].join(" ")} aria-hidden>
+                  {it.icon}
+                </span>
+                <span className="leading-none">{it.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* El menú completo se abre desde la barra rápida (móvil). */}
       </div>
     </div>
     </TasksProvider>

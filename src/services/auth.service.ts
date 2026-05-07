@@ -24,6 +24,9 @@ export interface LoginResponseUser {
   id: string;
   email: string;
   role: string;
+  /** Si true, el usuario no participa en fichaje (API `excludedFromTimeTracking`). */
+  excludedFromTimeTracking?: boolean | null;
+  ExcludedFromTimeTracking?: boolean | null;
   /** GUID empresa tenant cuando existe en BD (misma idea que claim JWT `company_id`). */
   companyId?: string | null;
   company_id?: string | null;

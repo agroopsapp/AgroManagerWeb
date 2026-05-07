@@ -237,7 +237,7 @@ export function ForgotModal({
                   onSetError(null);
                   onSetStep("full_end");
                 }}
-                className="rounded-lg bg-agro-600 px-3 py-2 text-xs font-semibold text-white"
+                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98]"
               >
                 Siguiente
               </button>
@@ -280,7 +280,7 @@ export function ForgotModal({
                   onSetError(null);
                   onSetStep("full_rest");
                 }}
-                className="rounded-lg bg-agro-600 px-3 py-2 text-xs font-semibold text-white"
+                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98]"
               >
                 Siguiente
               </button>
@@ -300,7 +300,7 @@ export function ForgotModal({
                   onSetError(null);
                   onSubmitJornadaCompleta(0);
                 }}
-                className="w-full rounded-xl bg-agro-600 px-4 py-2.5 text-sm font-semibold text-white"
+                className="w-full rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98]"
               >
                 No
               </button>

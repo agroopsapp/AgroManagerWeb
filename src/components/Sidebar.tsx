@@ -46,6 +46,14 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
 
   const showLabels = mobileDrawer || !collapsed;
 
+  const handleLogout = () => {
+    const ok = window.confirm("¿Seguro que quieres cerrar sesión?");
+    if (!ok) return;
+    logout();
+    onNavigate?.();
+    router.push("/login");
+  };
+
   return (
     <aside className={`${asideClass(collapsed, mobileDrawer)} relative`}>
       {/* Fondo fotográfico: parte inferior (arranca a media altura del menú) */}
@@ -76,24 +84,43 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
                     ? pathname === "/dashboard/time-tracking"
                     : pathname === href || pathname.startsWith(`${href}/`);
                 return (
-                  <Link
-                    key={href}
-                    href={href}
-                    title={showLabels ? undefined : label}
-                    onClick={() => onNavigate?.()}
-                    className={`flex items-center rounded-xl px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
-                      showLabels ? "gap-3 px-4" : "justify-center md:px-3"
-                    } ${
-                      isActive
-                        ? "bg-white/12 text-white ring-1 ring-white/15"
-                        : "text-emerald-50/80 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    <span className="text-lg shrink-0" aria-hidden>
-                      {icon}
-                    </span>
-                    {showLabels && <span className="truncate">{label}</span>}
-                  </Link>
+                  <div key={href} className="flex flex-col gap-1">
+                    <Link
+                      href={href}
+                      title={showLabels ? undefined : label}
+                      onClick={() => onNavigate?.()}
+                      className={`flex items-center rounded-xl px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
+                        showLabels ? "gap-3 px-4" : "justify-center md:px-3"
+                      } ${
+                        isActive
+                          ? "bg-white/12 text-white ring-1 ring-white/15"
+                          : "text-emerald-50/80 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <span className="text-lg shrink-0" aria-hidden>
+                        {icon}
+                      </span>
+                      {showLabels && <span className="truncate">{label}</span>}
+                    </Link>
+
+                    {/* Cerrar sesión justo debajo de «Trabajadores» */}
+                    {href === "/dashboard/users" && (
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className={`flex items-center rounded-xl px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
+                          showLabels ? "gap-3 px-4" : "justify-center md:px-3"
+                        } text-emerald-50/80 hover:bg-white/10 hover:text-white`}
+                        aria-label="Cerrar sesión"
+                        title={showLabels ? undefined : "Cerrar sesión"}
+                      >
+                        <span className="text-lg shrink-0" aria-hidden>
+                          ⎋
+                        </span>
+                        {showLabels && <span className="truncate">Cerrar sesión</span>}
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -112,24 +139,6 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
               {collapsed ? "»" : "«"}
             </span>
           )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            logout();
-            router.push("/login");
-          }}
-          className={`flex items-center rounded-xl px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
-            showLabels ? "gap-3 px-4" : "justify-center md:px-3"
-          } text-emerald-50/80 hover:bg-white/10 hover:text-white`}
-          aria-label="Cerrar sesión"
-          title={showLabels ? undefined : "Cerrar sesión"}
-        >
-          <span className="text-lg shrink-0" aria-hidden>
-            ⎋
-          </span>
-          {showLabels && <span className="truncate">Cerrar sesión</span>}
         </button>
       </nav>
     </aside>

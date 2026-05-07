@@ -83,7 +83,7 @@ export function HistorialPersonal({
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-agro-600 dark:text-agro-400">
               Histórico reciente
             </p>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            <p className="mt-2 hidden max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-400 sm:block">
               <strong className="font-semibold text-slate-800 dark:text-slate-200">
                 Solo se muestran tus registros
               </strong>{" "}

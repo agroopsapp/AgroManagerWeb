@@ -8,13 +8,19 @@ type FichajeJornadaMainPanelProps = {
    * (vacaciones, partes de obra).
    */
   clipOverflow?: boolean;
+  /** Clase opcional para la franja superior (acento). */
+  accentClassName?: string;
 };
 
 /**
  * Marco principal compartido por las pantallas del módulo de jornada/fichaje
  * (fichador, vacaciones, partes de obra): borde redondeado, sombra y franja superior de marca.
  */
-export function FichajeJornadaMainPanel({ children, clipOverflow = true }: FichajeJornadaMainPanelProps) {
+export function FichajeJornadaMainPanel({
+  children,
+  clipOverflow = true,
+  accentClassName = "bg-gradient-to-r from-agro-500 via-emerald-500 to-teal-500",
+}: FichajeJornadaMainPanelProps) {
   return (
     <div
       className={[
@@ -24,7 +30,7 @@ export function FichajeJornadaMainPanel({ children, clipOverflow = true }: Ficha
         .filter(Boolean)
         .join(" ")}
     >
-      <div className="h-1 w-full bg-gradient-to-r from-agro-500 via-emerald-500 to-teal-500" aria-hidden />
+      <div className={["h-1 w-full", accentClassName].filter(Boolean).join(" ")} aria-hidden />
       {children}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateES, workDateIsWeekend } from "@/shared/utils/time";
 import { ClockPanel } from "@/features/time-tracking/components/ClockPanel";
@@ -14,6 +14,7 @@ import { useBreakModal } from "@/features/time-tracking/hooks/useBreakModal";
 import { useForgotModal } from "@/features/time-tracking/hooks/useForgotModal";
 import { useAyerCompleta } from "@/features/time-tracking/hooks/useAyerCompleta";
 import type { TimeEntryMock } from "@/features/time-tracking/types";
+import { usersApi } from "@/services/users.service";
 import { workReportsApi } from "@/services/work-reports.service";
 import { DashboardHoyPageHero, DashboardPageShell, FichajeJornadaMainPanel } from "@/components/dashboard-page";
 
@@ -33,6 +34,8 @@ const BreakModal = dynamic(
 export default function TimeTrackingPage() {
   const { user, isReady } = useAuth();
   const [personalEditarDiaWorkDate, setPersonalEditarDiaWorkDate] = useState<string | null>(null);
+  const [excludedFromTimeTrackingProfile, setExcludedFromTimeTrackingProfile] = useState<boolean | null>(null);
+  const [excludedCheckLoading, setExcludedCheckLoading] = useState(false);
 
   // --- Hooks ---
   const panel = useFichadorPanel({ user, isReady });
@@ -60,6 +63,22 @@ export default function TimeTrackingPage() {
     setEntries: fichaje.setEntries,
   });
 
+  // Asegura el flag de exclusión incluso si el login no lo trae en la sesión.
+  useEffect(() => {
+    if (!isReady || !user?.id) return;
+    const ac = new AbortController();
+    (async () => {
+      try {
+        const me = await usersApi.getById(user.id, { signal: ac.signal });
+        if (ac.signal.aborted) return;
+        setExcludedFromTimeTrackingProfile(me.excludedFromTimeTracking === true);
+      } catch {
+        if (!ac.signal.aborted) setExcludedFromTimeTrackingProfile(null);
+      }
+    })();
+    return () => ac.abort();
+  }, [isReady, user?.id]);
+
   // --- Thin orchestration handlers ---
   const handleCheckOut = async () => {
     if (!fichaje.openEntry) return;
@@ -67,6 +86,15 @@ export default function TimeTrackingPage() {
   };
 
   const handleOpenPartEditorFromHistory = async (entry: TimeEntryMock) => {
+    const excludedCheck = excludedFromTimeTracking ? true : await ensureExcludedFlagLoaded();
+    if (excludedCheck === null) {
+      fichaje.setError("No se pudo verificar tu perfil de fichaje. Inténtalo de nuevo en unos segundos.");
+      return;
+    }
+    if (excludedCheck === true) {
+      fichaje.setError(excludedMessage);
+      return;
+    }
     if (!entry.checkOutUtc) {
       fichaje.setError("Para crear o editar parte, la jornada debe tener salida.");
       return;
@@ -197,7 +225,73 @@ export default function TimeTrackingPage() {
     forgotModal.forgotStep === "closed" &&
     fichaje.actionLoading === null;
 
-  const handleOpenEditarDiaMenuFromHistory = (workDate: string) => {
+  const excludedFromTimeTracking =
+    user?.excludedFromTimeTracking === true || excludedFromTimeTrackingProfile === true;
+
+  // Cortafuegos: si el usuario está excluido, nunca mantener abiertos flujos de fichaje/corrección.
+  useEffect(() => {
+    if (!excludedFromTimeTracking) return;
+    if (forgotModal.forgotStep !== "closed") forgotModal.resetForgotModal();
+    if (breakModal.restModalStep !== "closed") breakModal.setRestModalStep("closed");
+  }, [excludedFromTimeTracking, forgotModal.forgotStep, breakModal.restModalStep, forgotModal, breakModal]);
+
+  const ensureExcludedFlagLoaded = async (): Promise<boolean | null> => {
+    if (!isReady || !user?.id) return false;
+    if (excludedFromTimeTrackingProfile !== null) return excludedFromTimeTrackingProfile === true;
+    setExcludedCheckLoading(true);
+    try {
+      const me = await usersApi.getById(user.id);
+      const excluded = me.excludedFromTimeTracking === true;
+      setExcludedFromTimeTrackingProfile(excluded);
+      return excluded;
+    } catch {
+      // Si falla la verificación, evitamos abrir flujos que el backend podría rechazar.
+      return null;
+    } finally {
+      setExcludedCheckLoading(false);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    const excludedCheck = excludedFromTimeTracking ? true : await ensureExcludedFlagLoaded();
+    if (excludedCheck === null) {
+      fichaje.setError("No se pudo verificar tu perfil de fichaje. Inténtalo de nuevo en unos segundos.");
+      return;
+    }
+    if (excludedCheck === true) {
+      fichaje.setError("Este usuario está excluido del fichaje. No es necesario registrar la jornada.");
+      return;
+    }
+    await fichaje.handleCheckIn();
+  };
+
+  const handleOpenForgotModal = async () => {
+    const excludedCheck = excludedFromTimeTracking ? true : await ensureExcludedFlagLoaded();
+    if (excludedCheck === null) {
+      fichaje.setError("No se pudo verificar tu perfil de fichaje. Inténtalo de nuevo en unos segundos.");
+      return;
+    }
+    if (excludedCheck === true) {
+      fichaje.setError("Este usuario está excluido del fichaje. No se puede usar la corrección de fichaje.");
+      if (forgotModal.forgotStep !== "closed") forgotModal.resetForgotModal();
+      return;
+    }
+    forgotModal.openForgotModal();
+  };
+
+  const excludedMessage =
+    "Este usuario está excluido del control horario: no debe fichar ni generar partes de trabajo asociados a fichajes.";
+
+  const handleOpenEditarDiaMenuFromHistory = async (workDate: string) => {
+    const excludedCheck = excludedFromTimeTracking ? true : await ensureExcludedFlagLoaded();
+    if (excludedCheck === null) {
+      fichaje.setError("No se pudo verificar tu perfil de fichaje. Inténtalo de nuevo en unos segundos.");
+      return;
+    }
+    if (excludedCheck === true) {
+      fichaje.setError(excludedMessage);
+      return;
+    }
     setPersonalEditarDiaWorkDate(workDate);
   };
 
@@ -213,46 +307,48 @@ export default function TimeTrackingPage() {
         </div>
       )}
 
-      <DashboardHoyPageHero
-        sectionLabel="Registro de jornada"
-        title="Fichador"
-        description={
-          <>
-            <p className="max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-              Marca tu entrada y salida de forma sencilla y cumpliendo el registro horario.
-            </p>
-            <Link
-              href="/dashboard/time-tracking/vacaciones-y-festivos"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-agro-700 underline-offset-2 hover:text-agro-800 hover:underline dark:text-agro-400 dark:hover:text-agro-300"
-            >
-              <span aria-hidden>📅</span>
-              Ver calendario de vacaciones y festivos
-            </Link>
-          </>
-        }
-        trailing={
-          user ? (
-            <div className="flex min-w-0 w-full flex-col gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/90 px-4 py-3 sm:w-auto dark:border-slate-600/80 dark:bg-slate-800/60">
-              <span className="max-w-[min(100%,18rem)] truncate text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                Sesión
-              </span>
-              <span className="max-w-full truncate text-sm font-medium text-slate-900 dark:text-slate-100">
-                {user.email}
-              </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Hoy:{" "}
-                <span className="font-medium text-slate-700 dark:text-slate-300">
-                  {formatDateES(fichaje.today)}
+      <div className="hidden sm:block">
+        <DashboardHoyPageHero
+          sectionLabel="Registro de jornada"
+          title="Fichador"
+          description={
+            <>
+              <p className="max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                Marca tu entrada y salida de forma sencilla y cumpliendo el registro horario.
+              </p>
+              <Link
+                href="/dashboard/time-tracking/vacaciones-y-festivos"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-agro-700 underline-offset-2 hover:text-agro-800 hover:underline dark:text-agro-400 dark:hover:text-agro-300"
+              >
+                <span aria-hidden>📅</span>
+                Ver calendario de vacaciones y festivos
+              </Link>
+            </>
+          }
+          trailing={
+            user ? (
+              <div className="flex min-w-0 w-full flex-col gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/90 px-4 py-3 sm:w-auto dark:border-slate-600/80 dark:bg-slate-800/60">
+                <span className="max-w-[min(100%,18rem)] truncate text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Sesión
                 </span>
-              </span>
-            </div>
-          ) : null
-        }
-      />
+                <span className="max-w-full truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {user.email}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Hoy:{" "}
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                    {formatDateES(fichaje.today)}
+                  </span>
+                </span>
+              </div>
+            ) : null
+          }
+        />
+      </div>
 
       {ayerCompleta.hayDiasSinCuadrarEnHistorico && (
         <div
-          className="sticky top-2 z-30 flex min-w-0 max-w-full gap-3 rounded-2xl border border-slate-200/90 bg-slate-50/95 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/70 sm:px-5 sm:py-3.5"
+          className="sticky top-2 z-30 hidden min-w-0 max-w-full gap-3 rounded-2xl border border-slate-200/90 bg-slate-50/95 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/70 sm:flex sm:px-5 sm:py-3.5"
           role="status"
         >
           <span
@@ -275,7 +371,9 @@ export default function TimeTrackingPage() {
       )}
 
       {/* Un solo “módulo” visual: columna de acción + tabla comparten marco, acento y fondos */}
-      <FichajeJornadaMainPanel>
+      <FichajeJornadaMainPanel
+        accentClassName="bg-gradient-to-r from-[#063D2E] via-[#063D2E] to-[#0B5A3D]"
+      >
         <div className="grid min-h-0 min-w-0 lg:grid-cols-[minmax(280px,19rem)_minmax(0,1fr)] xl:grid-cols-[minmax(300px,21rem)_minmax(0,1fr)]">
           <aside
             aria-label="Fichaje y resumen del día"
@@ -286,12 +384,13 @@ export default function TimeTrackingPage() {
               openEntry={fichaje.openEntry}
               jornadaCompletadaHoy={fichaje.jornadaCompletadaHoy}
               closedTodayEntry={fichaje.closedTodayEntry}
+              excludedFromTimeTracking={excludedFromTimeTracking}
               actionLoading={fichaje.actionLoading}
               forgotStep={forgotModal.forgotStep}
-              olvideFicharBotonActivo={olvideFicharBotonActivo}
-              onCheckIn={fichaje.handleCheckIn}
+              olvideFicharBotonActivo={olvideFicharBotonActivo && !excludedCheckLoading}
+              onCheckIn={handleCheckIn}
               onCheckOut={handleCheckOut}
-              onOpenForgotModal={forgotModal.openForgotModal}
+              onOpenForgotModal={handleOpenForgotModal}
               hayDiasSinCuadrarEnHistorico={ayerCompleta.hayDiasSinCuadrarEnHistorico}
               ultimoLaboralSinCerrar={ayerCompleta.ultimoLaboralSinCerrar}
               ayerCompStep={ayerCompleta.ayerCompStep}
