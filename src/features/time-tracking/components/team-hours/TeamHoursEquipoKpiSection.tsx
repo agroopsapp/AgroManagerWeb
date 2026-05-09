@@ -25,6 +25,7 @@ import {
   buildTeamHoursKpiDetailRows,
   type TeamHoursKpiDetailKind,
 } from "@/features/time-tracking/utils/teamHoursKpiDetail";
+import { buildTeamHoursActiveFilterChips } from "@/features/time-tracking/utils/teamHoursActiveFilters";
 import { formatDateEsWeekdayDdMmYyyy, formatMinutesShort } from "@/shared/utils/time";
 
 function AnimatedNumber({
@@ -103,6 +104,19 @@ export function TeamHoursEquipoKpiSection({
     if (!objetivo || objetivo <= 0) return 0;
     return Math.max(0, Math.min(100, Math.round((imputadas / objetivo) * 100)));
   }, [eq.horasImputadasDecimal, eq.horasObjetivoMesTeorico]);
+
+  const filtrosActivosChips = useMemo(
+    () => buildTeamHoursActiveFilterChips(eq, periodoEtiqueta),
+    [eq, periodoEtiqueta],
+  );
+
+  const kpiTituloSujeto = useMemo(() => {
+    if (eq.filtroPersonaEquipo === "todas") return "Estado del equipo";
+    const nombre =
+      eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
+      String(eq.filtroPersonaEquipo);
+    return `Estado de ${nombre}`;
+  }, [eq.filtroPersonaEquipo, eq.equipoWorkersOpciones]);
 
   const cumplimientoMv = useMotionValue(cumplimientoPct);
   useEffect(() => {
@@ -226,35 +240,32 @@ export function TeamHoursEquipoKpiSection({
         </div>
 
         <div className="relative">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200/85">
-            {(() => {
-              const nombrePersona =
-                eq.filtroPersonaEquipo !== "todas"
-                  ? eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
-                    String(eq.filtroPersonaEquipo)
-                  : null;
-              const sujeto = nombrePersona ? `Estado de ${nombrePersona}` : "Estado del equipo";
-              switch (eq.equipoPeriodo) {
-                case "dia":
-                  return `${sujeto} · Día`;
-                case "semana":
-                  return `${sujeto} · Semana`;
-                case "mes":
-                  return `${sujeto} · Mes`;
-                case "trimestre":
-                  return `${sujeto} · Trimestre`;
-                case "anio":
-                  return `${sujeto} · Año`;
-                default:
-                  return sujeto;
-              }
-            })()}
-            {periodoEtiqueta ? (
-              <span className="ml-2 normal-case tracking-normal text-emerald-100/70">
-                · {periodoEtiqueta}
-              </span>
-            ) : null}
-          </p>
+          <div className="space-y-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200/85">
+              {kpiTituloSujeto}
+            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200/55 lg:hidden">
+              Filtros activos
+            </p>
+            <span className="sr-only">
+              Filtros aplicados: {filtrosActivosChips.map((c) => c.text).join("; ")}
+            </span>
+            <ul
+              className="flex flex-wrap gap-1.5 sm:gap-2"
+              aria-label="Resumen de filtros aplicados"
+            >
+              {filtrosActivosChips.map((chip) => (
+                <li key={chip.id}>
+                  <span
+                    className="inline-flex max-w-[min(100%,22rem)] items-center rounded-lg bg-white/[0.13] px-2.5 py-1.5 text-[10px] font-medium leading-snug text-emerald-50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.07)] ring-1 ring-white/18 backdrop-blur-[1px] sm:max-w-none sm:px-3 sm:text-[11px] sm:leading-tight"
+                    title={chip.text}
+                  >
+                    <span className="min-w-0 break-words">{chip.text}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-[26rem_1px_minmax(0,1fr)] lg:items-center">
             <div className="flex items-center gap-6">
