@@ -82,7 +82,7 @@ export default function KioskSetupPage() {
             value={token}
             onChange={(e) => setToken(e.target.value)}
             placeholder="kiosk_live_..."
-            className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+            className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
             autoComplete="off"
             spellCheck={false}
           />
@@ -92,7 +92,7 @@ export default function KioskSetupPage() {
           <button
             type="button"
             onClick={save}
-            className="flex-1 rounded-xl bg-agro-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-agro-700"
+            className="flex-1 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
           >
             Guardar token
           </button>

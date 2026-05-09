@@ -16,7 +16,14 @@ const labelClass =
   "text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500";
 
 const inputClass =
-  "mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-agro-500 focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
+  "mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
+
+/** Botón principal (misma línea que fichador / barra rápida). */
+const primaryBtnClass =
+  "rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98]";
+
+const primaryBtnSmClass =
+  "rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98]";
 
 type MaterialDraft = { id: string; name: string; quantity: string; lineId?: string };
 
@@ -630,13 +637,13 @@ export default function PartesObraPage() {
   if (!isReady) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
       </div>
     );
   }
 
   const compactSelectClass =
-    "rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
+    "rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
 
   return (
     <DashboardPageShell width="full" className="min-w-0">
@@ -666,7 +673,7 @@ export default function PartesObraPage() {
               disabled={!tenantCompanyId?.trim()}
               title={!tenantCompanyId?.trim() ? "Falta companyId del tenant para crear partes en el API." : undefined}
               onClick={openCreateModal}
-              className="rounded-xl bg-agro-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-agro-700 disabled:opacity-50"
+              className={`${primaryBtnClass} disabled:opacity-50`}
             >
               Crear parte de obra
             </button>
@@ -680,7 +687,10 @@ export default function PartesObraPage() {
         }
       />
 
-      <FichajeJornadaMainPanel clipOverflow={false}>
+      <FichajeJornadaMainPanel
+        clipOverflow={false}
+        accentClassName="bg-gradient-to-r from-[#063D2E] via-[#063D2E] to-[#0B5A3D]"
+      >
       {!tenantCompanyId?.trim() && isReady && user ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100 md:px-6">
           No se pudo obtener la empresa del tenant (necesaria para listar y crear partes). Comprueba{" "}
@@ -869,7 +879,7 @@ export default function PartesObraPage() {
               <button
                 type="button"
                 onClick={openMaterialsModal}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                className="rounded-xl border border-emerald-600/80 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-900 hover:bg-emerald-100/90 dark:border-emerald-500/60 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:bg-emerald-950/55"
               >
                 Seleccionar materiales
               </button>
@@ -948,7 +958,7 @@ export default function PartesObraPage() {
                     !selectedClientCompanyId.trim() ||
                     !tenantCompanyId?.trim()
                   }
-                  className="rounded-xl bg-agro-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-agro-700 disabled:opacity-60"
+                  className={`${primaryBtnClass} disabled:opacity-60`}
                 >
                   {saving
                     ? "Guardando…"
@@ -1024,7 +1034,7 @@ export default function PartesObraPage() {
                             <td className="py-2 pr-3">
                               <input
                                 inputMode="decimal"
-                                className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-agro-500 focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                                className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                                 value={m.quantity}
                                 onChange={(e) => updateSelectedQty(m.id, e.target.value)}
                                 aria-label={`Cantidad de ${m.name}`}
@@ -1059,7 +1069,7 @@ export default function PartesObraPage() {
                   </label>
                   <input
                     id="md-mat-search"
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-agro-500 focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                     value={materialsModalQuery}
                     onChange={(e) => setMaterialsModalQuery(e.target.value)}
                     placeholder="Buscar…"
@@ -1124,7 +1134,7 @@ export default function PartesObraPage() {
               <button
                 type="button"
                 onClick={acceptMaterialsModal}
-                className="rounded-xl bg-agro-600 px-4 py-2 text-sm font-semibold text-white hover:bg-agro-700"
+                className={primaryBtnSmClass}
               >
                 Aceptar materiales
               </button>
@@ -1144,7 +1154,7 @@ export default function PartesObraPage() {
           <p className="px-5 py-6 text-center text-sm text-red-600 dark:text-red-400">{rowsError}</p>
         ) : rowsLoading ? (
           <div className="flex justify-center px-5 py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
           </div>
         ) : rows.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-slate-500 dark:text-slate-400">

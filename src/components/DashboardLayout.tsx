@@ -84,7 +84,7 @@ export default function DashboardLayout({
   if (!isReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
       </div>
     );
   }
@@ -97,7 +97,7 @@ export default function DashboardLayout({
         </p>
         <Link
           href="/login"
-          className="rounded-xl bg-agro-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-agro-700"
+          className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-950/20 transition hover:bg-emerald-800 active:scale-[0.98]"
         >
           Ir al inicio de sesión
         </Link>
@@ -157,7 +157,7 @@ export default function DashboardLayout({
           <button
             type="button"
             onClick={() => setMobileSidebarOpen(true)}
-            className="flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 px-2 py-2 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-100/70 dark:text-slate-200 dark:hover:bg-slate-800/60"
+            className="flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 border-r border-slate-200/80 px-2 py-2 text-[11px] font-semibold text-emerald-900 transition hover:bg-emerald-50/90 dark:border-slate-700/80 dark:text-emerald-100 dark:hover:bg-emerald-950/40"
             aria-label="Abrir menú"
             title="Menú"
           >
@@ -172,7 +172,7 @@ export default function DashboardLayout({
                 ? pathname === "/dashboard/time-tracking"
                 : pathname === it.href || pathname.startsWith(`${it.href}/`);
             const cls = active
-              ? "bg-emerald-700 text-white"
+              ? "bg-emerald-700 text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12)]"
               : "text-slate-700 hover:bg-slate-100/70 dark:text-slate-200 dark:hover:bg-slate-800/60";
             return (
               <Link

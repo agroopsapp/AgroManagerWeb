@@ -328,7 +328,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
               <button
                 type="button"
                 onClick={openCreate}
-                className="rounded-lg bg-agro-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-agro-700"
+                className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
               >
                 Nuevo usuario
               </button>
@@ -383,7 +383,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                       <button
                         type="button"
                         onClick={() => toggleSort("name")}
-                        className="font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200"
+                        className="font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200"
                       >
                         Nombre {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
                       </button>
@@ -392,7 +392,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                       <button
                         type="button"
                         onClick={() => toggleSort("email")}
-                        className="font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200"
+                        className="font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200"
                       >
                         Email {sortKey === "email" && (sortDir === "asc" ? "↑" : "↓")}
                       </button>
@@ -402,7 +402,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                       <button
                         type="button"
                         onClick={() => toggleSort("role")}
-                        className="font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200"
+                        className="font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200"
                       >
                         Rol {sortKey === "role" && (sortDir === "asc" ? "↑" : "↓")}
                       </button>
@@ -412,7 +412,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                         type="button"
                         title="Excluido del registro de jornada"
                         onClick={() => toggleSort("excluded")}
-                        className="font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200"
+                        className="font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200"
                       >
                         Excl. jornada {sortKey === "excluded" && (sortDir === "asc" ? "↑" : "↓")}
                       </button>
@@ -438,7 +438,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                                 aria-label="Copiar teléfono"
                               >
                                 {copiedId === user.id ? (
-                                  <span className="text-xs font-medium text-green-600 dark:text-green-400">Copiado</span>
+                                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Copiado</span>
                                 ) : (
                                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                                     <path
@@ -659,7 +659,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                 >
                   {saving ? "Guardando…" : editingUser ? "Guardar" : "Crear"}
                 </button>
@@ -728,7 +728,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                 <button
                   type="submit"
                   disabled={passwordSaving}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
                 >
                   {passwordSaving ? "Guardando…" : "Actualizar contraseña"}
                 </button>

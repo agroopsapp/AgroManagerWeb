@@ -91,7 +91,7 @@ export function ClockPanel({
       {/* Estado de hoy */}
       <div className={`min-w-0 ${panelBox}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-agro-600 dark:text-agro-400">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-400">
             Estado de hoy
           </p>
           <span className="tabular-nums font-mono text-[11px] text-slate-400/90 dark:text-slate-500">
@@ -198,7 +198,7 @@ export function ClockPanel({
                 <button
                   type="button"
                   onClick={onAbrirCompletarAyer}
-                  className="font-semibold text-agro-700 underline-offset-2 hover:underline dark:text-agro-400"
+                  className="font-semibold text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400"
                 >
                   Completar salida y descanso del día pendiente (opcional)
                 </button>
@@ -221,7 +221,7 @@ export function ClockPanel({
 
       {/* Resumen de hoy */}
       <div className={`hidden min-w-0 ${panelBox} sm:block`}>
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-agro-600 dark:text-agro-400">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-400">
           Resumen de hoy
         </p>
         {loading ? (

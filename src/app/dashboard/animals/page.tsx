@@ -155,7 +155,7 @@ export default function AnimalsPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+          className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
         >
           Añadir animal
         </button>
@@ -209,7 +209,7 @@ export default function AnimalsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("name")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Nombre {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -218,7 +218,7 @@ export default function AnimalsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("farm")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Granja {sortKey === "farm" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -227,7 +227,7 @@ export default function AnimalsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("species")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Especie {sortKey === "species" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -236,7 +236,7 @@ export default function AnimalsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("sex")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Sexo {sortKey === "sex" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -245,7 +245,7 @@ export default function AnimalsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("birthDate")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Nacimiento {sortKey === "birthDate" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -254,7 +254,7 @@ export default function AnimalsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("identification")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Identificación {sortKey === "identification" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -364,7 +364,7 @@ export default function AnimalsPage() {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   required
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Ej. Blanca"
                 />
               </div>
@@ -376,7 +376,7 @@ export default function AnimalsPage() {
                   id="animal-farm"
                   value={formFarmId}
                   onChange={(e) => setFormFarmId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
                   {MOCK_FARMS.map((f) => (
                     <option key={f.id} value={f.id}>
@@ -393,7 +393,7 @@ export default function AnimalsPage() {
                   id="animal-species"
                   value={formSpeciesId}
                   onChange={(e) => setFormSpeciesId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
                   {MOCK_SPECIES.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -410,7 +410,7 @@ export default function AnimalsPage() {
                   id="animal-sex"
                   value={formSex}
                   onChange={(e) => setFormSex(e.target.value as AnimalSex)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
                   <option value="female">Hembra</option>
                   <option value="male">Macho</option>
@@ -425,7 +425,7 @@ export default function AnimalsPage() {
                   type="date"
                   value={formBirthDate}
                   onChange={(e) => setFormBirthDate(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
               <div>
@@ -437,7 +437,7 @@ export default function AnimalsPage() {
                   type="text"
                   value={formIdentification}
                   onChange={(e) => setFormIdentification(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Ej. ES-V-001"
                 />
               </div>
@@ -451,7 +451,7 @@ export default function AnimalsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
                 >
                   {editingAnimal ? "Guardar" : "Añadir"}
                 </button>

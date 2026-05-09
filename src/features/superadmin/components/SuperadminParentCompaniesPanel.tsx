@@ -13,7 +13,7 @@ import type {
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 
 const fieldClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500";
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500";
 
 function formFromCompany(c: SuperadminParentCompanyDto): SuperadminUpdateCompanyBody {
   return {
@@ -172,7 +172,7 @@ export function SuperadminParentCompaniesPanel({ active }: { active: boolean }) 
           <button
             type="button"
             onClick={openCreate}
-            className="rounded-xl bg-agro-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-agro-700"
+            className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
           >
             Nueva empresa
           </button>
@@ -226,7 +226,7 @@ export function SuperadminParentCompaniesPanel({ active }: { active: boolean }) 
                     <button
                       type="button"
                       onClick={() => openEdit(c)}
-                      className="mr-2 text-agro-600 text-xs font-semibold hover:underline dark:text-agro-400"
+                      className="mr-2 text-emerald-600 text-xs font-semibold hover:underline dark:text-emerald-400"
                     >
                       Editar
                     </button>
@@ -334,7 +334,7 @@ export function SuperadminParentCompaniesPanel({ active }: { active: boolean }) 
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 >
                   {saving ? "Guardando…" : "Guardar"}
                 </button>

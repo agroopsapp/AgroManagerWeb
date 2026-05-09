@@ -347,29 +347,29 @@ export default function DashboardPage() {
 
   return hideOperativeDashboard ? (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="h-6 w-6 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+      <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
     </div>
   ) : (
     <div className="space-y-4">
       {/* Cabecera con banda de color */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-agro-600 via-emerald-500 to-sky-500 px-5 py-3 shadow-sm">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-500 px-5 py-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-agro-100/80">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100/80">
               Panel general
             </p>
             <h1 className="mt-1 text-2xl font-bold text-white">Dashboard</h1>
-            <p className="mt-1 text-sm text-agro-50/90">
+            <p className="mt-1 text-sm text-emerald-50/90">
               Vista rápida de tareas e incidentes en todas tus granjas.
             </p>
           </div>
           {role && (
             <div className="flex flex-col items-end gap-1 text-right">
-              <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-agro-50 backdrop-blur">
+              <span className="rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-50 backdrop-blur">
                 Rol: {role}
               </span>
               {isSuperAdmin && (
-                <span className="text-[11px] text-agro-50/80">
+                <span className="text-[11px] text-emerald-50/80">
                   Acceso global a todas las empresas
                 </span>
               )}
@@ -386,7 +386,7 @@ export default function DashboardPage() {
             onClick={() => setActiveSection("tasks")}
             className={`rounded-md px-3 py-1.5 font-medium transition ${
               activeSection === "tasks"
-                ? "bg-agro-600 text-white dark:bg-agro-500"
+                ? "bg-emerald-700 text-white dark:bg-emerald-600"
                 : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
@@ -397,7 +397,7 @@ export default function DashboardPage() {
             onClick={() => setActiveSection("generalTasks")}
             className={`rounded-md px-3 py-1.5 font-medium transition ${
               activeSection === "generalTasks"
-                ? "bg-agro-600 text-white dark:bg-agro-500"
+                ? "bg-emerald-700 text-white dark:bg-emerald-600"
                 : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
@@ -409,7 +409,7 @@ export default function DashboardPage() {
               onClick={() => setActiveSection("incidents")}
               className={`rounded-md px-3 py-1.5 font-medium transition ${
                 activeSection === "incidents"
-                  ? "bg-agro-600 text-white dark:bg-agro-500"
+                  ? "bg-emerald-700 text-white dark:bg-emerald-600"
                   : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
               }`}
             >
@@ -455,7 +455,7 @@ export default function DashboardPage() {
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide dark:text-slate-400">
               Resueltos
             </p>
-            <p className="mt-1 text-xl font-bold text-green-500">
+            <p className="mt-1 text-xl font-bold text-emerald-600">
               {(incidentsByStatus.get("resolved") ?? []).length}
             </p>
           </div>
@@ -500,7 +500,7 @@ export default function DashboardPage() {
                     <p className="text-[10px] font-semibold uppercase text-emerald-800 dark:text-emerald-200">
                       Fin
                     </p>
-                    <p className="text-xl font-bold text-green-500 tabular-nums">{completed}</p>
+                    <p className="text-xl font-bold text-emerald-600 tabular-nums">{completed}</p>
                   </div>
                 </div>
               </div>
@@ -532,7 +532,7 @@ export default function DashboardPage() {
                           value={taskCodeQuery}
                           onChange={(e) => setTaskCodeQuery(e.target.value)}
                           placeholder="0020"
-                          className="box-border w-full max-w-[4.25rem] rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-center text-xs tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                          className="box-border w-full max-w-[4.25rem] rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-center text-xs tabular-nums text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
                         />
                       </div>
                       <div className="flex min-w-0 flex-1 flex-wrap items-end gap-3">
@@ -547,7 +547,7 @@ export default function DashboardPage() {
                             id="dash-filter-worker"
                             value={selectedWorkerId}
                             onChange={(e) => setSelectedWorkerId(e.target.value)}
-                            className="w-full rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                            className="w-full rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
                           >
                             <option value="all">Todos</option>
                             {MOCK_WORKERS.map((w) => (
@@ -570,7 +570,7 @@ export default function DashboardPage() {
                             value={workerQuery}
                             onChange={(e) => setWorkerQuery(e.target.value)}
                             placeholder="Por nombre…"
-                            className="w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                            className="w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
                           />
                         </div>
                       </div>
@@ -587,7 +587,7 @@ export default function DashboardPage() {
                           id="dash-filter-farm"
                           value={selectedFarmId}
                           onChange={(e) => setSelectedFarmId(e.target.value)}
-                          className="w-full rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                          className="w-full rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
                         >
                           <option value="all">Todas</option>
                           {MOCK_FARMS.map((f) => (
@@ -610,7 +610,7 @@ export default function DashboardPage() {
                           value={farmQuery}
                           onChange={(e) => setFarmQuery(e.target.value)}
                           placeholder="Nombre…"
-                          className="w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
+                          className="w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-800"
                         />
                       </div>
                     </div>
@@ -706,7 +706,7 @@ export default function DashboardPage() {
                   onClick={() => setSelectedDate(iso)}
                   className={`w-full rounded-lg border px-2.5 py-2 text-xs font-medium transition text-center ${
                     iso === selectedDate
-                      ? "border-agro-500 bg-agro-100 text-agro-800 dark:border-agro-400 dark:bg-agro-900/40 dark:text-agro-200"
+                      ? "border-emerald-600 bg-emerald-100 text-emerald-800 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-200"
                       : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   }`}
                 >
@@ -726,7 +726,7 @@ export default function DashboardPage() {
               onClick={() => setMobileStatusFilter("all")}
               className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
                 mobileStatusFilter === "all"
-                  ? "bg-agro-600 text-white"
+                  ? "bg-emerald-700 text-white"
                   : "bg-white text-slate-700 border border-slate-200"
               }`}
             >
@@ -737,7 +737,7 @@ export default function DashboardPage() {
               onClick={() => setMobileStatusFilter("ready")}
               className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
                 mobileStatusFilter === "ready"
-                  ? "bg-agro-600 text-white"
+                  ? "bg-emerald-700 text-white"
                   : "bg-white text-slate-700 border border-slate-200"
               }`}
             >
@@ -748,7 +748,7 @@ export default function DashboardPage() {
               onClick={() => setMobileStatusFilter("in_progress")}
               className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
                 mobileStatusFilter === "in_progress"
-                  ? "bg-agro-600 text-white"
+                  ? "bg-emerald-700 text-white"
                   : "bg-white text-slate-700 border border-slate-200"
               }`}
             >
@@ -759,7 +759,7 @@ export default function DashboardPage() {
               onClick={() => setMobileStatusFilter("completed")}
               className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
                 mobileStatusFilter === "completed"
-                  ? "bg-agro-600 text-white"
+                  ? "bg-emerald-700 text-white"
                   : "bg-white text-slate-700 border border-slate-200"
               }`}
             >
@@ -836,7 +836,7 @@ export default function DashboardPage() {
                     <p className="text-[10px] font-semibold uppercase text-emerald-800 dark:text-emerald-200">
                       Fin
                     </p>
-                    <p className="text-xl font-bold text-green-500 tabular-nums">{completedGeneral}</p>
+                    <p className="text-xl font-bold text-emerald-600 tabular-nums">{completedGeneral}</p>
                   </div>
                 </div>
               </div>
@@ -864,7 +864,7 @@ export default function DashboardPage() {
                     value={taskCodeQuery}
                     onChange={(e) => setTaskCodeQuery(e.target.value)}
                     placeholder="Ej. #0020"
-                    className="mt-0.5 w-full rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:bg-white focus:outline-none dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100"
+                    className="mt-0.5 w-full rounded-md border border-slate-200 bg-slate-50/80 px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:bg-white focus:outline-none dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100"
                   />
                 </div>
               </div>
@@ -885,7 +885,7 @@ export default function DashboardPage() {
                   onClick={() => setGeneralFilterByDate(false)}
                   className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
                     !generalFilterByDate
-                      ? "bg-agro-600 text-white dark:bg-agro-500"
+                      ? "bg-emerald-700 text-white dark:bg-emerald-600"
                       : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   }`}
                 >
@@ -896,7 +896,7 @@ export default function DashboardPage() {
                   onClick={() => setGeneralFilterByDate(true)}
                   className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
                     generalFilterByDate
-                      ? "bg-agro-600 text-white dark:bg-agro-500"
+                      ? "bg-emerald-700 text-white dark:bg-emerald-600"
                       : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                   }`}
                 >
@@ -914,7 +914,7 @@ export default function DashboardPage() {
                       onClick={() => setSelectedDate(iso)}
                       className={`w-full rounded-lg border px-2.5 py-2 text-xs font-medium transition text-center ${
                         iso === selectedDate
-                          ? "border-agro-500 bg-agro-100 text-agro-800 dark:border-agro-400 dark:bg-agro-900/40 dark:text-agro-200"
+                          ? "border-emerald-600 bg-emerald-100 text-emerald-800 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-200"
                           : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                       }`}
                     >

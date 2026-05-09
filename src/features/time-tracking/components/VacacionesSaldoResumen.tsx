@@ -69,7 +69,7 @@ export function VacacionesSaldoResumen({
             style={{ width: `${pctConsumed}%` }}
           />
           <div
-            className="h-full bg-gradient-to-r from-emerald-400/90 to-teal-500/90 transition-[width] duration-300 dark:from-emerald-500/80 dark:to-teal-500/80"
+            className="h-full bg-gradient-to-r from-emerald-400/90 to-emerald-600/90 transition-[width] duration-300 dark:from-emerald-500/80 dark:to-emerald-600/80"
             style={{ width: `${pctAvailable}%` }}
           />
         </div>

@@ -33,7 +33,7 @@ export default function Logo({ size = "md", iconOnly = false, className = "" }: 
     >
       {/* Acento: barra vertical en color de marca */}
       <span
-        className="shrink-0 rounded-full bg-agro-600 dark:bg-agro-500"
+        className="shrink-0 rounded-full bg-emerald-700 dark:bg-emerald-600"
         style={{ width: 4, height: barHeight }}
         aria-hidden
       />

@@ -221,7 +221,7 @@ export function AyerCompletaModal({
                     {formatMinutesShort(ayerCompOtroH * 60 + ayerCompOtroM)}
                   </strong>
                 </p>
-                <p className="mt-1 border-t border-slate-200 pt-1 font-semibold text-agro-800 dark:text-agro-300">
+                <p className="mt-1 border-t border-slate-200 pt-1 font-semibold text-emerald-800 dark:text-emerald-300">
                   Trabajado efectivo (estimado):{" "}
                   {formatMinutesShort(
                     Math.max(0, ayerMinutosBrutos - (ayerCompOtroH * 60 + ayerCompOtroM))

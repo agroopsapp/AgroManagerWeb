@@ -61,7 +61,7 @@ export const EquipoBarraLaboralesExtra = memo(function EquipoBarraLaboralesExtra
         aria-label={`Imputado ${fmt1(horasImputadasLabor)} de ${fmt1(horasObjetivo)} horas (${Math.round(pctLabor)}%); falta ${fmt1(horasFalta)} h.`}
       >
         <div
-          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-agro-500 transition-[width] duration-500"
+          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-[width] duration-500"
           style={{ width: `${pctLabor}%` }}
         />
       </div>

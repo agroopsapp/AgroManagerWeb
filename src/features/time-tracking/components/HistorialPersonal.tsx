@@ -80,7 +80,7 @@ export function HistorialPersonal({
       <div className="border-b border-slate-100 px-4 py-4 sm:px-5 sm:py-5 dark:border-slate-800">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-agro-600 dark:text-agro-400">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-600 dark:text-emerald-400">
               Histórico reciente
             </p>
             <p className="mt-2 hidden max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-400 sm:block">
@@ -255,7 +255,7 @@ export function HistorialPersonal({
                         <span
                           className={
                             apiParte.tieneParte
-                              ? "font-semibold text-teal-800 dark:text-teal-200"
+                              ? "font-semibold text-emerald-800 dark:text-emerald-200"
                               : "text-slate-400 dark:text-slate-500"
                           }
                         >

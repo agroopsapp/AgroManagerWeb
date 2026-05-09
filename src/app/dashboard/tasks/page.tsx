@@ -147,7 +147,7 @@ function DroppableColumn({ status, children }: { status: TaskStatus; children: R
     <div
       ref={setNodeRef}
       className={`min-h-[120px] flex-1 space-y-3 p-3 transition-colors duration-150 ${
-        isOver ? "rounded-lg bg-agro-100/50 dark:bg-agro-900/20" : ""
+        isOver ? "rounded-lg bg-emerald-100/50 dark:bg-emerald-900/20" : ""
       }`}
     >
       {children}
@@ -439,14 +439,14 @@ export default function TasksPage() {
           <button
             type="button"
             onClick={openCreateModal}
-            className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+            className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
           >
             Crear tarea
           </button>
           <button
             type="button"
             onClick={openRecurringModal}
-            className="rounded-lg border border-agro-600 bg-white px-4 py-2.5 text-sm font-medium text-agro-700 transition hover:bg-agro-50 dark:border-agro-500 dark:bg-slate-800 dark:text-agro-300 dark:hover:bg-slate-700"
+            className="rounded-lg border border-emerald-700 bg-white px-4 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-600 dark:bg-slate-800 dark:text-emerald-300 dark:hover:bg-slate-700"
           >
             Tarea periódica
           </button>
@@ -457,7 +457,7 @@ export default function TasksPage() {
         <aside className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-4 lg:self-start">
           {/* Contexto: un solo bloque, jerarquía clara, sin cajas anidadas */}
           <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-md dark:border-slate-600 dark:bg-slate-800">
-            <p className="text-xs font-bold uppercase tracking-widest text-agro-600 dark:text-agro-400">
+            <p className="text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
               Contexto del día
             </p>
             <p className="mt-3 text-lg font-bold leading-snug text-slate-900 dark:text-slate-50">
@@ -530,7 +530,7 @@ export default function TasksPage() {
                         id="tasks-filter-worker"
                         value={selectedWorkerId}
                         onChange={(e) => setSelectedWorkerId(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm transition focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:focus:bg-slate-900"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm transition focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:focus:bg-slate-900"
                       >
                         <option value="all">Todos los trabajadores</option>
                         {MOCK_WORKERS.map((w) => (
@@ -550,7 +550,7 @@ export default function TasksPage() {
                         value={workerQuery}
                         onChange={(e) => setWorkerQuery(e.target.value)}
                         placeholder="Escribe un nombre…"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
                       />
                     </div>
                   </div>
@@ -569,7 +569,7 @@ export default function TasksPage() {
                         id="tasks-filter-farm"
                         value={selectedFarmId}
                         onChange={(e) => setSelectedFarmId(e.target.value)}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:focus:bg-slate-900"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:focus:bg-slate-900"
                       >
                         <option value="all">Todas las granjas</option>
                         {MOCK_FARMS.map((f) => (
@@ -589,7 +589,7 @@ export default function TasksPage() {
                         value={farmQuery}
                         onChange={(e) => setFarmQuery(e.target.value)}
                         placeholder="Nombre de la granja…"
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
                       />
                     </div>
                   </div>
@@ -606,7 +606,7 @@ export default function TasksPage() {
                     value={taskCodeQuery}
                     onChange={(e) => setTaskCodeQuery(e.target.value)}
                     placeholder="Ej. 0020 o #0020"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm tabular-nums text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:focus:bg-slate-900"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm tabular-nums text-slate-900 placeholder:text-slate-400 shadow-sm focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-900/60 dark:text-slate-100 dark:focus:bg-slate-900"
                   />
                 </div>
                 <div className="rounded-xl bg-slate-50 px-4 py-3.5 dark:bg-slate-900/40">
@@ -671,7 +671,7 @@ export default function TasksPage() {
               onClick={() => setSelectedDate(iso)}
               className={`w-full rounded-lg border px-3 py-2.5 text-sm font-medium transition text-center ${
                 iso === selectedDate
-                  ? "border-agro-500 bg-agro-100 text-agro-800 dark:border-agro-400 dark:bg-agro-900/40 dark:text-agro-200"
+                  ? "border-emerald-600 bg-emerald-100 text-emerald-800 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-200"
                   : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
               }`}
             >
@@ -728,7 +728,7 @@ export default function TasksPage() {
           onClick={() => setMobileStatusFilter("all")}
           className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
             mobileStatusFilter === "all"
-              ? "bg-agro-600 text-white"
+              ? "bg-emerald-700 text-white"
               : "bg-white text-slate-700 border border-slate-200"
           }`}
         >
@@ -739,7 +739,7 @@ export default function TasksPage() {
           onClick={() => setMobileStatusFilter("ready")}
           className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
             mobileStatusFilter === "ready"
-              ? "bg-agro-600 text-white"
+              ? "bg-emerald-700 text-white"
               : "bg-white text-slate-700 border border-slate-200"
           }`}
         >
@@ -750,7 +750,7 @@ export default function TasksPage() {
           onClick={() => setMobileStatusFilter("in_progress")}
           className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
             mobileStatusFilter === "in_progress"
-              ? "bg-agro-600 text-white"
+              ? "bg-emerald-700 text-white"
               : "bg-white text-slate-700 border border-slate-200"
           }`}
         >
@@ -761,7 +761,7 @@ export default function TasksPage() {
           onClick={() => setMobileStatusFilter("completed")}
           className={`flex-1 rounded-full px-3 py-1.5 text-xs font-medium ${
             mobileStatusFilter === "completed"
-              ? "bg-agro-600 text-white"
+              ? "bg-emerald-700 text-white"
               : "bg-white text-slate-700 border border-slate-200"
           }`}
         >
@@ -910,7 +910,7 @@ export default function TasksPage() {
                         name="recurringMode"
                         checked={recurringMode === "template"}
                         onChange={() => setRecurringMode("template")}
-                        className="text-agro-600 focus:ring-agro-500"
+                        className="text-emerald-600 focus:ring-emerald-600"
                       />
                       <span className="text-sm dark:text-slate-200">Preconfigurada</span>
                     </label>
@@ -920,7 +920,7 @@ export default function TasksPage() {
                         name="recurringMode"
                         checked={recurringMode === "custom"}
                         onChange={() => setRecurringMode("custom")}
-                        className="text-agro-600 focus:ring-agro-500"
+                        className="text-emerald-600 focus:ring-emerald-600"
                       />
                       <span className="text-sm dark:text-slate-200">Personalizada</span>
                     </label>
@@ -936,7 +936,7 @@ export default function TasksPage() {
                       id="recurring-template"
                       value={recurringTemplateId}
                       onChange={(e) => setRecurringTemplateId(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                     >
                       {TASK_TEMPLATES.map((t) => (
                         <option key={t.id} value={t.id}>
@@ -962,7 +962,7 @@ export default function TasksPage() {
                         value={recurringCustomTitle}
                         onChange={(e) => setRecurringCustomTitle(e.target.value)}
                         placeholder="Ej. Revisar bomba de agua"
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                       />
                     </div>
                     <div>
@@ -975,7 +975,7 @@ export default function TasksPage() {
                         onChange={(e) => setRecurringCustomDetails(e.target.value)}
                         placeholder="Instrucciones para el trabajador..."
                         rows={2}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                       />
                     </div>
                   </div>
@@ -989,7 +989,7 @@ export default function TasksPage() {
                     id="recurring-worker"
                     value={recurringWorkerId}
                     onChange={(e) => setRecurringWorkerId(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                   >
                     {MOCK_WORKERS.map((w) => (
                       <option key={w.id} value={w.id}>
@@ -1006,7 +1006,7 @@ export default function TasksPage() {
                     id="recurring-farm"
                     value={recurringFarmId}
                     onChange={(e) => setRecurringFarmId(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                   >
                     {MOCK_FARMS.map((f) => (
                       <option key={f.id} value={f.id}>
@@ -1023,7 +1023,7 @@ export default function TasksPage() {
                     id="recurring-priority"
                     value={recurringPriority}
                     onChange={(e) => setRecurringPriority(e.target.value as TaskPriority)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                   >
                     {PRIORITY_OPTIONS.map((p) => (
                       <option key={p.value} value={p.value}>
@@ -1043,7 +1043,7 @@ export default function TasksPage() {
                         key={value}
                         className={`flex cursor-pointer items-center rounded-lg border px-3 py-2 text-sm transition ${
                           recurringDays.includes(value)
-                            ? "border-agro-500 bg-agro-50 text-agro-800 dark:border-agro-400 dark:bg-agro-900/40 dark:text-agro-200"
+                            ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-200"
                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600"
                         }`}
                       >
@@ -1073,7 +1073,7 @@ export default function TasksPage() {
                 <button
                   type="submit"
                   disabled={recurringDays.length === 0 || (recurringMode === "custom" && !recurringCustomTitle.trim())}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Crear programación
                 </button>

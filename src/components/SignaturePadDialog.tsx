@@ -192,7 +192,7 @@ export function SignaturePadDialog({
           <button
             type="button"
             onClick={handleSave}
-            className="rounded-lg bg-agro-600 px-3 py-2 text-xs font-semibold text-white hover:bg-agro-700"
+            className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
           >
             Guardar firma
           </button>

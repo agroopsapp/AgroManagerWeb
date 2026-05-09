@@ -24,7 +24,7 @@ export default function SuperadminPage() {
   if (!isReady) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
       </div>
     );
   }
@@ -58,7 +58,7 @@ export default function SuperadminPage() {
           onClick={() => setTab("companies")}
           className={`rounded-md px-4 py-2 font-semibold transition ${
             tab === "companies"
-              ? "bg-agro-600 text-white dark:bg-agro-500"
+              ? "bg-emerald-700 text-white dark:bg-emerald-600"
               : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
           }`}
         >
@@ -69,7 +69,7 @@ export default function SuperadminPage() {
           onClick={() => setTab("errors")}
           className={`rounded-md px-4 py-2 font-semibold transition ${
             tab === "errors"
-              ? "bg-agro-600 text-white dark:bg-agro-500"
+              ? "bg-emerald-700 text-white dark:bg-emerald-600"
               : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
           }`}
         >

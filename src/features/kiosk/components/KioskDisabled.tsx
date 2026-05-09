@@ -13,7 +13,7 @@ export function KioskDisabled() {
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
           <Link
             href="/"
-            className="flex-1 rounded-xl bg-agro-600 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-agro-700"
+            className="flex-1 rounded-xl bg-emerald-700 px-4 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"
           >
             Ir al inicio
           </Link>

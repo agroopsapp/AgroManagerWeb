@@ -20,9 +20,9 @@ export interface SidebarProps {
   mobileDrawer?: boolean;
 }
 
-/** Fondo gris, distinto del `main` (slate-50 / slate-900). */
+/** Fondo alineado con marca (verde oscuro + degradado esmeralda). */
 const asideSurfaceClass =
-  "border-r border-emerald-950/25 bg-gradient-to-b from-[#063D2E] via-[#063D2E] to-[#0B5A3D] text-emerald-50 shadow-[inset_-1px_0_0_0_rgba(0,0,0,0.25)] dark:border-emerald-700/40";
+  "border-r border-emerald-950/30 bg-gradient-to-b from-[#045041] via-[#063D2E] to-[#0B5A3D] text-emerald-50 shadow-[inset_-1px_0_0_0_rgba(0,0,0,0.25)] dark:border-emerald-600/35";
 
 const asideClass = (collapsed: boolean, mobileDrawer?: boolean) =>
   mobileDrawer
@@ -56,6 +56,15 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
 
   return (
     <aside className={`${asideClass(collapsed, mobileDrawer)} relative`}>
+      {/* Brillo superior sutil (no tapa el contenido) */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-16 bg-gradient-to-b from-emerald-400/12 to-transparent"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-px bg-gradient-to-r from-transparent via-emerald-300/35 to-transparent"
+        aria-hidden
+      />
       {/* Fondo fotográfico: parte inferior (arranca a media altura del menú) */}
       <div className="pointer-events-none absolute inset-x-0 top-[44%] bottom-0 overflow-hidden" aria-hidden>
         <div
@@ -74,7 +83,7 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
           return (
             <div key={section.title} className="flex shrink-0 flex-col gap-1">
               {showLabels && (
-                <p className="mb-0.5 px-2 text-xs font-semibold uppercase tracking-wide text-emerald-200/80">
+                <p className="mb-0.5 px-2 text-xs font-semibold uppercase tracking-wide text-emerald-100/85">
                   {section.title}
                 </p>
               )}
@@ -93,8 +102,8 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
                         showLabels ? "gap-3 px-4" : "justify-center md:px-3"
                       } ${
                         isActive
-                          ? "bg-white/12 text-white ring-1 ring-white/15"
-                          : "text-emerald-50/80 hover:bg-white/10 hover:text-white"
+                          ? "bg-gradient-to-r from-emerald-400/25 to-emerald-600/15 text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.14)] ring-1 ring-emerald-300/40"
+                          : "text-emerald-50/85 hover:bg-white/10 hover:text-white"
                       }`}
                     >
                       <span className="text-lg shrink-0" aria-hidden>
@@ -108,9 +117,9 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className={`flex items-center rounded-xl px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
+                        className={`flex items-center rounded-xl border border-emerald-400/25 bg-emerald-950/20 px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
                           showLabels ? "gap-3 px-4" : "justify-center md:px-3"
-                        } text-emerald-50/80 hover:bg-white/10 hover:text-white`}
+                        } text-emerald-50/90 hover:border-emerald-300/45 hover:bg-emerald-400/15 hover:text-white`}
                         aria-label="Cerrar sesión"
                         title={showLabels ? undefined : "Cerrar sesión"}
                       >
@@ -130,7 +139,7 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
           type="button"
           onClick={onToggle}
           aria-label={mobileDrawer ? "Cerrar menú" : collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="mt-auto flex w-full shrink-0 items-center justify-center rounded-xl px-3 py-2.5 text-emerald-50/80 transition hover:bg-white/10 hover:text-white md:px-3"
+          className="mt-auto flex w-full shrink-0 items-center justify-center rounded-xl border border-transparent px-3 py-2.5 text-emerald-50/85 transition hover:border-emerald-400/20 hover:bg-white/10 hover:text-white md:px-3"
         >
           {mobileDrawer ? (
             <span className="text-sm font-semibold">Cerrar menú</span>

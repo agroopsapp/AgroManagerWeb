@@ -10,38 +10,42 @@ import type {
   TimeEntryRowsHeatmapPartsDto,
   TimeEntryRowsHeatmapPartsWeekDto,
 } from "@/services";
+import {
+  formatDateLongEs,
+  HeatmapInteractiveCell,
+  HeatmapTooltipProvider,
+  type HeatmapTooltipRow,
+} from "@/features/time-tracking/components/HeatmapTooltipScope";
+import {
+  CALENDAR_CARD_CLASS,
+  CALENDAR_WEEK_RANGE_LABEL,
+  CALENDAR_WEEKDAY_HEADER,
+  CAL_CELL_BASE,
+  CAL_CELL_DAY_NUM,
+  emptyCalendarPadClass,
+  LEGEND_DOT,
+  LEGEND_PILL,
+} from "@/features/time-tracking/utils/equipoCalendarChrome";
 import { dayOfMonthFromISO } from "@/features/time-tracking/utils/equipoCalendar";
 
 const WEEKDAY_SHORT = ["L", "M", "X", "J", "V", "S", "D"] as const;
 
-/* Estilo de leyenda en pills: idéntico al del calendario y al heatmap de horas. */
-const LEGEND_PILL =
-  "inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200";
-const LEGEND_DOT = "h-1.5 w-1.5 shrink-0 rounded-full";
-
-const CAL_CELL_BASE =
-  "flex aspect-square w-full min-h-0 flex-col items-center justify-center rounded-xl border p-0.5 text-center tabular-nums shadow-sm outline-none transition hover:z-[1] hover:ring-2 hover:ring-agro-500/25 focus-visible:z-[1] focus-visible:ring-2 focus-visible:ring-agro-500/40 dark:hover:ring-agro-400/20 sm:p-1";
-
-function emptyPadCellClass(): string {
-  return "aspect-square w-full min-h-0 rounded-xl bg-slate-100/70 ring-1 ring-inset ring-slate-200/80 dark:bg-slate-800/40 dark:ring-slate-700/60";
-}
-
 function partsHeatmapCellClass(day: TimeEntryRowsHeatmapPartsDayDto | undefined): string {
-  if (!day) return emptyPadCellClass();
+  if (!day) return emptyCalendarPadClass();
   const pct = day.compliancePct;
   if (pct != null) {
     if (pct >= 90) {
-      return `${CAL_CELL_BASE} border-teal-400/80 bg-teal-50 text-base font-bold text-teal-950 dark:border-teal-600 dark:bg-teal-950/50 dark:text-teal-50 sm:text-lg`;
+      return `${CAL_CELL_BASE} ring-emerald-400/40 bg-emerald-50 text-emerald-950 dark:ring-emerald-600/45 dark:bg-emerald-950/55 dark:text-emerald-50`;
     }
     if (pct >= 70) {
-      return `${CAL_CELL_BASE} border-amber-400/80 bg-amber-50 text-base font-bold text-amber-950 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-50 sm:text-lg`;
+      return `${CAL_CELL_BASE} ring-amber-400/40 bg-amber-50 text-amber-950 dark:ring-amber-600/45 dark:bg-amber-950/45 dark:text-amber-50`;
     }
-    return `${CAL_CELL_BASE} border-rose-300/80 bg-rose-50 text-base font-bold text-rose-900 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-100 sm:text-lg`;
+    return `${CAL_CELL_BASE} ring-rose-400/35 bg-rose-50 text-rose-900 dark:ring-rose-600/45 dark:bg-rose-950/55 dark:text-rose-100`;
   }
   if (!day.isWorkingDay) {
-    return `${CAL_CELL_BASE} border-slate-200/90 bg-slate-100 text-base font-bold text-slate-700 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 sm:text-lg`;
+    return `${CAL_CELL_BASE} ring-slate-300/60 bg-slate-100 text-slate-700 dark:ring-slate-600 dark:bg-slate-800/65 dark:text-slate-200`;
   }
-  return `${CAL_CELL_BASE} border-slate-200 bg-slate-50 text-base font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300 sm:text-lg`;
+  return `${CAL_CELL_BASE} ring-slate-300/50 bg-slate-50 text-slate-600 dark:ring-slate-600 dark:bg-slate-800/55 dark:text-slate-300`;
 }
 
 function parseLocalISO(iso: string): Date | null {
@@ -118,6 +122,69 @@ function deriveWeeksFromDays(
   });
 }
 
+function buildPartsHeatmapTooltip(day: TimeEntryRowsHeatmapPartsDayDto | undefined): {
+  title: string;
+  rows: HeatmapTooltipRow[];
+  ariaLabel: string;
+} {
+  if (!day) {
+    return {
+      title: "Fuera del periodo",
+      rows: [
+        {
+          label: "Detalle",
+          value: "Esta celda no tiene día del periodo filtrado (hueco de semana ISO).",
+        },
+      ],
+      ariaLabel: "Celda fuera del periodo seleccionado",
+    };
+  }
+
+  const title = formatDateLongEs(day.date);
+  const rows: HeatmapTooltipRow[] = [];
+
+  if (day.compliancePct != null) {
+    rows.push({
+      label: "Disciplina de partes",
+      value: `${day.compliancePct}% de fichajes cerrados que ya tienen parte en servidor.`,
+    });
+    rows.push({
+      label: "Cierre administrativo",
+      value: `${day.entriesWithPart} de ${day.closedEntries} fichajes cerrados llevan parte cargado.`,
+    });
+    if (day.entriesWithoutPart > 0) {
+      rows.push({
+        label: "Pendientes",
+        value: `${day.entriesWithoutPart} fichajes cerrados aún sin parte asociado.`,
+      });
+    }
+  } else if (day.closedEntries === 0) {
+    rows.push({
+      label: "Actividad",
+      value: day.isWorkingDay
+        ? "No hay fichajes en estado cerrado este día; no se puede medir el cumplimiento de partes."
+        : "Día no laboral · sin fichajes cerrados que evaluar.",
+    });
+  } else if (!day.isWorkingDay) {
+    rows.push({
+      label: "Calendario",
+      value: "Día no laboral en la configuración del periodo.",
+    });
+  } else {
+    rows.push({
+      label: "Datos",
+      value: "Sin métrica de partes para este día con los datos actuales.",
+    });
+  }
+
+  const ariaLabel =
+    day.compliancePct != null
+      ? `${title}. Partes al ${day.compliancePct} por ciento. Pulsa para ver detalle.`
+      : `${title}. ${rows[0]?.value.slice(0, 80) ?? ""}`;
+
+  return { title, rows, ariaLabel };
+}
+
 export const EquipoCumplimientoPartesHeatmap = memo(
   function EquipoCumplimientoPartesHeatmap({
     data,
@@ -182,68 +249,50 @@ export const EquipoCumplimientoPartesHeatmap = memo(
 
     return (
       <div className="min-w-0">
-        <div className="mx-auto w-full max-w-md sm:max-w-lg md:max-w-xl">
+        <HeatmapTooltipProvider>
+          <div className="mx-auto w-full max-w-md sm:max-w-lg md:max-w-xl">
+          <div className={CALENDAR_CARD_CLASS}>
           <div
-            className="grid items-stretch gap-x-1.5 gap-y-1.5 sm:gap-2"
+            className="grid items-stretch gap-x-2 gap-y-2 sm:gap-x-2.5 sm:gap-y-2.5"
             style={{ gridTemplateColumns: gridTemplate }}
             role="grid"
             aria-label="Heatmap de disciplina de partes por semana y día"
           >
-            <div className="pb-2 sm:pb-2.5" aria-hidden />
+            <div className="min-h-[2.25rem] sm:min-h-[2.5rem]" aria-hidden />
             {WEEKDAY_SHORT.map((d) => (
-              <div
-                key={d}
-                className="pb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:pb-2.5"
-              >
+              <div key={d} className={`${CALENDAR_WEEKDAY_HEADER} min-h-[2.25rem] sm:min-h-[2.5rem]`}>
                 {d}
               </div>
             ))}
 
             {weeks.map((w) => (
               <Fragment key={`${w.isoWeekYear}-${w.isoWeek}`}>
-                <div className="flex items-center pr-2 text-[11px] font-normal tabular-nums text-slate-500 dark:text-slate-400">
-                  {formatWeekRangeLabel(w.weekStart, w.weekEnd)}
-                </div>
+                <div className={CALENDAR_WEEK_RANGE_LABEL}>{formatWeekRangeLabel(w.weekStart, w.weekEnd)}</div>
                 {WEEKDAY_SHORT.map((_, i) => {
                   const weekday = i + 1;
                   const day = dayIndex.get(`${w.isoWeekYear}-${w.isoWeek}-${weekday}`);
                   const cls = partsHeatmapCellClass(day);
-                  const titleParts: string[] = [];
-                  if (day?.date) titleParts.push(day.date);
-                  if (day) {
-                    if (day.compliancePct != null) {
-                      titleParts.push(`Partes ${day.compliancePct}%`);
-                      titleParts.push(`${day.entriesWithPart}/${day.closedEntries} con parte`);
-                      if (day.entriesWithoutPart > 0) {
-                        titleParts.push(`${day.entriesWithoutPart} sin parte`);
-                      }
-                    } else if (day.closedEntries === 0) {
-                      titleParts.push(
-                        day.isWorkingDay ? "Sin fichajes cerrados" : "No laboral · sin actividad",
-                      );
-                    } else if (!day.isWorkingDay) {
-                      titleParts.push("No laboral");
-                    } else {
-                      titleParts.push("Sin datos");
-                    }
-                  } else {
-                    titleParts.push("Fuera de rango");
-                  }
+                  const tip = buildPartsHeatmapTooltip(day);
+                  const cellKey = `parts-${w.isoWeekYear}-${w.isoWeek}-${weekday}`;
                   return (
-                    <div
-                      key={`${w.isoWeekYear}-${w.isoWeek}-${weekday}`}
+                    <HeatmapInteractiveCell
+                      key={cellKey}
+                      cellKey={cellKey}
+                      columnIndex={i}
                       className={cls}
-                      title={titleParts.join(" · ")}
-                      aria-label={titleParts.join(" · ")}
+                      tooltipTitle={tip.title}
+                      tooltipRows={tip.rows}
+                      ariaLabel={tip.ariaLabel}
                     >
                       {day ? (
-                        <span className="tabular-nums">{dayOfMonthFromISO(day.date)}</span>
+                        <span className={CAL_CELL_DAY_NUM}>{dayOfMonthFromISO(day.date)}</span>
                       ) : null}
-                    </div>
+                    </HeatmapInteractiveCell>
                   );
                 })}
               </Fragment>
             ))}
+          </div>
           </div>
 
           <ul
@@ -251,7 +300,7 @@ export const EquipoCumplimientoPartesHeatmap = memo(
             aria-label="Leyenda de disciplina de partes"
           >
             <li className={LEGEND_PILL}>
-              <span className={`${LEGEND_DOT} bg-teal-500 dark:bg-teal-400`} aria-hidden />
+              <span className={`${LEGEND_DOT} bg-emerald-500 dark:bg-emerald-400`} aria-hidden />
               ≥ 90%
             </li>
             <li className={LEGEND_PILL}>
@@ -267,7 +316,8 @@ export const EquipoCumplimientoPartesHeatmap = memo(
               Sin datos
             </li>
           </ul>
-        </div>
+          </div>
+        </HeatmapTooltipProvider>
       </div>
     );
   },

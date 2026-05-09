@@ -170,7 +170,7 @@ export function KioskPad({
             type="button"
             onClick={submit}
             disabled={!canInteract || code.trim().length === 0}
-            className="h-14 rounded-xl bg-agro-600 text-sm font-semibold text-white shadow-sm hover:bg-agro-700 disabled:opacity-60"
+            className="h-14 rounded-xl bg-emerald-700 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 disabled:opacity-60"
           >
             OK
           </button>

@@ -144,7 +144,7 @@ export default function IncidentsPage() {
         <button
           type="button"
           onClick={openCreate}
-          className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+          className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
         >
           Añadir incidente
         </button>
@@ -164,7 +164,7 @@ export default function IncidentsPage() {
               value={filterCrotal}
               onChange={(e) => setFilterCrotal(e.target.value)}
               placeholder="Nº crotal del animal..."
-              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-emerald-600/30"
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -174,7 +174,7 @@ export default function IncidentsPage() {
               type="date"
               value={filterDate}
               onChange={(e) => setFilterDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-emerald-600/30"
             />
             {filterDate && (
               <button type="button" onClick={() => setFilterDate("")} className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-400">
@@ -188,7 +188,7 @@ export default function IncidentsPage() {
               id="inc-filter-severity"
               value={filterSeverity}
               onChange={(e) => setFilterSeverity(e.target.value as AnimalCaseType["severity"] | "all")}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-emerald-600/30"
             >
               <option value="all">Todas</option>
               {SEVERITY_OPTIONS.map((o) => (
@@ -204,7 +204,7 @@ export default function IncidentsPage() {
               value={filterCaseType}
               onChange={(e) => setFilterCaseType(e.target.value)}
               placeholder="Ej. Cojera, Herida..."
-              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-emerald-600/30"
             />
           </div>
         </div>
@@ -293,7 +293,7 @@ export default function IncidentsPage() {
                   value={formAnimalId}
                   onChange={(e) => setFormAnimalId(e.target.value)}
                   required
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
                   {MOCK_ANIMALS.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -318,7 +318,7 @@ export default function IncidentsPage() {
                         setIncidentMode("template");
                         applyTemplate(formTemplateId);
                       }}
-                      className="text-agro-600 focus:ring-agro-500"
+                      className="text-emerald-600 focus:ring-emerald-600"
                     />
                     <span className="text-sm dark:text-slate-200">Preconfigurado</span>
                   </label>
@@ -328,7 +328,7 @@ export default function IncidentsPage() {
                       name="incidentMode"
                       checked={incidentMode === "custom"}
                       onChange={() => setIncidentMode("custom")}
-                      className="text-agro-600 focus:ring-agro-500"
+                      className="text-emerald-600 focus:ring-emerald-600"
                     />
                     <span className="text-sm dark:text-slate-200">Personalizado</span>
                   </label>
@@ -347,7 +347,7 @@ export default function IncidentsPage() {
                       setFormTemplateId(e.target.value);
                       applyTemplate(e.target.value);
                     }}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                   >
                     {INCIDENT_TEMPLATES.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -368,7 +368,7 @@ export default function IncidentsPage() {
                       onChange={(e) => setFormSummary(e.target.value)}
                       required
                       rows={2}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                     />
                   </div>
                 </div>
@@ -384,7 +384,7 @@ export default function IncidentsPage() {
                       value={formCaseType}
                       onChange={(e) => setFormCaseType(e.target.value)}
                       required
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                       placeholder="Ej. Cojera, Infección, Control rutinario"
                     />
                   </div>
@@ -398,7 +398,7 @@ export default function IncidentsPage() {
                       onChange={(e) => setFormSummary(e.target.value)}
                       required
                       rows={3}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                       placeholder="Descripción del problema o seguimiento..."
                     />
                   </div>
@@ -412,7 +412,7 @@ export default function IncidentsPage() {
                   id="incident-severity"
                   value={formSeverity}
                   onChange={(e) => setFormSeverity(e.target.value as AnimalCaseType["severity"])}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
                   {SEVERITY_OPTIONS.map((s) => (
                     <option key={s.value} value={s.value}>
@@ -430,7 +430,7 @@ export default function IncidentsPage() {
                   type="date"
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 />
               </div>
               <div className="flex justify-end gap-2 pt-2">
@@ -444,7 +444,7 @@ export default function IncidentsPage() {
                 <button
                   type="submit"
                   disabled={MOCK_ANIMALS.length === 0}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Añadir
                 </button>

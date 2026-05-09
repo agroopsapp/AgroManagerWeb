@@ -19,7 +19,7 @@ type FichajeJornadaMainPanelProps = {
 export function FichajeJornadaMainPanel({
   children,
   clipOverflow = true,
-  accentClassName = "bg-gradient-to-r from-agro-500 via-emerald-500 to-teal-500",
+  accentClassName = "bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-700",
 }: FichajeJornadaMainPanelProps) {
   return (
     <div

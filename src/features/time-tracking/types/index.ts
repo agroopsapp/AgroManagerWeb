@@ -172,6 +172,7 @@ export type TeamHoursInfoModalId =
   | "tablaRegistros"
   | "resumenYLateral"
   | "kpisEstadoEquipo"
-  | "cumplimientoHeatmaps"
+  | "cumplimientoHorasHeatmap"
+  | "cumplimientoPartesHeatmap"
   | "exportacion"
   | "permisosWorker";

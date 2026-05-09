@@ -52,11 +52,11 @@ export default function Header({ onToggleMobileSidebar, onToggleQuickMenu }: Hea
           className="flex items-center gap-2 text-xl font-bold text-emerald-800 dark:text-emerald-200"
         >
           <Image
-            src="/PngLogoTexto.png"
+            src="/agroops-logo-emerald.png"
             alt="AgroOps"
-            width={140}
-            height={40}
-            className="h-7 w-auto max-w-[min(120px,28vw)] shrink object-contain sm:h-8 sm:max-w-[140px]"
+            width={160}
+            height={72}
+            className="h-8 w-auto max-w-[min(140px,32vw)] shrink object-contain sm:h-9 sm:max-w-[160px]"
             priority
           />
           <span className="hidden sm:inline" />

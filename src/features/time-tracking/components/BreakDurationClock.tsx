@@ -40,7 +40,7 @@ export const BreakDurationClock = memo(function BreakDurationClock({
           onClick={() => onPhaseChange("hour")}
           className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
             phase === "hour"
-              ? "bg-agro-600 text-white shadow-sm"
+              ? "bg-emerald-700 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-300"
           }`}
         >
@@ -51,7 +51,7 @@ export const BreakDurationClock = memo(function BreakDurationClock({
           onClick={() => onPhaseChange("minute")}
           className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
             phase === "minute"
-              ? "bg-agro-600 text-white shadow-sm"
+              ? "bg-emerald-700 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-300"
           }`}
         >
@@ -70,7 +70,7 @@ export const BreakDurationClock = memo(function BreakDurationClock({
             strokeWidth={1}
             className="text-slate-200 dark:text-slate-600"
           />
-          <circle cx={cx} cy={cy} r={3} className="fill-agro-600" />
+          <circle cx={cx} cy={cy} r={3} className="fill-emerald-600" />
           <line
             x1={cx}
             y1={cy}
@@ -78,7 +78,7 @@ export const BreakDurationClock = memo(function BreakDurationClock({
             y2={cy + rHand * Math.sin((handAngleDeg * Math.PI) / 180)}
             strokeWidth={3}
             strokeLinecap="round"
-            className="stroke-agro-600"
+            className="stroke-emerald-600"
           />
           {opts.map((val, i) => {
             const deg = -90 + (360 / opts.length) * i;
@@ -98,7 +98,7 @@ export const BreakDurationClock = memo(function BreakDurationClock({
                   r={isOn ? 22 : 18}
                   className={`cursor-pointer transition ${
                     isOn
-                      ? "fill-agro-600"
+                      ? "fill-emerald-600"
                       : "fill-white stroke-slate-200 dark:fill-slate-700 dark:stroke-slate-500"
                   }`}
                   strokeWidth={isOn ? 0 : 1}

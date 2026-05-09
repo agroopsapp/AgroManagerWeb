@@ -166,7 +166,7 @@ export default function FarmsPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+            className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
           >
             Nueva granja
           </button>
@@ -195,7 +195,7 @@ export default function FarmsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("name")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Nombre {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -204,7 +204,7 @@ export default function FarmsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("location")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Ubicación {sortKey === "location" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -312,7 +312,7 @@ export default function FarmsPage() {
                   onChange={(e) => setFormName(e.target.value)}
                   required
                   disabled={saving}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Ej. Granja Norte"
                 />
               </div>
@@ -326,7 +326,7 @@ export default function FarmsPage() {
                   value={formLocation}
                   onChange={(e) => setFormLocation(e.target.value)}
                   disabled={saving}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Ej. Carretera N-1 km 42, Burgos"
                 />
               </div>
@@ -342,7 +342,7 @@ export default function FarmsPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
                 >
                   {saving ? "Guardando..." : editingFarm ? "Guardar" : "Crear"}
                 </button>

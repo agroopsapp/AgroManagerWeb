@@ -11,7 +11,8 @@ export const TEAM_HOURS_INFO_MODAL_IDS = [
   "tablaRegistros",
   "resumenYLateral",
   "kpisEstadoEquipo",
-  "cumplimientoHeatmaps",
+  "cumplimientoHorasHeatmap",
+  "cumplimientoPartesHeatmap",
   "exportacion",
   "permisosWorker",
 ] as const satisfies readonly TeamHoursInfoModalId[];
@@ -55,10 +56,20 @@ const TEAM_HOURS_INFO_COPY: Record<TeamHoursInfoModalId, ModalCopy> = {
       "Completad con el significado exacto de cada indicador en vuestra implantación.",
     ],
   },
-  cumplimientoHeatmaps: {
-    title: "Cumplimiento y heatmaps",
+  cumplimientoHorasHeatmap: {
+    title: "Cumplimiento semanal (horas teóricas)",
     paragraphs: [
-      "Los heatmaps solo aplican a periodos cortos (día / semana / mes); cambiad el texto si la API evoluciona.",
+      "Cada celda es un día del periodo que estás filtrando: compara lo fichado frente a las horas teóricas que tu organización esperaba ese día.",
+      "El color resume el resultado de un vistazo — verde cumple o supera el objetivo; ámbar y rojo marcan huecos para priorizar correcciones antes del cierre.",
+      "La fuerza está en ver patrones en equipo (semanas flojas, absentismo puntual, picos de extras) sin depender solo del total mensual.",
+    ],
+  },
+  cumplimientoPartesHeatmap: {
+    title: "Cumplimiento de partes",
+    paragraphs: [
+      "Cruza disciplina administrativa con trabajo ya registrado: para cada día con jornada fichada y cerrada, ¿existe parte de obra coherente en el servidor?",
+      "Así detectas rápido quién deja la documentación atrás respecto al tiempo imputado — clave para costes, certificaciones y trazabilidad legal.",
+      "La escala de colores es la misma que en el heatmap de horas: lectura homogénea en un solo pantallazo.",
     ],
   },
   exportacion: {

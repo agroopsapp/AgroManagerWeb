@@ -8,7 +8,7 @@ import DashboardPathnameShell from "./DashboardPathnameShell";
 function DashboardShellFallback() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-slate-50 dark:bg-slate-900">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
     </div>
   );
 }

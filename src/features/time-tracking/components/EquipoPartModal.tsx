@@ -174,7 +174,7 @@ export function EquipoPartModal({
                   type="button"
                   onClick={onAddLine}
                   disabled={services.length === 0 || companies.length === 0}
-                  className="w-full rounded-lg border-2 border-agro-600 bg-agro-50 px-3 py-2 text-xs font-semibold text-agro-800 hover:bg-agro-100 disabled:opacity-40 dark:border-agro-500 dark:bg-agro-950/40 dark:text-agro-200 sm:w-auto"
+                  className="w-full rounded-lg border-2 border-emerald-700 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200 sm:w-auto"
                 >
                   + Añadir tarea
                 </button>
@@ -433,7 +433,7 @@ export function EquipoPartModal({
                     : undefined
                 }
                 onClick={onGeneratePdf}
-                className="rounded-lg border border-agro-600 bg-white px-3 py-2 text-xs font-semibold text-agro-800 hover:bg-agro-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-agro-500 dark:bg-slate-800 dark:text-agro-200 dark:hover:bg-agro-900/30"
+                className="rounded-lg border border-emerald-700 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-600 dark:bg-slate-800 dark:text-emerald-200 dark:hover:bg-emerald-900/30"
               >
                 {pdfLoading ? "Generando PDF…" : "Descargar PDF"}
               </button>
@@ -460,7 +460,7 @@ export function EquipoPartModal({
                   : undefined
               }
               onClick={() => void Promise.resolve(onSave())}
-              className="rounded-lg bg-agro-600 px-3 py-2 text-xs font-semibold text-white hover:bg-agro-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {saving ? "Guardando…" : "Guardar parte"}
             </button>

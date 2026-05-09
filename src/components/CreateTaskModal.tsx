@@ -135,7 +135,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                     name="createMode"
                     checked={createMode === "template"}
                     onChange={() => setCreateMode("template")}
-                    className="text-agro-600 focus:ring-agro-500"
+                    className="text-emerald-600 focus:ring-emerald-600"
                   />
                   <span className="text-sm dark:text-slate-200">Preconfigurada</span>
                 </label>
@@ -145,7 +145,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                     name="createMode"
                     checked={createMode === "custom"}
                     onChange={() => setCreateMode("custom")}
-                    className="text-agro-600 focus:ring-agro-500"
+                    className="text-emerald-600 focus:ring-emerald-600"
                   />
                   <span className="text-sm dark:text-slate-200">Personalizada</span>
                 </label>
@@ -161,7 +161,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                   id="task-template"
                   value={formTemplateId}
                   onChange={(e) => setFormTemplateId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
                   {TASK_TEMPLATES.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -187,7 +187,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                     value={formCustomTitle}
                     onChange={(e) => setFormCustomTitle(e.target.value)}
                     placeholder="Ej. Revisar bomba de agua"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   />
                 </div>
                 <div>
@@ -200,7 +200,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                     onChange={(e) => setFormCustomDetails(e.target.value)}
                     placeholder="Instrucciones para el trabajador..."
                     rows={3}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   />
                 </div>
               </div>
@@ -214,7 +214,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                 id="task-worker"
                 value={formWorkerId}
                 onChange={(e) => setFormWorkerId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
               >
                 <option value="">Sin asignar</option>
                 {MOCK_WORKERS.map((w) => (
@@ -236,7 +236,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                 id="task-farm"
                 value={formFarmId}
                 onChange={(e) => setFormFarmId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
               >
                 <option value="">Sin asignar a granja</option>
                 {MOCK_FARMS.map((f) => (
@@ -255,7 +255,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                 id="task-priority"
                 value={formPriority}
                 onChange={(e) => setFormPriority(e.target.value as TaskPriority)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
               >
                 {PRIORITY_OPTIONS.map((p) => (
                   <option key={p.value} value={p.value}>
@@ -273,7 +273,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                 id="task-family"
                 value={formFamily}
                 onChange={(e) => setFormFamily(e.target.value as TaskFamily)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
               >
                 {TASK_FAMILY_OPTIONS.map((f) => (
                   <option key={f.value} value={f.value}>
@@ -292,7 +292,7 @@ export default function CreateTaskModal({ open, onClose, defaultDate }: CreateTa
                 type="date"
                 value={formDate}
                 onChange={(e) => setFormDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
               />
             </div>
           </div>

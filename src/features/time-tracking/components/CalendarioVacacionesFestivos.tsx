@@ -21,9 +21,9 @@ function cellClasses(opts: {
   const { mark, isWeekend, isSelected, canEdit, inRange } = opts;
   const base =
     "flex aspect-square w-full min-h-0 flex-col items-center justify-center rounded-xl border p-1 text-center text-sm font-bold tabular-nums shadow-sm transition sm:text-base lg:text-lg";
-  const cursor = canEdit ? "cursor-pointer hover:z-[1] hover:ring-2 hover:ring-agro-500/25" : "cursor-default";
+  const cursor = canEdit ? "cursor-pointer hover:z-[1] hover:ring-2 hover:ring-emerald-600/25" : "cursor-default";
   const ringSel = isSelected
-    ? " ring-2 ring-agro-600 ring-offset-2 ring-offset-white dark:ring-agro-400 dark:ring-offset-slate-900"
+    ? " ring-2 ring-emerald-700 ring-offset-2 ring-offset-white dark:ring-emerald-400 dark:ring-offset-slate-900"
     : "";
   const muted = !inRange ? " opacity-40 grayscale-[0.15]" : "";
 
@@ -139,7 +139,7 @@ export function CalendarioVacacionesFestivos(props: {
           <h2 className="min-w-0 flex-1 text-center text-lg font-extrabold leading-tight tracking-tight text-slate-900 sm:text-xl lg:text-2xl dark:text-white">
             <span className="inline-flex items-center gap-2">
               <span
-                className="h-2 w-2 rounded-full bg-gradient-to-r from-agro-500 via-emerald-500 to-teal-500"
+                className="h-2 w-2 rounded-full bg-gradient-to-r from-emerald-600 via-emerald-500 to-emerald-700"
                 aria-hidden
               />
               {y}
@@ -167,7 +167,7 @@ export function CalendarioVacacionesFestivos(props: {
                 key={month}
                 className="min-w-0 overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 shadow-sm ring-1 ring-slate-200/40 dark:border-slate-700/70 dark:bg-slate-900/70 dark:ring-slate-700/60"
               >
-                <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-agro-500/10 via-emerald-500/10 to-teal-500/10 px-4 py-2.5 dark:border-slate-700 dark:from-agro-500/10 dark:via-emerald-500/10 dark:to-teal-500/10">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-emerald-600/10 via-emerald-500/10 to-emerald-600/10 px-4 py-2.5 dark:border-slate-700 dark:from-emerald-600/10 dark:via-emerald-500/10 dark:to-emerald-600/10">
                   <h3 className="text-sm font-extrabold capitalize tracking-tight text-slate-900 dark:text-white">
                     {monthName}
                   </h3>

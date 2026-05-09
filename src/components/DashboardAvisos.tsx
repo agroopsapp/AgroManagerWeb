@@ -61,8 +61,8 @@ export default function DashboardAvisos({ variant = "default" }: { variant?: Avi
   }, [enableTimeTracking, isReady, workerId]);
 
   const linkClass = comfortable
-    ? "mt-3 inline-block text-sm font-semibold text-agro-700 underline-offset-2 hover:underline dark:text-agro-400"
-    : "mt-2 inline-block text-[11px] font-semibold text-agro-700 underline-offset-2 hover:underline dark:text-agro-400";
+    ? "mt-3 inline-block text-sm font-semibold text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400"
+    : "mt-2 inline-block text-[11px] font-semibold text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400";
   const linkUrgent = comfortable
     ? "mt-3 inline-block text-sm font-bold text-amber-900 underline-offset-2 hover:underline dark:text-amber-300"
     : "mt-2.5 inline-block text-[11px] font-bold text-amber-900 underline-offset-2 hover:underline dark:text-amber-300";

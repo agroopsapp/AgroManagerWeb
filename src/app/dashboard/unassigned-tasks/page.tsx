@@ -119,7 +119,7 @@ export default function UnassignedTasksPage() {
         <button
           type="button"
           onClick={openCreateModal}
-          className="shrink-0 rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+          className="shrink-0 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
         >
           Crear tarea
         </button>
@@ -139,7 +139,7 @@ export default function UnassignedTasksPage() {
               value={taskCodeQuery}
               onChange={(e) => setTaskCodeQuery(e.target.value)}
               placeholder="Ej. 0020 o #0020"
-              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-700 dark:focus:ring-emerald-600/30"
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -148,7 +148,7 @@ export default function UnassignedTasksPage() {
               id="unassigned-filter-family"
               value={filterFamily}
               onChange={(e) => setFilterFamily((e.target.value || "") as TaskFamily | "")}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-agro-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-agro-500/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-agro-500/30"
+              className="w-full rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm text-slate-900 transition-colors focus:border-emerald-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600/20 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100 dark:focus:bg-slate-700 dark:focus:ring-emerald-600/30"
             >
               <option value="">Todas</option>
               {(Object.entries(TASK_FAMILY_LABELS) as [TaskFamily, string][]).map(([value, label]) => (
@@ -193,7 +193,7 @@ export default function UnassignedTasksPage() {
                 <select
                   value={assignWorkerId}
                   onChange={(e) => setAssignWorkerId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
                   <option value="">Seleccionar...</option>
                   {MOCK_WORKERS.map((w) => (
@@ -210,7 +210,7 @@ export default function UnassignedTasksPage() {
                 <select
                   value={assignFarmId}
                   onChange={(e) => setAssignFarmId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
                   <option value="">Sin asignar a granja</option>
                   {MOCK_FARMS.map((f) => (
@@ -242,7 +242,7 @@ export default function UnassignedTasksPage() {
               <button
                 type="button"
                 onClick={handleGuardar}
-                className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
+                className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
               >
                 Guardar
               </button>
@@ -319,7 +319,7 @@ function UnassignedCard({
       <button
         type="button"
         onClick={onAssign}
-        className="mt-3 w-full rounded-lg bg-agro-600 py-2 text-sm font-medium text-white hover:bg-agro-700"
+        className="mt-3 w-full rounded-lg bg-emerald-700 py-2 text-sm font-medium text-white hover:bg-emerald-800"
       >
         Asignar
       </button>

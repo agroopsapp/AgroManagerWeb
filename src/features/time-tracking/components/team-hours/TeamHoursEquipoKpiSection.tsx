@@ -88,9 +88,12 @@ export function TeamHoursEquipoKpiSection({
       eq.resolveEquipoPersonaNombre,
       kpiDetailModal,
     ).map((r) => ({
+      rowKey: r.rowKey,
       nombre: r.nombre,
+      fechaIso: r.fechaIso,
       fechaLabel: formatDateEsWeekdayDdMmYyyy(r.fechaIso),
       detalle: r.detalle,
+      detailLines: r.detailLines,
     }));
   }, [kpiDetailModal, kpiRowsInteractive, eq.equipoFilasVista, eq.resolveEquipoPersonaNombre]);
 

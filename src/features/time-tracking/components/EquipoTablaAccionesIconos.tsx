@@ -113,7 +113,7 @@ export const EquipoTablaBotonPrimeraJornada = memo(function EquipoTablaBotonPrim
         type="button"
         disabled={disabled}
         onClick={onCrearJornada}
-        className="flex h-9 w-full min-w-0 items-center justify-center bg-blue-50 text-blue-800 transition hover:bg-blue-100 focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-agro-500/40 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-blue-950/45 dark:text-blue-100 dark:hover:bg-blue-900/55"
+        className="flex h-9 w-full min-w-0 items-center justify-center bg-blue-50 text-blue-800 transition hover:bg-blue-100 focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600/40 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-blue-950/45 dark:text-blue-100 dark:hover:bg-blue-900/55"
         title="Opciones del día: vacaciones, baja, no laboral o imputar horario"
         aria-label="Abrir menú del día: ausencias o jornada"
       >
@@ -147,7 +147,7 @@ export const EquipoTablaAccionesDuo = memo(function EquipoTablaAccionesDuo({
       <button
         type="button"
         onClick={onEditarHora}
-        className="flex h-9 w-1/2 min-w-0 shrink-0 items-center justify-center border-r border-slate-300 bg-blue-50 text-blue-800 transition hover:bg-blue-100 focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-agro-500/40 dark:border-slate-600 dark:bg-blue-950/45 dark:text-blue-100 dark:hover:bg-blue-900/55"
+        className="flex h-9 w-1/2 min-w-0 shrink-0 items-center justify-center border-r border-slate-300 bg-blue-50 text-blue-800 transition hover:bg-blue-100 focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600/40 dark:border-slate-600 dark:bg-blue-950/45 dark:text-blue-100 dark:hover:bg-blue-900/55"
         title="Fichar / editar jornada: entrada, salida y descanso"
         aria-label="Fichar o editar jornada: horario del día"
       >
@@ -157,7 +157,7 @@ export const EquipoTablaAccionesDuo = memo(function EquipoTablaAccionesDuo({
         type="button"
         disabled={parteDisabled}
         onClick={onEditarParte}
-        className="flex h-9 w-1/2 min-w-0 shrink-0 items-center justify-center bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-agro-500/40 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
+        className="flex h-9 w-1/2 min-w-0 shrink-0 items-center justify-center bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600/40 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-800/90 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white"
         title={parteLabel}
         aria-label={parteLabel}
       >

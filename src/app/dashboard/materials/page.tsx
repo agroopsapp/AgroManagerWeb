@@ -214,7 +214,7 @@ export default function MaterialsPage() {
             <button
               type="button"
               onClick={openCreate}
-              className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+              className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
             >
               Nuevo material
             </button>
@@ -253,7 +253,7 @@ export default function MaterialsPage() {
                     <button
                       type="button"
                       onClick={() => toggleSort("name")}
-                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                     >
                       Nombre {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
                     </button>
@@ -266,7 +266,7 @@ export default function MaterialsPage() {
                     <button
                       type="button"
                       onClick={() => toggleSort("unit")}
-                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                     >
                       Unidad {sortKey === "unit" && (sortDir === "asc" ? "↑" : "↓")}
                     </button>
@@ -427,7 +427,7 @@ export default function MaterialsPage() {
                 <button
                   type="submit"
                   disabled={saving || (!editing && !tenantCompanyId)}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
                 >
                   {saving ? "Guardando…" : editing ? "Guardar" : "Crear"}
                 </button>

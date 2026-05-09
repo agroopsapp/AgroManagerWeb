@@ -327,7 +327,7 @@ export default function CompaniesPage() {
   if (!isReady) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
       </div>
     );
   }
@@ -358,7 +358,7 @@ export default function CompaniesPage() {
             <button
               type="button"
               onClick={openCreate}
-              className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+              className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
             >
               Nueva empresa
             </button>
@@ -397,7 +397,7 @@ export default function CompaniesPage() {
                     <button
                       type="button"
                       onClick={() => toggleSort("name")}
-                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                     >
                       Nombre {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
                     </button>
@@ -410,7 +410,7 @@ export default function CompaniesPage() {
                     <button
                       type="button"
                       onClick={() => toggleSort("taxId")}
-                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                     >
                       CIF / NIF {sortKey === "taxId" && (sortDir === "asc" ? "↑" : "↓")}
                     </button>
@@ -423,7 +423,7 @@ export default function CompaniesPage() {
                     <button
                       type="button"
                       onClick={() => toggleSort("address")}
-                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                      className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                     >
                       Dirección {sortKey === "address" && (sortDir === "asc" ? "↑" : "↓")}
                     </button>
@@ -463,7 +463,7 @@ export default function CompaniesPage() {
                         <button
                           type="button"
                           onClick={() => void openAreasReadOnly(company)}
-                          className="shrink-0 rounded-lg border border-agro-600 bg-white px-2.5 py-1 text-xs font-medium text-agro-700 shadow-sm transition hover:bg-agro-50 dark:border-agro-500 dark:bg-slate-800 dark:text-agro-300 dark:hover:bg-agro-950/40"
+                          className="shrink-0 rounded-lg border border-emerald-700 bg-white px-2.5 py-1 text-xs font-medium text-emerald-700 shadow-sm transition hover:bg-emerald-50 dark:border-emerald-600 dark:bg-slate-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
                         >
                           Ver áreas
                         </button>
@@ -562,7 +562,7 @@ export default function CompaniesPage() {
             <div className="mt-4">
               {areasReadLoading ? (
                 <div className="flex items-center justify-center gap-2 py-10">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
                   <span className="text-sm text-slate-500 dark:text-slate-400">Cargando áreas…</span>
                 </div>
               ) : areasReadList.length === 0 ? (
@@ -599,7 +599,7 @@ export default function CompaniesPage() {
               <button
                 type="button"
                 onClick={closeAreasReadOnly}
-                className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
+                className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
               >
                 Cerrar
               </button>
@@ -651,7 +651,7 @@ export default function CompaniesPage() {
                   onChange={(e) => setFormName(e.target.value)}
                   required
                   disabled={saving}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Ej. Agro Demo S.L."
                 />
               </div>
@@ -668,7 +668,7 @@ export default function CompaniesPage() {
                   value={formTaxId}
                   onChange={(e) => setFormTaxId(e.target.value)}
                   disabled={saving}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Opcional"
                 />
               </div>
@@ -685,7 +685,7 @@ export default function CompaniesPage() {
                   value={formAddress}
                   onChange={(e) => setFormAddress(e.target.value)}
                   disabled={saving}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Opcional"
                 />
               </div>
@@ -702,7 +702,7 @@ export default function CompaniesPage() {
                     type="button"
                     onClick={addFormArea}
                     disabled={saving || loadingDetail}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-agro-600 text-lg font-semibold text-agro-700 transition hover:bg-agro-50 dark:border-agro-500 dark:text-agro-300 dark:hover:bg-agro-900/30"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-emerald-700 text-lg font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
                     aria-label="Añadir área"
                   >
                     +
@@ -710,7 +710,7 @@ export default function CompaniesPage() {
                 </div>
                 {loadingDetail ? (
                   <div className="flex items-center justify-center gap-2 py-6">
-                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
                     <span className="text-xs text-slate-500 dark:text-slate-400">Cargando áreas…</span>
                   </div>
                 ) : formAreas.length === 0 ? (
@@ -793,7 +793,7 @@ export default function CompaniesPage() {
                 <button
                   type="submit"
                   disabled={saving || loadingDetail || (!editingCompany && !tenantCompanyId)}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700 disabled:opacity-50"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
                 >
                   {saving ? "Guardando…" : editingCompany ? "Guardar" : "Crear"}
                 </button>

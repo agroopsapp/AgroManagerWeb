@@ -297,7 +297,7 @@ export function WorkPartsSavedPanel({
                 <button
                   type="button"
                   onClick={() => openEditor(p)}
-                  className="shrink-0 rounded-lg border border-agro-600 px-3 py-2 text-xs font-semibold text-agro-800 hover:bg-agro-50 dark:border-agro-500 dark:text-agro-200 dark:hover:bg-agro-950/50"
+                  className="shrink-0 rounded-lg border border-emerald-700 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-200 dark:hover:bg-emerald-950/50"
                 >
                   Ver / editar tareas
                 </button>
@@ -367,7 +367,7 @@ export function WorkPartsSavedPanel({
                     type="button"
                     onClick={addLine}
                     disabled={editServices.length === 0 || editCompanies.length === 0}
-                    className="w-full rounded-lg border-2 border-agro-600 bg-agro-50 px-3 py-2 text-xs font-semibold text-agro-800 hover:bg-agro-100 disabled:opacity-40 dark:border-agro-500 dark:bg-agro-950/40 dark:text-agro-200 sm:w-auto"
+                    className="w-full rounded-lg border-2 border-emerald-700 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-40 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200 sm:w-auto"
                   >
                     + Añadir tarea
                   </button>
@@ -540,7 +540,7 @@ export function WorkPartsSavedPanel({
                       setPdfLoading(false);
                     }
                   }}
-                  className="rounded-lg border border-agro-600 bg-white px-3 py-2 text-xs font-semibold text-agro-800 hover:bg-agro-50 disabled:opacity-50 dark:border-agro-500 dark:bg-slate-800 dark:text-agro-200 dark:hover:bg-agro-900/30"
+                  className="rounded-lg border border-emerald-700 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-600 dark:bg-slate-800 dark:text-emerald-200 dark:hover:bg-emerald-900/30"
                 >
                   {pdfLoading ? "Generando PDF…" : "Descargar PDF"}
                 </button>
@@ -560,7 +560,7 @@ export function WorkPartsSavedPanel({
                 type="button"
                 disabled={editLoading || editSaving || editBlocked}
                 onClick={saveEdit}
-                className="rounded-lg bg-agro-600 px-3 py-2 text-xs font-semibold text-white hover:bg-agro-700 disabled:opacity-50"
+                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
               >
                 {editSaving ? "Guardando…" : "Guardar tareas"}
               </button>

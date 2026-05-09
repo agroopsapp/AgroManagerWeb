@@ -387,13 +387,13 @@ export default function TaskCard({
                             type="text"
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
-                            className="flex-1 rounded border border-slate-200 px-2 py-1 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-600 dark:text-slate-100"
+                            className="flex-1 rounded border border-slate-200 px-2 py-1 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-600 dark:text-slate-100"
                             autoFocus
                           />
                           <button
                             type="button"
                             onClick={saveEdit}
-                            className="rounded bg-agro-600 px-2 py-1 text-xs font-medium text-white hover:bg-agro-700"
+                            className="rounded bg-emerald-700 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-800"
                           >
                             Guardar
                           </button>
@@ -432,7 +432,7 @@ export default function TaskCard({
                     type="text"
                     name="newComment"
                     placeholder="Añadir comentario..."
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   />
                   <button
                     type="submit"
@@ -454,7 +454,7 @@ export default function TaskCard({
               <button
                 type="button"
                 onClick={() => { saveComments(); closeDetails(); }}
-                className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700"
+                className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
               >
                 Guardar comentarios
               </button>
@@ -499,7 +499,7 @@ export default function TaskCard({
                   onDateChange(task.id, tempDate);
                   setDateChangeOpen(false);
                 }}
-                className="rounded-lg bg-agro-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-agro-700"
+                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800"
               >
                 Aplicar
               </button>

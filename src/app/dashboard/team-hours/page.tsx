@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { companiesApi, getClientCompanyWithAreas, workServicesApi } from "@/services";
+import { DatePickerPopoverField } from "@/components/DatePickerPopoverField";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { USER_ROLE } from "@/types";
 import { useEquipo } from "@/features/time-tracking/hooks/useEquipo";
@@ -72,7 +73,12 @@ import {
 import { TimeEntryStatusBadge } from "@/features/time-tracking/components/TimeEntryStatusBadge";
 import { EquipoRegistrosFiltrosEtiquetas } from "@/features/time-tracking/components/EquipoRegistrosFiltrosEtiquetas";
 import { TeamHoursEquipoKpiSection } from "@/features/time-tracking/components/team-hours/TeamHoursEquipoKpiSection";
+import {
+  TeamHoursInfoModals,
+  useTeamHoursInfoModal,
+} from "@/features/time-tracking/components/team-hours/TeamHoursInfoModals";
 import { TeamHoursObjetivoCard } from "@/features/time-tracking/components/team-hours/TeamHoursObjetivoCard";
+import { TeamHoursSectionInfoButton } from "@/features/time-tracking/components/team-hours/TeamHoursSectionInfoButton";
 
 const EquipoPartModal = dynamic(
   () => import("@/features/time-tracking/components/EquipoPartModal").then((m) => m.EquipoPartModal),
@@ -98,7 +104,7 @@ const filterLabelClass =
 
 /** Select/input compacto para la barra de filtros horizontal. */
 const compactSelectClass =
-  "rounded-md border border-slate-200/80 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm outline-none transition cursor-pointer focus:border-agro-600/45 focus:ring-1 focus:ring-agro-500/15 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-agro-500/70";
+  "rounded-md border border-slate-200/80 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm outline-none transition cursor-pointer focus:border-emerald-700/45 focus:ring-1 focus:ring-emerald-600/15 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-600/70";
 
 /** Empresa / persona / servicio: resalta el desplegable cuando no está en «todas». */
 function teamHoursScopedSelectClass(scoped: boolean): string {
@@ -106,9 +112,9 @@ function teamHoursScopedSelectClass(scoped: boolean): string {
     "w-full rounded-md border px-2 py-1 text-xs shadow-sm outline-none transition cursor-pointer focus:ring-1 dark:text-slate-100";
   if (scoped) {
     /* Dark: fondo opaco (evita texto claro sobre verde «lavado» por transparencia) */
-    return `${shared} border-agro-500/90 bg-emerald-50/95 font-semibold text-slate-900 ring-1 ring-agro-500/25 focus:border-agro-600 focus:ring-agro-500/30 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-emerald-800/60 dark:focus:border-emerald-500`;
+    return `${shared} border-emerald-600/90 bg-emerald-50/95 font-semibold text-slate-900 ring-1 ring-emerald-600/25 focus:border-emerald-700 focus:ring-emerald-600/30 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-100 dark:ring-emerald-800/60 dark:focus:border-emerald-500`;
   }
-  return `${shared} border-slate-200/80 bg-white text-slate-900 focus:border-agro-600/45 focus:ring-agro-500/15 dark:border-slate-600 dark:bg-slate-950 dark:focus:border-agro-500/70`;
+  return `${shared} border-slate-200/80 bg-white text-slate-900 focus:border-emerald-700/45 focus:ring-emerald-600/15 dark:border-slate-600 dark:bg-slate-950 dark:focus:border-emerald-600/70`;
 }
 
 /**
@@ -139,7 +145,7 @@ function SortArrow({
 }) {
   if (activeKey !== sortKey) return null;
   return (
-    <span className="shrink-0 text-agro-700/90 dark:text-agro-400" aria-hidden>
+    <span className="shrink-0 text-emerald-700/90 dark:text-emerald-400" aria-hidden>
       {dir === "asc" ? "↑" : "↓"}
     </span>
   );
@@ -168,6 +174,7 @@ export default function TeamHoursPage() {
   );
   /** Móvil/tablet (<lg): controla la visibilidad del panel de filtros que se abre desde el FAB. */
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const teamHoursInfo = useTeamHoursInfoModal();
   const { user, isReady } = useAuth();
   const router = useRouter();
 
@@ -666,12 +673,14 @@ export default function TeamHoursPage() {
               >
                 Día
               </label>
-              <input
+              <DatePickerPopoverField
                 id="dia-team-hours"
-                type="date"
+                variant="compact"
                 value={eq.equipoDia}
-                onChange={(e) => eq.setEquipoDia(e.target.value)}
-                className={`w-full ${compactSelectClass}`}
+                onChange={(v) => eq.setEquipoDia(v)}
+                emptyLabel="Elige día"
+                allowClear={false}
+                triggerClassName={compactSelectClass}
               />
             </div>
           )}
@@ -684,12 +693,14 @@ export default function TeamHoursPage() {
               >
                 Semana
               </label>
-              <input
+              <DatePickerPopoverField
                 id="semana-team-hours"
-                type="date"
+                variant="compact"
                 value={eq.equipoSemana}
-                onChange={(e) => eq.setEquipoSemana(e.target.value)}
-                className={`w-full ${compactSelectClass}`}
+                onChange={(v) => eq.setEquipoSemana(v)}
+                emptyLabel="Elige semana"
+                allowClear={false}
+                triggerClassName={compactSelectClass}
               />
             </div>
           )}
@@ -1052,18 +1063,18 @@ export default function TeamHoursPage() {
         <section className={`${cardSurfaceClass} flex min-h-0 flex-col`}>
           {eq.equipoPeriodo === "anio" ? (
             <div
-              className="border-b border-agro-400/50 bg-gradient-to-br from-emerald-50/90 via-white to-agro-50/30 px-3 py-2.5 dark:border-agro-600/40 dark:from-agro-950/35 dark:via-slate-900/95 dark:to-emerald-950/15"
+              className="border-b border-emerald-400/50 bg-gradient-to-br from-emerald-50/90 via-white to-emerald-50/30 px-3 py-2.5 dark:border-emerald-700/40 dark:from-emerald-950/35 dark:via-slate-900/95 dark:to-emerald-950/15"
               role="region"
               aria-label={`Tabla: ${mesTablaDetalleNombre} de ${eq.anioEquipo}`}
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 <div className="min-w-0 space-y-0.5">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-agro-800 dark:text-agro-400">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-400">
                     Estás viendo en la tabla
                   </p>
                   <p className="text-base font-bold leading-tight tracking-tight text-slate-900 sm:text-lg dark:text-white">
                     {mesTablaDetalleNombre}
-                    <span className="ml-1.5 inline-block text-sm font-semibold tabular-nums text-agro-700 dark:text-agro-400">
+                    <span className="ml-1.5 inline-block text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                       {eq.anioEquipo}
                     </span>
                   </p>
@@ -1073,7 +1084,7 @@ export default function TeamHoursPage() {
                       año {eq.anioEquipo} completo
                     </strong>
                     . La tabla y el CSV son solo de{" "}
-                    <strong className="font-semibold text-agro-800 dark:text-agro-300">
+                    <strong className="font-semibold text-emerald-800 dark:text-emerald-300">
                       {mesTablaDetalleNombre}
                     </strong>
                     .
@@ -1111,7 +1122,7 @@ export default function TeamHoursPage() {
             </div>
             <div className="flex flex-col flex-wrap items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
               {eq.equipoRowsLoading ? (
-                <p className="text-xs font-medium text-agro-700 dark:text-agro-300">
+                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
                   {eq.equipoPeriodo === "anio"
                     ? "Cargando fichajes del mes seleccionado…"
                     : "Cargando fichajes…"}
@@ -1702,16 +1713,19 @@ export default function TeamHoursPage() {
 
                   <div className="inline-flex min-w-[170px] items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-white px-2.5 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-950/40">
                     <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-300">Fecha</span>
-                    <input
-                      type="date"
-                      value={hoyUseToday ? localTodayISO() : (eqHoy.equipoDia || localTodayISO())}
-                      onChange={(e) => {
+                    <DatePickerPopoverField
+                      variant="compact"
+                      value={
+                        hoyUseToday ? localTodayISO() : (eqHoy.equipoDia || localTodayISO())
+                      }
+                      onChange={(v) => {
                         setHoyUseToday(false);
-                        eqHoy.setEquipoDia(e.target.value);
+                        eqHoy.setEquipoDia(v);
                       }}
                       disabled={hoyUseToday}
-                      className="h-7 rounded-lg border border-transparent bg-transparent px-1 text-[11px] font-semibold text-slate-700 outline-none disabled:opacity-40 dark:text-slate-100"
-                      aria-label="Seleccionar día"
+                      allowClear={false}
+                      emptyLabel="Día"
+                      triggerClassName="min-w-[118px] border-0 bg-transparent px-1 py-0.5 text-[11px] font-semibold shadow-none ring-0 hover:bg-transparent focus-visible:ring-1 focus-visible:ring-emerald-500/40"
                     />
                   </div>
                 </div>
@@ -1778,9 +1792,15 @@ export default function TeamHoursPage() {
                   el heatmap pierde legibilidad y la consulta sería excesiva. */}
               <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
                 <div className="mb-3">
-                  <h2 className="agro-section-title min-w-0 truncate">
-                    Cumplimiento semanal
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="agro-section-title min-w-0 flex-1 truncate">
+                      Cumplimiento semanal
+                    </h2>
+                    <TeamHoursSectionInfoButton
+                      ariaLabel="Información sobre el cumplimiento semanal de horas"
+                      onPress={() => teamHoursInfo.openModal("cumplimientoHorasHeatmap")}
+                    />
+                  </div>
                   <p className="agro-muted mt-1 text-xs">Cumplimiento horas teóricas.</p>
                 </div>
                 <div>
@@ -1806,9 +1826,15 @@ export default function TeamHoursPage() {
                   Mismo gating que el heatmap de horas: solo en periodos ≤ mes. */}
               <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
                 <div className="mb-3">
-                  <h2 className="agro-section-title min-w-0 truncate">
-                    Cumplimiento de partes
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="agro-section-title min-w-0 flex-1 truncate">
+                      Cumplimiento de partes
+                    </h2>
+                    <TeamHoursSectionInfoButton
+                      ariaLabel="Información sobre el cumplimiento de partes"
+                      onPress={() => teamHoursInfo.openModal("cumplimientoPartesHeatmap")}
+                    />
+                  </div>
                   <p className="agro-muted mt-1 text-xs">
                     Partes creados sobre fichajes cerrados.
                   </p>
@@ -1985,7 +2011,7 @@ export default function TeamHoursPage() {
                     type="button"
                     disabled={modal.equipoAbsenceSaving || modal.equipoFichajeDeleting}
                     onClick={() => modal.enterEquipoHorarioWizard()}
-                    className="w-full rounded-xl border-2 border-agro-500 bg-agro-50 px-4 py-3 text-sm font-semibold text-agro-900 shadow-sm transition hover:bg-agro-100 disabled:opacity-60 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-50 dark:hover:bg-emerald-900"
+                    className="w-full rounded-xl border-2 border-emerald-600 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-600 dark:bg-emerald-950 dark:text-emerald-50 dark:hover:bg-emerald-900"
                   >
                     Modificar horario (imputación manual)
                   </button>
@@ -2272,7 +2298,7 @@ export default function TeamHoursPage() {
         </>
       ) : null}
 
-      {null}
+      <TeamHoursInfoModals activeId={teamHoursInfo.activeId} onClose={teamHoursInfo.closeModal} />
     </div>
   );
 }

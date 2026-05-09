@@ -4,6 +4,15 @@ import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from "r
 import { createPortal } from "react-dom";
 import type { EquipoTablaFila } from "@/features/time-tracking/types";
 import {
+  CALENDAR_CARD_CLASS,
+  CALENDAR_WEEKDAY_HEADER,
+  CAL_CELL_BASE,
+  CAL_CELL_DAY_NUM,
+  emptyCalendarPadClass,
+  LEGEND_DOT,
+  LEGEND_PILL,
+} from "@/features/time-tracking/utils/equipoCalendarChrome";
+import {
   buildEquipoCalTooltipModel,
   buildWeekGridForRange,
   dayOfMonthFromISO,
@@ -14,39 +23,32 @@ import {
 /** Misma serigrafía que los heatmaps de cumplimiento (L / M / X …). */
 const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"] as const;
 
-/* Estilo de leyenda en pills: idéntico al de los heatmaps. */
-const LEGEND_PILL =
-  "inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200";
-const LEGEND_DOT = "h-1.5 w-1.5 shrink-0 rounded-full";
-
 const TOOLTIP_MAX_W = 320;
 const VIEW_MARGIN = 10;
 const TIP_GAP = 6;
 
 function cellClass(kind: EquipoCalCellKind | undefined, inRange: boolean): string {
-  /* Misma base tipográfica que `EquipoCumplimientoSemanalHeatmap` (text-base / sm:text-lg). */
   if (!inRange) {
-    return "aspect-square w-full min-h-0 rounded-xl bg-slate-100/70 ring-1 ring-inset ring-slate-200/80 dark:bg-slate-800/40 dark:ring-slate-700/60";
+    return emptyCalendarPadClass();
   }
-  const base =
-    "flex aspect-square w-full min-h-0 flex-col items-center justify-center rounded-xl border p-0.5 text-center tabular-nums shadow-sm outline-none transition hover:z-[1] hover:ring-2 hover:ring-agro-500/25 focus-visible:z-[1] focus-visible:ring-2 focus-visible:ring-agro-500/40 dark:hover:ring-agro-400/20 sm:p-1";
+  const base = CAL_CELL_BASE;
   switch (kind) {
     case "no_laboral":
-      return `${base} border-slate-200/90 bg-slate-100 text-base font-bold text-slate-700 dark:border-slate-600 dark:bg-slate-800/60 dark:text-slate-200 sm:text-lg`;
+      return `${base} ring-slate-300/60 bg-slate-100 text-slate-700 dark:ring-slate-600 dark:bg-slate-800/65 dark:text-slate-200`;
     case "sin_imputar":
-      return `${base} border-rose-300/80 bg-rose-50 text-base font-bold text-rose-900 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-100 sm:text-lg`;
+      return `${base} ring-rose-400/35 bg-rose-50 text-rose-900 dark:ring-rose-600/45 dark:bg-rose-950/55 dark:text-rose-100`;
     case "fichaje_con_parte":
-      return `${base} border-teal-400/80 bg-teal-50 text-base font-bold text-teal-950 dark:border-teal-600 dark:bg-teal-950/50 dark:text-teal-50 sm:text-lg`;
+      return `${base} ring-emerald-400/40 bg-emerald-50 text-emerald-950 dark:ring-emerald-600/45 dark:bg-emerald-950/55 dark:text-emerald-50`;
     case "fichaje_sin_parte":
-      return `${base} border-amber-400/80 bg-amber-50 text-base font-bold text-amber-950 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-50 sm:text-lg`;
+      return `${base} ring-amber-400/40 bg-amber-50 text-amber-950 dark:ring-amber-600/45 dark:bg-amber-950/45 dark:text-amber-50`;
     case "vacaciones":
-      return `${base} border-sky-300/80 bg-sky-50 text-base font-bold text-sky-950 dark:border-sky-600 dark:bg-sky-950/45 dark:text-sky-50 sm:text-lg`;
+      return `${base} ring-sky-400/40 bg-sky-50 text-sky-950 dark:ring-sky-600/45 dark:bg-sky-950/50 dark:text-sky-50`;
     case "baja":
-      return `${base} border-violet-300/80 bg-violet-50 text-base font-bold text-violet-950 dark:border-violet-600 dark:bg-violet-950/40 dark:text-violet-50 sm:text-lg`;
+      return `${base} ring-violet-400/35 bg-violet-50 text-violet-950 dark:ring-violet-600/45 dark:bg-violet-950/45 dark:text-violet-50`;
     case "dia_no_laboral_reg":
-      return `${base} border-stone-300/80 bg-stone-50 text-base font-bold text-stone-900 dark:border-stone-600 dark:bg-stone-900/45 dark:text-stone-100 sm:text-lg`;
+      return `${base} ring-stone-400/35 bg-stone-50 text-stone-900 dark:ring-stone-600/45 dark:bg-stone-900/50 dark:text-stone-100`;
     default:
-      return `${base} border-slate-200 bg-slate-50 text-base font-bold text-slate-600 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-300 sm:text-lg`;
+      return `${base} ring-slate-300/50 bg-slate-50 text-slate-600 dark:ring-slate-600 dark:bg-slate-800/55 dark:text-slate-300`;
   }
 }
 
@@ -165,7 +167,7 @@ function CalDayCell({
       tabIndex={0}
     >
       <div className={cellClass(kind, true)}>
-        <span className="tabular-nums">{dayOfMonthFromISO(dateISO)}</span>
+        <span className={CAL_CELL_DAY_NUM}>{dayOfMonthFromISO(dateISO)}</span>
       </div>
       {open && typeof document !== "undefined"
         ? createPortal(tipContent, document.body)
@@ -208,12 +210,10 @@ export const EquipoPersonaCalendario = memo(function EquipoPersonaCalendario({
   return (
     <div className="min-w-0" aria-label={`Calendario de ${nombrePersona}`}>
       <div className="mx-auto w-full max-w-md sm:max-w-lg md:max-w-xl">
-        <div className="grid grid-cols-7 items-stretch gap-x-1.5 gap-y-1.5 sm:gap-2">
+        <div className={CALENDAR_CARD_CLASS}>
+        <div className="grid grid-cols-7 items-stretch gap-x-2 gap-y-2 sm:gap-x-2.5 sm:gap-y-2.5">
           {WEEKDAYS.map((d) => (
-            <div
-              key={d}
-              className="pb-2 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:pb-2.5"
-            >
+            <div key={d} className={`${CALENDAR_WEEKDAY_HEADER} min-h-[2.25rem] sm:min-h-[2.5rem]`}>
               {d}
             </div>
           ))}
@@ -242,6 +242,7 @@ export const EquipoPersonaCalendario = memo(function EquipoPersonaCalendario({
             }),
           )}
         </div>
+        </div>
       </div>
 
       <ul
@@ -249,7 +250,7 @@ export const EquipoPersonaCalendario = memo(function EquipoPersonaCalendario({
         aria-label="Leyenda del calendario"
       >
         <li className={LEGEND_PILL}>
-          <span className={`${LEGEND_DOT} bg-teal-500 dark:bg-teal-400`} aria-hidden />
+          <span className={`${LEGEND_DOT} bg-emerald-500 dark:bg-emerald-400`} aria-hidden />
           Fichaje con parte
         </li>
         <li className={LEGEND_PILL}>

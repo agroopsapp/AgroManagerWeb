@@ -232,9 +232,9 @@ interface TeamPanelProps {
 // ---------------------------------------------------------------------------
 function equipoScopedSelectClass(scoped: boolean): string {
   const shared =
-    "cursor-pointer rounded-xl px-3 py-2.5 text-sm shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 disabled:cursor-not-allowed disabled:opacity-60 dark:focus:border-agro-500";
+    "cursor-pointer rounded-xl px-3 py-2.5 text-sm shadow-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/25 disabled:cursor-not-allowed disabled:opacity-60 dark:focus:border-emerald-600";
   if (scoped) {
-    return `${shared} border border-agro-500 bg-emerald-50/95 font-semibold text-slate-900 ring-1 ring-agro-500/25 dark:border-agro-500 dark:bg-agro-950/50 dark:text-emerald-50 dark:ring-agro-400/25`;
+    return `${shared} border border-emerald-600 bg-emerald-50/95 font-semibold text-slate-900 ring-1 ring-emerald-600/25 dark:border-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-50 dark:ring-emerald-400/25`;
   }
   return `${shared} border border-slate-200 bg-white font-medium text-slate-900 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100`;
 }
@@ -253,7 +253,7 @@ function SortArrow({
 }) {
   if (activeKey !== sortKey) return null;
   return (
-    <span className="shrink-0 text-agro-600 dark:text-agro-400" aria-hidden>
+    <span className="shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden>
       {dir === "asc" ? "↑" : "↓"}
     </span>
   );
@@ -416,7 +416,7 @@ export function TeamPanel({
                   id="periodo-equipo"
                   value={periodo}
                   onChange={(e) => onSetPeriodo(e.target.value as Period)}
-                  className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                  className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                 >
                   <option value="dia">Día</option>
                   <option value="mes">Mes</option>
@@ -438,7 +438,7 @@ export function TeamPanel({
                     type="date"
                     value={dia}
                     onChange={(e) => onSetDia(e.target.value)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                   />
                 </div>
               )}
@@ -455,7 +455,7 @@ export function TeamPanel({
                     id="mes-equipo"
                     value={mes}
                     onChange={(e) => onSetMes(e.target.value)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                   >
                     {opcionesMes.map((o) => (
                       <option key={o.value} value={o.value}>
@@ -478,7 +478,7 @@ export function TeamPanel({
                     id="trimestre-equipo"
                     value={trimestre}
                     onChange={(e) => onSetTrimestre(e.target.value)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                   >
                     {opcionesTrimestre.map((o) => (
                       <option key={o.value} value={o.value}>
@@ -501,7 +501,7 @@ export function TeamPanel({
                     id="anio-equipo"
                     value={anio}
                     onChange={(e) => onSetAnio(e.target.value)}
-                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-2 focus:ring-agro-500/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    className="cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/25 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                   >
                     {opcionesAnio.map((o) => (
                       <option key={o.value} value={o.value}>
@@ -619,7 +619,7 @@ export function TeamPanel({
                   type="checkbox"
                   checked={tablaFiltroExtra === "soloSinImputar"}
                   onChange={(e) => onSetSoloSinImputar(e.target.checked)}
-                  className="h-4 w-4 shrink-0 rounded border-slate-300 text-agro-600 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-800"
+                  className="h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-800"
                 />
                 <label
                   htmlFor="filtro-solo-sin-imputar-equipo"
@@ -634,7 +634,7 @@ export function TeamPanel({
                   type="checkbox"
                   checked={tablaFiltroExtra === "soloSinParteServidor"}
                   onChange={(e) => onSetSoloSinParteServidor(e.target.checked)}
-                  className="h-4 w-4 shrink-0 rounded border-slate-300 text-agro-600 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-800"
+                  className="h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-800"
                 />
                 <label
                   htmlFor="filtro-solo-sin-parte-servidor-equipo"
@@ -649,7 +649,7 @@ export function TeamPanel({
                   type="checkbox"
                   checked={tablaFiltroExtra === "soloConParteServidor"}
                   onChange={(e) => onSetSoloConParteServidor(e.target.checked)}
-                  className="h-4 w-4 shrink-0 rounded border-slate-300 text-agro-600 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-800"
+                  className="h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-800"
                 />
                 <label
                   htmlFor="filtro-solo-con-parte-servidor-equipo"
@@ -661,11 +661,11 @@ export function TeamPanel({
             </div>
           </div>
 
-          <div className="shrink-0 rounded-2xl border-2 border-agro-300/80 bg-gradient-to-br from-agro-50 via-white to-emerald-50 p-3 shadow-sm dark:border-agro-800 dark:from-agro-950/40 dark:via-slate-900 dark:to-emerald-950/30 sm:p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-agro-700 dark:text-agro-400">
+          <div className="shrink-0 rounded-2xl border-2 border-emerald-300/80 bg-gradient-to-br from-emerald-50 via-white to-emerald-50 p-3 shadow-sm dark:border-emerald-800 dark:from-emerald-950/40 dark:via-slate-900 dark:to-emerald-950/30 sm:p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
               Total horas imputadas
             </p>
-            <p className="mt-1 text-2xl font-extrabold tracking-tight text-agro-800 dark:text-agro-200 sm:text-3xl">
+            <p className="mt-1 text-2xl font-extrabold tracking-tight text-emerald-800 dark:text-emerald-200 sm:text-3xl">
               {formatMinutesShort(totalMinutos)}
             </p>
             <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-400">
@@ -751,18 +751,18 @@ export function TeamPanel({
 
       {periodo === "anio" && gridMesDetalleEnAnio ? (
         <div
-          className="mt-4 rounded-2xl border-2 border-agro-400/70 bg-gradient-to-br from-emerald-50 via-white to-agro-50/40 px-4 py-4 shadow-sm dark:border-agro-600/55 dark:from-agro-950/45 dark:via-slate-900/95 dark:to-emerald-950/25 sm:px-5"
+          className="mt-4 rounded-2xl border-2 border-emerald-400/70 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/40 px-4 py-4 shadow-sm dark:border-emerald-700/55 dark:from-emerald-950/45 dark:via-slate-900/95 dark:to-emerald-950/25 sm:px-5"
           role="region"
           aria-label={`Tabla: ${mesDetalleTablaNombre} de ${anio}`}
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
             <div className="min-w-0 space-y-1.5">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-agro-800 dark:text-agro-400">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-400">
                 Estás viendo en la tabla
               </p>
               <p className="text-[1.35rem] font-bold leading-tight tracking-tight text-slate-900 sm:text-2xl dark:text-white">
                 {mesDetalleTablaNombre}
-                <span className="ml-2 inline-block text-[1.1rem] font-semibold tabular-nums text-agro-700 sm:text-xl dark:text-agro-400">
+                <span className="ml-2 inline-block text-[1.1rem] font-semibold tabular-nums text-emerald-700 sm:text-xl dark:text-emerald-400">
                   {anio}
                 </span>
               </p>
@@ -772,7 +772,7 @@ export function TeamPanel({
                   año {anio} completo
                 </strong>
                 . La tabla y el CSV son solo de{" "}
-                <strong className="font-semibold text-agro-800 dark:text-agro-300">
+                <strong className="font-semibold text-emerald-800 dark:text-emerald-300">
                   {mesDetalleTablaNombre}
                 </strong>
                 .
@@ -812,7 +812,7 @@ export function TeamPanel({
       ) : (
         <div className="mt-4 space-y-3">
           {rowsApi.loading ? (
-            <p className="text-xs font-medium text-agro-700 dark:text-agro-300">
+            <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
               {periodo === "anio"
                 ? "Cargando fichajes del mes seleccionado…"
                 : "Cargando fichajes del periodo…"}
@@ -905,7 +905,7 @@ export function TeamPanel({
                   fileBaseName,
                 });
               }}
-              className="order-1 inline-flex items-center gap-1.5 rounded-xl border border-agro-600 bg-agro-50 px-3 py-2 text-xs font-semibold text-agro-800 shadow-sm transition hover:bg-agro-100 dark:border-agro-500 dark:bg-agro-950/40 dark:text-agro-100 dark:hover:bg-agro-900/50 sm:order-2 sm:text-sm"
+              className="order-1 inline-flex items-center gap-1.5 rounded-xl border border-emerald-700 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-900/50 sm:order-2 sm:text-sm"
             >
               <span aria-hidden>⬇</span>
               Exportar PDF (vista actual)
@@ -961,7 +961,7 @@ export function TeamPanel({
                       <button
                         type="button"
                         onClick={() => onSetSortColumn(key)}
-                        className="flex w-full items-center gap-0.5 text-left hover:text-agro-700 dark:hover:text-agro-300"
+                        className="flex w-full items-center gap-0.5 text-left hover:text-emerald-700 dark:hover:text-emerald-300"
                       >
                         {label}
                         <SortArrow sortKey={key} activeKey={sort.key} dir={sort.dir} />
@@ -972,7 +972,7 @@ export function TeamPanel({
                     <button
                       type="button"
                       onClick={() => onSetSortColumn("estado")}
-                      className="flex w-full items-center gap-0.5 text-left hover:text-agro-700 dark:hover:text-agro-300"
+                      className="flex w-full items-center gap-0.5 text-left hover:text-emerald-700 dark:hover:text-emerald-300"
                     >
                       Estado
                       <SortArrow sortKey="estado" activeKey={sort.key} dir={sort.dir} />
@@ -988,7 +988,7 @@ export function TeamPanel({
                       <button
                         type="button"
                         onClick={() => onSetSortColumn(key)}
-                        className="flex w-full items-center gap-0.5 text-left hover:text-agro-700 dark:hover:text-agro-300"
+                        className="flex w-full items-center gap-0.5 text-left hover:text-emerald-700 dark:hover:text-emerald-300"
                       >
                         {label}
                         <SortArrow sortKey={key} activeKey={sort.key} dir={sort.dir} />
@@ -1004,7 +1004,7 @@ export function TeamPanel({
                       <button
                         type="button"
                         onClick={() => onSetSortColumn(key)}
-                        className="flex w-full items-center gap-0.5 text-left hover:text-agro-700 dark:hover:text-agro-300"
+                        className="flex w-full items-center gap-0.5 text-left hover:text-emerald-700 dark:hover:text-emerald-300"
                       >
                         {label}
                         <SortArrow sortKey={key} activeKey={sort.key} dir={sort.dir} />
@@ -1016,7 +1016,7 @@ export function TeamPanel({
                     <button
                       type="button"
                       onClick={() => onSetSortColumn("razon")}
-                      className="flex w-full items-center gap-0.5 text-left hover:text-agro-700 dark:hover:text-agro-300"
+                      className="flex w-full items-center gap-0.5 text-left hover:text-emerald-700 dark:hover:text-emerald-300"
                     >
                       Razón
                       <SortArrow sortKey="razon" activeKey={sort.key} dir={sort.dir} />
@@ -1026,7 +1026,7 @@ export function TeamPanel({
                     <button
                       type="button"
                       onClick={() => onSetSortColumn("modificado")}
-                      className="flex w-full items-center gap-0.5 text-left hover:text-agro-700 dark:hover:text-agro-300"
+                      className="flex w-full items-center gap-0.5 text-left hover:text-emerald-700 dark:hover:text-emerald-300"
                     >
                       Modificado por
                       <SortArrow sortKey="modificado" activeKey={sort.key} dir={sort.dir} />
@@ -1036,7 +1036,7 @@ export function TeamPanel({
                     <button
                       type="button"
                       onClick={() => onSetSortColumn("fechaMod")}
-                      className="flex w-full flex-col items-start gap-0 text-left hover:text-agro-700 dark:hover:text-agro-300"
+                      className="flex w-full flex-col items-start gap-0 text-left hover:text-emerald-700 dark:hover:text-emerald-300"
                     >
                       <span className="flex items-center gap-0.5">
                         Fecha
@@ -1051,7 +1051,7 @@ export function TeamPanel({
                     <button
                       type="button"
                       onClick={() => onSetSortColumn("duracion")}
-                      className="ml-auto flex w-full items-center justify-end gap-0.5 hover:text-agro-700 dark:hover:text-agro-300"
+                      className="ml-auto flex w-full items-center justify-end gap-0.5 hover:text-emerald-700 dark:hover:text-emerald-300"
                     >
                       Duración
                       <SortArrow sortKey="duracion" activeKey={sort.key} dir={sort.dir} />
@@ -1061,7 +1061,7 @@ export function TeamPanel({
                     <button
                       type="button"
                       onClick={() => onSetSortColumn("extra")}
-                      className="ml-auto flex w-full items-center justify-end gap-0.5 hover:text-agro-700 dark:hover:text-agro-300"
+                      className="ml-auto flex w-full items-center justify-end gap-0.5 hover:text-emerald-700 dark:hover:text-emerald-300"
                       title="Por encima de la jornada estándar del resumen (hoursPerWorkingDay)"
                     >
                       Extra
@@ -1304,7 +1304,7 @@ export function TeamPanel({
                             <span
                               className={
                                 apiParte.tieneParte
-                                  ? "font-semibold text-teal-800 dark:text-teal-200"
+                                  ? "font-semibold text-emerald-800 dark:text-emerald-200"
                                   : "text-slate-400 dark:text-slate-500"
                               }
                             >
@@ -1439,7 +1439,7 @@ export function TeamPanel({
                           horarioWizard.onEnterWizard();
                           onSetFormError(null);
                         }}
-                        className="w-full rounded-xl border-2 border-agro-500 bg-agro-50 px-4 py-3 text-sm font-semibold text-agro-900 shadow-sm transition hover:bg-agro-100 disabled:opacity-60 dark:border-agro-600 dark:bg-agro-950/40 dark:text-agro-100 dark:hover:bg-agro-900/50"
+                        className="w-full rounded-xl border-2 border-emerald-600 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-100 disabled:opacity-60 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-900/50"
                       >
                         Modificar horario (imputación manual)
                       </button>

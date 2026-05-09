@@ -36,7 +36,7 @@ export default function SettingsPage() {
   if (!isReady || !user || !isSuperAdmin) {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 px-4">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
         <p className="text-sm text-slate-500 dark:text-slate-400">Comprobando permisos…</p>
       </div>
     );
@@ -60,7 +60,7 @@ export default function SettingsPage() {
             onClick={() => setTheme("light")}
             className={`flex items-center gap-2 rounded-lg border-2 px-4 py-2.5 text-sm font-medium transition ${
               theme === "light"
-                ? "border-agro-500 bg-agro-50 text-agro-800 dark:border-agro-400 dark:bg-agro-900/30 dark:text-agro-200"
+                ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-400 dark:bg-emerald-900/30 dark:text-emerald-200"
                 : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:bg-slate-600"
             }`}
           >
@@ -74,7 +74,7 @@ export default function SettingsPage() {
             onClick={() => setTheme("dark")}
             className={`flex items-center gap-2 rounded-lg border-2 px-4 py-2.5 text-sm font-medium transition ${
               theme === "dark"
-                ? "border-agro-500 bg-agro-50 text-agro-800 dark:border-agro-400 dark:bg-agro-900/30 dark:text-agro-200"
+                ? "border-emerald-600 bg-emerald-50 text-emerald-800 dark:border-emerald-400 dark:bg-emerald-900/30 dark:text-emerald-200"
                 : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:bg-slate-600"
             }`}
           >
@@ -98,7 +98,7 @@ export default function SettingsPage() {
           el menú y no podrán acceder a la pantalla.
         </p>
         <label className="inline-flex items-center gap-3">
-          <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-agro-500 dark:bg-slate-600">
+          <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-600 dark:bg-slate-600">
             <input
               type="checkbox"
               checked={enableTimeTracking}
@@ -152,7 +152,7 @@ export default function SettingsPage() {
               está desactivado. Las URLs directas redirigen al panel principal.
             </p>
             <label className="inline-flex items-center gap-3">
-              <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-agro-500 dark:bg-slate-600">
+              <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-600 dark:bg-slate-600">
                 <input
                   type="checkbox"
                   checked={enableOperativaYAnalisisMenu}
@@ -182,7 +182,7 @@ export default function SettingsPage() {
               generales.
             </p>
             <label className="inline-flex items-center gap-3">
-              <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-agro-500 dark:bg-slate-600">
+              <span className="relative inline-flex h-6 w-11 items-center rounded-full bg-slate-300 transition peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-600 dark:bg-slate-600">
                 <input
                   type="checkbox"
                   checked={enableAnimals}

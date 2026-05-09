@@ -100,7 +100,7 @@ export function ForgotModal({
                   onSetTargetDate(today);
                   onSetStep("pick_type");
                 }}
-                className="w-full rounded-xl bg-agro-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-agro-700 dark:hover:bg-agro-500"
+                className="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 dark:hover:bg-emerald-600"
               >
                 Continuar (hoy)
               </button>
@@ -124,7 +124,7 @@ export function ForgotModal({
                   onSetForgotMode("full_hoy");
                   onSetStep("full_start");
                 }}
-                className="w-full rounded-xl bg-agro-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-agro-700 dark:hover:bg-agro-500"
+                className="w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 dark:hover:bg-emerald-600"
               >
                 Toda la jornada
               </button>
@@ -178,7 +178,7 @@ export function ForgotModal({
               <button
                 type="button"
                 onClick={onSubmitSoloEntrada}
-                className="rounded-lg bg-agro-600 px-3 py-2 text-xs font-semibold text-white"
+                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white"
               >
                 Guardar entrada
               </button>
@@ -365,7 +365,7 @@ export function ForgotModal({
               <button
                 type="button"
                 onClick={() => onSubmitJornadaCompleta()}
-                className="rounded-lg bg-agro-600 px-3 py-2 text-xs font-semibold text-white"
+                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white"
               >
                 Registrar jornada
               </button>

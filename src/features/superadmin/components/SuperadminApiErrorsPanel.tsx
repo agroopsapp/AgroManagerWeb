@@ -4,7 +4,7 @@ import { MODAL_BACKDROP_CENTER, MODAL_SURFACE, MODAL_SURFACE_PAD } from "@/compo
 import { useSuperadminApiErrors } from "@/features/superadmin/hooks/useSuperadminApiErrors";
 
 const fieldClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500";
+  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500";
 
 const HTTP_METHODS = ["", "GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 

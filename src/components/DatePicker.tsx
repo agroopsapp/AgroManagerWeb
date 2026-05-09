@@ -89,7 +89,9 @@ export default function DatePicker({ value, onChange, min, max, className = "" }
   const maxDate = max ? parseISO(max).getTime() : null;
 
   return (
-    <div className={`min-w-[280px] rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-600 dark:bg-slate-800 ${className}`}>
+    <div
+      className={`box-border min-w-0 w-full max-w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-600 dark:bg-slate-800 ${className}`}
+    >
       <div className="mb-3 flex items-center justify-between">
         <button
           type="button"
@@ -139,9 +141,9 @@ export default function DatePicker({ value, onChange, min, max, className = "" }
               onClick={() => onChange(cell.iso!)}
               className={`aspect-square min-w-0 rounded text-sm transition ${
                 cell.isSelected
-                  ? "bg-agro-600 text-white hover:bg-agro-700 dark:bg-agro-500 dark:hover:bg-agro-600"
+                  ? "bg-emerald-700 text-white hover:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700"
                   : cell.isToday
-                    ? "bg-agro-100 font-semibold text-agro-800 hover:bg-agro-200 dark:bg-agro-900/50 dark:text-agro-200 dark:hover:bg-agro-900/70"
+                    ? "bg-emerald-100 font-semibold text-emerald-800 hover:bg-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
                     : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-600"
               } disabled:opacity-40 disabled:cursor-not-allowed`}
             >

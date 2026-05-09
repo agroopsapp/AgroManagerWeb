@@ -20,7 +20,7 @@ export function UserExcludedFromTimeTrackingControl({
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange(e.target.checked)}
-          className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-agro-600 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-800"
+          className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-800"
         />
         <span className="min-w-0">
           <span className="block text-sm font-medium text-slate-800 dark:text-slate-200">

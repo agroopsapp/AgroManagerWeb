@@ -161,7 +161,7 @@ export const FichajeTipoDonut = memo(function FichajeTipoDonut({
       />
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center">
         {t > 0.01 ? (
-          <span className="text-xl font-bold leading-none tabular-nums text-agro-800 sm:text-2xl dark:text-emerald-400">
+          <span className="text-xl font-bold leading-none tabular-nums text-emerald-800 sm:text-2xl dark:text-emerald-400">
             {pctImputadoVsPotencial}%
           </span>
         ) : (
@@ -186,7 +186,7 @@ export const FichajeTipoDonut = memo(function FichajeTipoDonut({
         />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center">
           {t > 0.01 ? (
-            <span className="text-2xl font-bold leading-none tabular-nums text-agro-800 sm:text-3xl dark:text-emerald-400">
+            <span className="text-2xl font-bold leading-none tabular-nums text-emerald-800 sm:text-3xl dark:text-emerald-400">
               {pctImputadoVsPotencial}%
             </span>
           ) : (

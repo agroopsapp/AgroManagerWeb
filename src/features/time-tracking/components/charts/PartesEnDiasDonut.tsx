@@ -38,7 +38,7 @@ export const PartesEnDiasDonut = memo(function PartesEnDiasDonut({
             />
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center">
               {diasImputados > 0 ? (
-                <span className="text-2xl font-bold leading-none tabular-nums text-agro-800 sm:text-3xl dark:text-emerald-400">
+                <span className="text-2xl font-bold leading-none tabular-nums text-emerald-800 sm:text-3xl dark:text-emerald-400">
                   {pct}%
                 </span>
               ) : (

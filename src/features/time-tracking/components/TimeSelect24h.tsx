@@ -18,7 +18,7 @@ export const TimeSelect24h = memo(function TimeSelect24h({
 }) {
   const { h, m } = parseHHMM(value);
   const sel =
-    "mt-1 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-agro-500 focus:ring-1 focus:ring-agro-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
+    "mt-1 w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100";
 
   return (
     <div className="mt-2 flex flex-wrap items-end gap-2 sm:gap-3">

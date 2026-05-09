@@ -171,7 +171,7 @@ export function BreakModal({
             <div className="mt-4 flex flex-col gap-2">
               <button
                 type="button"
-                className="w-full rounded-xl bg-agro-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm"
+                className="w-full rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm"
                 onClick={() => {
                   onSetRestAnswerHadBreak(false);
                   onSetRestMinutes(0);
@@ -229,7 +229,7 @@ export function BreakModal({
                   onSetAskAmountError(null);
                 }}
               />
-              <p className="mt-1 text-center text-sm font-semibold text-agro-700 dark:text-agro-400">
+              <p className="mt-1 text-center text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                 Total: {formatMinutesShort(restClockHour * 60 + restClockMinute)}
               </p>
               {askAmountError && (
@@ -249,7 +249,7 @@ export function BreakModal({
               <button
                 type="button"
                 onClick={onConfirmRestAmount}
-                className="rounded-lg bg-agro-600 px-3 py-2 text-xs font-semibold text-white hover:bg-agro-700"
+                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
               >
                 Continuar
               </button>
@@ -322,7 +322,7 @@ export function BreakModal({
                       onSetWorkPartModalMode("create");
                       onSetStep("workPart");
                     }}
-                    className="rounded-lg bg-agro-600 px-3 py-2 text-xs font-semibold text-white hover:bg-agro-700"
+                    className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
                   >
                     Confirmar y fichar salida
                   </button>
@@ -427,7 +427,7 @@ export function BreakModal({
                           disabled={
                             workPartServices.length === 0 || workPartCompanies.length === 0
                           }
-                          className="w-full shrink-0 rounded-lg border-2 border-agro-600 bg-agro-50 px-3 py-2 text-xs font-semibold text-agro-800 hover:bg-agro-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-agro-500 dark:bg-agro-950/40 dark:text-agro-200 dark:hover:bg-agro-900/50 sm:w-auto sm:py-1.5"
+                          className="w-full shrink-0 rounded-lg border-2 border-emerald-700 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-900/50 sm:w-auto sm:py-1.5"
                         >
                           + Añadir tarea
                         </button>
@@ -688,7 +688,7 @@ export function BreakModal({
                         type="button"
                         disabled={workPartPdfLoading || workPartDataLoading}
                         onClick={onGenerateWorkPartPdf}
-                        className="rounded-lg border border-agro-600 bg-white px-3 py-2 text-xs font-semibold text-agro-800 hover:bg-agro-50 disabled:opacity-50 dark:border-agro-500 dark:bg-slate-800 dark:text-agro-200 dark:hover:bg-agro-900/30"
+                        className="rounded-lg border border-emerald-700 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-600 dark:bg-slate-800 dark:text-emerald-200 dark:hover:bg-emerald-900/30"
                       >
                         {workPartPdfLoading ? "Generando PDF…" : "Descargar PDF"}
                       </button>
@@ -721,7 +721,7 @@ export function BreakModal({
                     className={`rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 ${
                       workPartJustSaved
                         ? "bg-emerald-600 hover:bg-emerald-600"
-                        : "bg-agro-600 hover:bg-agro-700"
+                        : "bg-emerald-700 hover:bg-emerald-800"
                     }`}
                   >
                     {workPartJustSaved

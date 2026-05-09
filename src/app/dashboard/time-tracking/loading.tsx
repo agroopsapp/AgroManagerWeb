@@ -2,7 +2,7 @@ export default function TimeTrackingLoading() {
   return (
     <div className="min-w-0 max-w-full space-y-4">
       {/* Banner cabecera — misma forma y gradiente que el real */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-agro-600 via-emerald-500 to-sky-500 px-4 py-3 shadow-sm sm:px-5">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-500 px-4 py-3 shadow-sm sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 space-y-2">
             <div className="h-3 w-32 rounded bg-white/30" />

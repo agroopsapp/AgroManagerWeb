@@ -296,7 +296,7 @@ export default function UsersPage() {
           <button
             type="button"
             onClick={openCreate}
-            className="rounded-lg bg-agro-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-agro-700"
+            className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-800"
           >
             Nuevo usuario
           </button>
@@ -340,7 +340,7 @@ export default function UsersPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("name")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Nombre {sortKey === "name" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -349,7 +349,7 @@ export default function UsersPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("email")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Email {sortKey === "email" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -359,7 +359,7 @@ export default function UsersPage() {
                   <button
                     type="button"
                     onClick={() => toggleSort("role")}
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Rol {sortKey === "role" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -369,7 +369,7 @@ export default function UsersPage() {
                     type="button"
                     onClick={() => toggleSort("excluded")}
                     title="Excluido del registro de jornada (fichador)"
-                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-agro-600 dark:text-slate-200 dark:hover:text-agro-400"
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
                   >
                     Excl. jornada {sortKey === "excluded" && (sortDir === "asc" ? "↑" : "↓")}
                   </button>
@@ -399,7 +399,7 @@ export default function UsersPage() {
                           aria-label="Copiar teléfono"
                         >
                           {copiedId === user.id ? (
-                            <span className="text-xs font-medium text-green-600 dark:text-green-400">Copiado</span>
+                            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">Copiado</span>
                           ) : (
                             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h2m0 8h8a2 2 0 002-2v-2m0 8V6a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -526,7 +526,7 @@ export default function UsersPage() {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   required
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Ej. Juan Pérez"
                 />
               </div>
@@ -540,7 +540,7 @@ export default function UsersPage() {
                   value={formEmail}
                   onChange={(e) => setFormEmail(e.target.value)}
                   required
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="usuario@ejemplo.com"
                 />
               </div>
@@ -553,7 +553,7 @@ export default function UsersPage() {
                   type="tel"
                   value={formPhone}
                   onChange={(e) => setFormPhone(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="Ej. +34 612 345 678"
                 />
               </div>
@@ -570,7 +570,7 @@ export default function UsersPage() {
                       onChange={(e) => setFormPassword(e.target.value)}
                       required
                       autoComplete="new-password"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                       placeholder="••••••••"
                     />
                   </div>
@@ -585,7 +585,7 @@ export default function UsersPage() {
                       onChange={(e) => setFormPasswordConfirm(e.target.value)}
                       required
                       autoComplete="new-password"
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                       placeholder="••••••••"
                     />
                   </div>
@@ -599,7 +599,7 @@ export default function UsersPage() {
                   id="user-role"
                   value={formRoleId}
                   onChange={(e) => setFormRoleId(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
                 >
                   {roles.map((role) => (
                     <option key={role.id} value={role.id}>
@@ -624,7 +624,7 @@ export default function UsersPage() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700 disabled:opacity-60"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
                 >
                   {saving ? "Guardando..." : editingUser ? "Guardar" : "Crear"}
                 </button>
@@ -668,7 +668,7 @@ export default function UsersPage() {
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
                   autoComplete="new-password"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="••••••••"
                 />
               </div>
@@ -683,7 +683,7 @@ export default function UsersPage() {
                   onChange={(e) => setNewPasswordConfirm(e.target.value)}
                   required
                   autoComplete="new-password"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-agro-500 focus:outline-none focus:ring-1 focus:ring-agro-500 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
                   placeholder="••••••••"
                 />
               </div>
@@ -698,7 +698,7 @@ export default function UsersPage() {
                 <button
                   type="submit"
                   disabled={passwordSaving}
-                  className="rounded-lg bg-agro-600 px-4 py-2 text-sm font-medium text-white hover:bg-agro-700 disabled:opacity-60"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
                 >
                   {passwordSaving ? "Guardando..." : "Actualizar contraseña"}
                 </button>

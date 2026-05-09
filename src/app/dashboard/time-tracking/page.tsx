@@ -318,7 +318,7 @@ export default function TimeTrackingPage() {
               </p>
               <Link
                 href="/dashboard/time-tracking/vacaciones-y-festivos"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-agro-700 underline-offset-2 hover:text-agro-800 hover:underline dark:text-agro-400 dark:hover:text-agro-300"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 underline-offset-2 hover:text-emerald-800 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
               >
                 <span aria-hidden>📅</span>
                 Ver calendario de vacaciones y festivos
@@ -361,7 +361,7 @@ export default function TimeTrackingPage() {
             Para ajustar días o fichajes, entra en{" "}
             <Link
               href="/dashboard/team-hours"
-              className="font-semibold text-agro-700 underline-offset-2 hover:underline dark:text-agro-400"
+              className="font-semibold text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400"
             >
               Fichajes y partes
             </Link>{" "}

@@ -24,7 +24,7 @@ const filterLabelClass =
   "text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500";
 
 const compactSelectClass =
-  "rounded-md border border-slate-200/80 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm outline-none transition cursor-pointer focus:border-agro-600/45 focus:ring-1 focus:ring-agro-500/15 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-agro-500/70";
+  "rounded-md border border-slate-200/80 bg-white px-2 py-1 text-xs text-slate-900 shadow-sm outline-none transition cursor-pointer focus:border-emerald-700/45 focus:ring-1 focus:ring-emerald-600/15 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-600/70";
 
 /** Total anual de referencia solo para la UI (sustituir por API: días concedidos por persona/año). */
 const VACACIONES_SALDO_MOCK_CONCEDIDOS_ANUAL = 22;
@@ -182,7 +182,7 @@ export default function VacacionesYFestivosPage() {
   if (!isReady) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
       </div>
     );
   }
@@ -213,7 +213,7 @@ export default function VacacionesYFestivosPage() {
         <div className="p-4 sm:p-6 lg:p-8">
           {!hydrated ? (
             <div className="flex justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-agro-500 border-t-transparent" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
             </div>
           ) : (
             <div className="flex min-h-0 flex-col gap-4 lg:grid lg:grid-cols-[minmax(13rem,18rem)_minmax(0,1fr)] lg:items-stretch">

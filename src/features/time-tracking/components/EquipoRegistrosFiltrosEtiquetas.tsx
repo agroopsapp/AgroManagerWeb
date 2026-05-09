@@ -24,7 +24,7 @@ const chipAmberClass =
   "inline-flex max-w-full items-center rounded-full border border-amber-200/90 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold leading-tight text-amber-950 shadow-sm dark:border-amber-800/80 dark:bg-amber-950/40 dark:text-amber-50";
 
 const chipTealClass =
-  "inline-flex max-w-full items-center rounded-full border border-teal-200/90 bg-teal-50 px-2.5 py-1 text-[10px] font-semibold leading-tight text-teal-950 shadow-sm dark:border-teal-800/80 dark:bg-teal-950/40 dark:text-teal-50";
+  "inline-flex max-w-full items-center rounded-full border border-emerald-200/90 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold leading-tight text-emerald-950 shadow-sm dark:border-emerald-800/80 dark:bg-emerald-950/40 dark:text-emerald-50";
 
 export interface EquipoRegistrosFiltrosEtiquetasProps {
   periodo: EquipoPeriodoVista;

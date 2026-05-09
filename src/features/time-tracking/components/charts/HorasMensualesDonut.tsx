@@ -117,7 +117,7 @@ export const HorasMensualesDonut = memo(function HorasMensualesDonut({
         />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-2 text-center">
           {jl > 0 ? (
-            <span className="text-xl font-bold leading-none tabular-nums text-agro-800 sm:text-2xl dark:text-emerald-400">
+            <span className="text-xl font-bold leading-none tabular-nums text-emerald-800 sm:text-2xl dark:text-emerald-400">
               {pctParteSobreLaborables}%
             </span>
           ) : (
