@@ -70,7 +70,7 @@ function bodyUpdate(body: MaterialUpdateBody): MaterialUpdateBody {
 
 /**
  * Builder del payload para crear materiales desde la UI.
- * Nota: el contrato tipado actual de `/api/Materials` en este proyecto usa `unitOfMeasure`.
+ * Nota: el contrato tipado de materiales en este proyecto usa `unitOfMeasure`.
  */
 export function buildMaterialCreatePayload(input: {
   companyId: string;

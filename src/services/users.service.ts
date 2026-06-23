@@ -13,7 +13,9 @@ interface ApiUser {
   roleName?: string;
   createdAt?: string;
   companyId?: string;
+  CompanyId?: string;
   companyName?: string;
+  CompanyName?: string;
   excludedFromTimeTracking?: boolean | null;
   ExcludedFromTimeTracking?: boolean | null;
 }
@@ -33,13 +35,19 @@ function mapApiUserToUser(apiUser: ApiUser): User {
     phone: (apiUser.telefono ?? apiUser.phone ?? "").trim(),
     roleId: apiUser.roleId ?? "",
     roleName: apiUser.roleName,
-    companyId: apiUser.companyId,
-    companyName: apiUser.companyName,
+    companyId:
+      apiUser.companyId != null
+        ? String(apiUser.companyId)
+        : apiUser.CompanyId != null
+          ? String(apiUser.CompanyId)
+          : undefined,
+    companyName:
+      (apiUser.companyName ?? apiUser.CompanyName)?.toString().trim() || undefined,
     excludedFromTimeTracking: parseExcludedFromTimeTracking(apiUser),
   };
 }
 
-/** Body para POST /api/Users (mismo contrato que en Postman). */
+/** Body de alta de usuario. */
 export interface CreateUserPayload {
   companyId: string;
   name: string;
@@ -52,7 +60,7 @@ export interface CreateUserPayload {
 }
 
 /**
- * Body para `PUT /api/Users/{userId}` (UpdateUserRequest).
+ * Body de actualización de usuario (UpdateUserRequest).
  * El backend espera `companyId`, `name`, `email`, `roleId`, `telefono` y `excludedFromTimeTracking`.
  */
 export interface UpdateUserPayload {
@@ -80,14 +88,14 @@ function toUpdateUserWire(body: UpdateUserPayload): Record<string, unknown> {
   return wire;
 }
 
-/** Body para PATCH /api/Users/{userId}/password */
+/** Body de cambio de contraseña. */
 export interface ChangePasswordPayload {
   password: string;
 }
 
 export const usersApi = {
   /**
-   * GET `/api/Users` (ámbito según token / políticas del backend).
+   * Listado de usuarios (ámbito según token / políticas del backend).
    * Filtro opcional (backend): `?excludedFromTimeTracking=true` (solo los excluidos).
    */
   async getAll(opts?: { signal?: AbortSignal; excludedFromTimeTracking?: boolean }) {
@@ -107,7 +115,7 @@ export const usersApi = {
   },
 
   /**
-   * `PUT /api/Users/{userId}`. Si la API responde 204 o sin JSON, se vuelve a pedir el usuario con GET.
+   * Actualización de usuario. Si el servidor responde 204 o sin JSON, se vuelve a pedir el usuario.
    */
   update(id: string, body: UpdateUserPayload, opts?: { signal?: AbortSignal }) {
     const userId = id.trim();
@@ -125,13 +133,13 @@ export const usersApi = {
       });
   },
 
-  /** PATCH /api/Users/{userId}/password → [HttpPatch("{userId:guid}/password")] */
+  /** Cambio de contraseña del usuario. */
   changePassword(userId: string, body: ChangePasswordPayload) {
     const id = userId.trim();
     return apiClient.patch<void>(`${BASE}/${encodeURIComponent(id)}/password`, body);
   },
 
-  /** DELETE /api/Users/{userId} → encaja con [HttpDelete("{userId:guid}")] */
+  /** Baja de usuario. */
   delete(id: string) {
     const userId = id.trim();
     return apiClient.delete<void>(`${BASE}/${encodeURIComponent(userId)}`);

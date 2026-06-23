@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Campo compartido crear/editar usuario: `excludedFromTimeTracking` en POST/PUT `/api/Users`.
+ * Campo compartido crear/editar usuario: `excludedFromTimeTracking`.
  */
 export function UserExcludedFromTimeTrackingControl({
   id,

@@ -104,8 +104,8 @@ export function useForgotModal({
   }, []);
 
   /**
-   * POST /api/TimeEntries exige `companyId` GUID; `""` provoca 400 en ASP.NET.
-   * Orden: sesión (login) → fichajes cargados → GET Users → perfil «Mi empresa» (local).
+   * El alta de fichaje exige `companyId` GUID; `""` provoca 400 en el servidor.
+   * Orden: sesión (login) → fichajes cargados → usuario → perfil «Mi empresa» (local).
    */
   const resolveCompanyIdForManualClosed = async (): Promise<string | null> => {
     const fromSession =

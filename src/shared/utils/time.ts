@@ -112,6 +112,18 @@ export function formatMinutesShort(totalMinutes: number | null): string {
   return `${h} h ${m} min`;
 }
 
+/** Diferencias con signo: «-3 h», «+45 min», «-2 h 5 min». */
+export function formatSignedMinutesShort(totalMinutes: number): string {
+  if (totalMinutes === 0) return "0 min";
+  const sign = totalMinutes > 0 ? "+" : "-";
+  const abs = Math.abs(Math.round(totalMinutes));
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  if (h === 0) return `${sign}${m} min`;
+  if (m === 0) return `${sign}${h} h`;
+  return `${sign}${h} h ${m} min`;
+}
+
 export function formatDateES(iso: string): string {
   const d = new Date(iso + "T12:00:00");
   return d.toLocaleDateString("es-ES", {
@@ -123,6 +135,15 @@ export function formatDateES(iso: string): string {
 }
 
 /** Tabla equipo: «lunes 13/04/2026» (menos ancho que `formatDateES`). */
+/** Título compacto para rejillas mensuales: «Mayo 2026» (mes largo + año). */
+export function formatMonthYearTitleEs(iso: string): string {
+  const d = new Date(iso + "T12:00:00");
+  const month = d.toLocaleDateString("es-ES", { month: "long" });
+  const y = d.getFullYear();
+  const cap = month.charAt(0).toUpperCase() + month.slice(1);
+  return `${cap} ${y}`;
+}
+
 export function formatDateEsWeekdayDdMmYyyy(iso: string): string {
   const d = new Date(iso + "T12:00:00");
   const weekday = d.toLocaleDateString("es-ES", { weekday: "long" });

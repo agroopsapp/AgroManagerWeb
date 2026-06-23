@@ -8,8 +8,13 @@ import {
   parseForgotBreakCustom,
   utcToLocalHHMM,
 } from "@/shared/utils/time";
-import { isSinJornadaImputableRazon } from "@/features/time-tracking/utils/formatters";
+import { equipoAbsenceEtiquetaKind, isSinJornadaImputableRazon, isAbsenceCalendarApiStatus } from "@/features/time-tracking/utils/formatters";
 import { isApplicationUserGuid } from "@/features/time-tracking/utils/applicationUserId";
+import {
+  isVacationTimeEntry,
+  modalExistingRequiresUpdate,
+  resolveServerTimeEntryId,
+} from "@/features/time-tracking/utils/timeEntryRowKind";
 import type {
   EquipoWorkerOption,
   ForgotMode,
@@ -19,6 +24,9 @@ import type {
 import { timeEntryDtoToMock } from "@/features/time-tracking/utils/timeEntryDtoToMock";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { breakSummaryFromMinutes, timeTrackingApi } from "@/services/time-tracking.service";
+import { userVacationsApi } from "@/services/user-vacations.service";
+import { isCompanyHolidayOverlapError } from "@/features/time-tracking/utils/userVacationsMap";
+import { messageFromApiErrorJsonBody } from "@/shared/utils/apiErrorDisplay";
 
 type AuthUser = { id?: string; email?: string | null; role?: string; companyId?: string | null } | null | undefined;
 
@@ -126,6 +134,18 @@ export function useEquipoModal({
     return null;
   }, [equipoModal, equipoWorkersCatalog, user?.companyId, equipoSuperAdminCompanyId]);
 
+  /** Elimina fichaje previo antes de sustituirlo por vacación (solo otro tipo de jornada). */
+  const deleteExistingEntryForManualHorario = useCallback(
+    async (existing: TimeEntryMock, timeEntryId: string) => {
+      if (isVacationTimeEntry(existing)) {
+        await userVacationsApi.deleteOne(timeEntryId);
+        return;
+      }
+      await timeTrackingApi.deleteTimeEntry(timeEntryId);
+    },
+    [],
+  );
+
   /** Abre el asistente de jornada (crear o revisar horario) a partir de `existing` y fecha. */
   const aplicarEntradaWizardDesde = useCallback(
     (ex: TimeEntryMock | null, workDate: string) => {
@@ -136,7 +156,12 @@ export function useEquipoModal({
       setHorarioWizardStep("full_start");
       setHorarioWizardTargetDate(workDate);
       setHorarioWizardForgotMode("full_ayer");
-      if (ex && !isSinJornadaImputableRazon(ex.razon) && ex.checkOutUtc) {
+      const puedePrefillHorario =
+        ex &&
+        ex.checkOutUtc &&
+        !isAbsenceCalendarApiStatus(ex) &&
+        !isSinJornadaImputableRazon(ex.razon);
+      if (puedePrefillHorario && ex.checkOutUtc) {
         setHorarioFullStart(utcToLocalHHMM(ex.checkInUtc));
         setHorarioFullEnd(utcToLocalHHMM(ex.checkOutUtc));
         setHorarioFullBreakMins(ex.breakMinutes ?? 30);
@@ -252,10 +277,6 @@ export function useEquipoModal({
       return;
     }
 
-    const apiStatus =
-      tipo === "vacaciones" ? "Vacation" : tipo === "baja" ? "SickLeave" : "NonWorkingDay";
-    const { startAt, endAt } = absencePlaceholderRangeUtc(workDate);
-
     const tab = equipoTablaScrollRef.current;
     if (tab) {
       equipoRestaurarScroll.current = { top: tab.scrollTop, left: tab.scrollLeft };
@@ -265,37 +286,86 @@ export function useEquipoModal({
     setEquipoFormError(null);
     setEquipoAbsenceSaving(true);
     try {
-      const timeEntryId =
-        typeof existing?.timeEntryId === "string" && existing.timeEntryId.trim().length > 0
-          ? existing.timeEntryId.trim()
-          : null;
-
-      if (timeEntryId) {
-        await timeTrackingApi.updateTimeEntry(timeEntryId, {
-          workDate,
-          startAt,
-          endAt,
-          status: apiStatus,
-          breakMinutes: 0,
-          breakSummary: breakSummaryFromMinutes(0),
-          isManuallyCompleted: true,
-        });
+      if (tipo === "vacaciones") {
+        if (existing && equipoAbsenceEtiquetaKind(existing) === "vacaciones") {
+          cerrarEquipoModal();
+          return;
+        }
+        const teId = resolveServerTimeEntryId(existing);
+        if (teId && existing && equipoAbsenceEtiquetaKind(existing) !== "vacaciones") {
+          await deleteExistingEntryForManualHorario(existing, teId);
+        }
+        const createVacation = async (confirmOverlaps: boolean) => {
+          await userVacationsApi.create({
+            companyId,
+            userId: targetUserId!,
+            date: workDate,
+            confirmOverlapsCompanyHoliday: confirmOverlaps,
+          });
+        };
+        try {
+          await createVacation(false);
+        } catch (e) {
+          const msg =
+            e && typeof e === "object" && "status" in e && "message" in e
+              ? messageFromApiErrorJsonBody(
+                  (e as { body?: unknown }).body,
+                  (e as { status: number }).status,
+                  (e as { message: string }).message,
+                ) || (e as { message: string }).message
+              : e instanceof Error
+                ? e.message
+                : "";
+          if (isCompanyHolidayOverlapError(msg)) {
+            const ok = window.confirm(
+              `${msg}\n\n¿Quieres asignar la vacación de todos modos?`,
+            );
+            if (!ok) return;
+            await createVacation(true);
+          } else {
+            throw e;
+          }
+        }
       } else {
-        await timeTrackingApi.createTimeEntry({
-          companyId,
-          userId: targetUserId!,
-          workDate,
-          startAt,
-          endAt,
-          status: apiStatus,
-          breakMinutes: 0,
-          breakSummary: breakSummaryFromMinutes(0),
-        });
+        const apiStatus = tipo === "baja" ? "SickLeave" : "NonWorkingDay";
+        const { startAt, endAt } = absencePlaceholderRangeUtc(workDate);
+        const timeEntryId = resolveServerTimeEntryId(existing);
+
+        if (modalExistingRequiresUpdate(existing)) {
+          if (!timeEntryId) {
+            setEquipoFormError(
+              "Este día ya tiene registro en la tabla pero falta el identificador del servidor. Recarga la vista e inténtalo de nuevo.",
+            );
+            return;
+          }
+          await timeTrackingApi.updateTimeEntry(timeEntryId, {
+            workDate,
+            startAt,
+            endAt,
+            status: apiStatus,
+            breakMinutes: 0,
+            breakSummary: breakSummaryFromMinutes(0),
+            isManuallyCompleted: true,
+          });
+        } else {
+          await timeTrackingApi.createTimeEntry({
+            companyId,
+            userId: targetUserId!,
+            workDate,
+            startAt,
+            endAt,
+            status: apiStatus,
+            breakMinutes: 0,
+            breakSummary: breakSummaryFromMinutes(0),
+          });
+        }
       }
 
       refetchEquipoRows();
       cerrarEquipoModal();
-      showSuccess("Ausencia guardada correctamente.");
+      showSuccess(
+        tipo === "vacaciones" ? "Vacación guardada correctamente." : "Ausencia guardada correctamente.",
+      );
     } catch (e) {
       setEquipoFormError(
         userVisibleMessageFromUnknown(e, "No se pudo guardar la ausencia. Revisa permisos y datos."),
@@ -308,10 +378,7 @@ export function useEquipoModal({
   const eliminarEquipoFichaje = async () => {
     if (!equipoModal || equipoFichajeDeleting || equipoAbsenceSaving) return;
     const { existing } = equipoModal;
-    const timeEntryId =
-      typeof existing?.timeEntryId === "string" && existing.timeEntryId.trim().length > 0
-        ? existing.timeEntryId.trim()
-        : null;
+    const timeEntryId = resolveServerTimeEntryId(existing);
     if (!timeEntryId) {
       setEquipoFormError(
         "Este día no tiene un fichaje guardado en el servidor (solo hueco en calendario). No hay nada que eliminar.",
@@ -332,10 +399,15 @@ export function useEquipoModal({
     setEquipoFormError(null);
     setEquipoFichajeDeleting(true);
     try {
-      await timeTrackingApi.deleteTimeEntry(timeEntryId);
+      const isVacation = existing != null && isVacationTimeEntry(existing);
+      if (isVacation) {
+        await userVacationsApi.deleteOne(timeEntryId);
+      } else {
+        await timeTrackingApi.deleteTimeEntry(timeEntryId);
+      }
       refetchEquipoRows();
       cerrarEquipoModal();
-      showSuccess("Fichaje eliminado del servidor.");
+      showSuccess(isVacation ? "Vacación eliminada." : "Fichaje eliminado del servidor.");
     } catch (e) {
       setEquipoFormError(
         userVisibleMessageFromUnknown(
@@ -401,16 +473,19 @@ export function useEquipoModal({
     setHorarioWizardSaving(true);
     try {
       const companyId = resolveCompanyIdForAbsence();
-      const timeEntryId =
-        typeof existing?.timeEntryId === "string" && existing.timeEntryId.trim().length > 0
-          ? existing.timeEntryId.trim()
-          : null;
+      const timeEntryId = resolveServerTimeEntryId(existing);
 
       const breakSummary = breakSummaryFromMinutes(breakMin);
 
       let entryParaParte: TimeEntryMock | null = null;
 
-      if (timeEntryId) {
+      if (modalExistingRequiresUpdate(existing)) {
+        if (!timeEntryId) {
+          setHorarioWizardError(
+            "Este día ya tiene registro en la tabla pero falta el identificador del servidor. Recarga la vista e inténtalo de nuevo.",
+          );
+          return;
+        }
         await timeTrackingApi.updateTimeEntry(timeEntryId, {
           workDate,
           startAt: checkInUtc,
@@ -440,16 +515,17 @@ export function useEquipoModal({
           timeEntryId,
           workerId: equipoModal.workerId,
           timeEntryStatus: "Closed",
+          razon: "imputacion_manual_error",
         };
       } else {
         if (!companyId) {
           setHorarioWizardError(
-            "Falta companyId para crear el fichaje. Revisa empresa del trabajador o sesión.",
+            "Falta companyId para guardar el horario. Revisa empresa del trabajador o sesión.",
           );
           return;
         }
         const created = await timeTrackingApi.createTimeEntry({
-          companyId,
+          companyId: companyId!,
           userId: targetUserId!,
           workDate,
           startAt: checkInUtc,

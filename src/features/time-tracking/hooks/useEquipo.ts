@@ -49,6 +49,13 @@ import {
   type TimeEntryRowsHeatmapDto,
   type TimeEntryRowsHeatmapPartsDto,
 } from "@/services";
+import {
+  countGridCellsForCharts,
+  dailyCapMinutesFromSummary,
+  isTimeEntryAbsenceForKpi,
+  minutosImputadosFromFilas,
+  workedMinutesForPeriodTotal,
+} from "@/features/time-tracking/utils/teamHoursKpiScope";
 import { mapTimeEntryRowsItemToMock } from "@/features/time-tracking/utils/mapTimeEntryRowsItemToMock";
 import type {
   TimeEntryMock,
@@ -61,6 +68,7 @@ import {
   buildEquipoDenseGridRows,
   entryStablePersonKey,
   indexEquipoEntriesByPersonAndDate,
+  normalizePersonKey,
   uniquePersonKeysInRange,
   workerIdFromPersonKey,
 } from "@/features/time-tracking/utils/equipoGridMerge";
@@ -257,6 +265,11 @@ export type UseEquipoOptions = {
    */
   enableEquipoCompanyFilter?: boolean;
   /**
+   * Si true, carga catálogos de empresa y servicio para filtrar fichajes/partes por alcance
+   * (sin listar todo el equipo en «Persona»). Workers en Fichajes y partes.
+   */
+  enableEquipoAlcanceFiltros?: boolean;
+  /**
    * Si true, incluye (y muestra) usuarios con `excludedFromTimeTracking=true` en el combo «Persona»
    * y en el grid. Si false (por defecto), se ocultan visualmente (UX) como hasta ahora.
    */
@@ -267,6 +280,8 @@ export type UseEquipoOptions = {
 
 export function useEquipo(options?: UseEquipoOptions) {
   const enableEquipoCompanyFilter = options?.enableEquipoCompanyFilter === true;
+  const enableEquipoAlcanceFiltros = options?.enableEquipoAlcanceFiltros === true;
+  const loadEquipoAlcanceCatalogs = enableEquipoCompanyFilter || enableEquipoAlcanceFiltros;
   const includeExcludedFromTimeTracking = options?.includeExcludedFromTimeTracking === true;
   const { user: authUser } = useAuth();
   const [filtroPersonaEquipo, setFiltroPersonaEquipo] = useState<string | "todas">("todas");
@@ -280,7 +295,7 @@ export function useEquipo(options?: UseEquipoOptions) {
     return `${now.getFullYear()}-Q${q}`;
   });
   const [anioEquipo, setAnioEquipo] = useState(currentYearLocal());
-  /** Con periodo «Año»: mes 1–12 del detalle (GET /rows por mes; resumen anual en /rows/summary). */
+  /** Con periodo «Año»: mes 1–12 del detalle por mes; resumen anual aparte. */
   const [equipoAnioMesPagina, setEquipoAnioMesPagina] = useState(() => new Date().getMonth() + 1);
   /** Tabla: como radios — solo uno de los tres modos extra o ninguno. */
   const [equipoTablaFiltroExtra, setEquipoTablaFiltroExtra] =
@@ -298,11 +313,15 @@ export function useEquipo(options?: UseEquipoOptions) {
 
   /** Restablece alcance (empresa, persona, servicio) y vista rápida; no cambia periodo ni fechas. */
   const equipoBorrarFiltrosAlcance = useCallback(() => {
-    setFiltroPersonaEquipo("todas");
+    if (!enableEquipoCompanyFilter && authUser?.id) {
+      setFiltroPersonaEquipo(authUser.id);
+    } else {
+      setFiltroPersonaEquipo("todas");
+    }
     setEquipoSuperAdminCompanyId(null);
     setEquipoServiceId(null);
     setEquipoTablaFiltroExtra("ninguno");
-  }, []);
+  }, [enableEquipoCompanyFilter, authUser?.id]);
 
   const opcionesMesEquipo = useMemo(() => monthSelectOptions(12), []);
   const opcionesTrimestre = useMemo(() => quarterOptions(3), []);
@@ -325,15 +344,15 @@ export function useEquipo(options?: UseEquipoOptions) {
   const [equipoRowsLoading, setEquipoRowsLoading] = useState(false);
   const [equipoRowsError, setEquipoRowsError] = useState<string | null>(null);
   const [equipoRowsTotalCount, setEquipoRowsTotalCount] = useState(0);
-  /** Resumen GET /api/TimeEntries/rows/summary (KPIs y gráficos). */
+  /** Resumen de filas (KPIs y gráficos). */
   const [equipoSummary, setEquipoSummary] = useState<TimeEntryRowsSummaryDto | null>(null);
   const [equipoSummaryLoading, setEquipoSummaryLoading] = useState(false);
   const [equipoSummaryError, setEquipoSummaryError] = useState<string | null>(null);
-  /** Heatmap GET /api/TimeEntries/rows/heatmap (cumplimiento semanal por día). */
+  /** Heatmap de cumplimiento semanal por día. */
   const [equipoHeatmap, setEquipoHeatmap] = useState<TimeEntryRowsHeatmapDto | null>(null);
   const [equipoHeatmapLoading, setEquipoHeatmapLoading] = useState(false);
   const [equipoHeatmapError, setEquipoHeatmapError] = useState<string | null>(null);
-  /** Heatmap GET /api/TimeEntries/rows/heatmap-parts (disciplina de partes por día). */
+  /** Heatmap de disciplina de partes por día. */
   const [equipoHeatmapParts, setEquipoHeatmapParts] =
     useState<TimeEntryRowsHeatmapPartsDto | null>(null);
   const [equipoHeatmapPartsLoading, setEquipoHeatmapPartsLoading] = useState(false);
@@ -345,6 +364,16 @@ export function useEquipo(options?: UseEquipoOptions) {
     setEquipoFetchNonce((n) => n + 1);
   }, []);
 
+  /** Al volver a la pestaña, recargar filas (p. ej. vacaciones planificadas asignadas en otra pantalla). */
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refetchEquipoRows();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refetchEquipoRows]);
+
   /** Filtro exclusivo SuperAdmin: restringe fichajes y plantilla visibles a una empresa (null = todas). */
   const [equipoSuperAdminCompanyId, setEquipoSuperAdminCompanyId] = useState<string | null>(null);
   const [equipoCompaniesCatalog, setEquipoCompaniesCatalog] = useState<
@@ -353,7 +382,7 @@ export function useEquipo(options?: UseEquipoOptions) {
   const [equipoCompaniesLoading, setEquipoCompaniesLoading] = useState(false);
   const [equipoCompaniesError, setEquipoCompaniesError] = useState<string | null>(null);
 
-  /** Filtro grid: GET /api/TimeEntries/rows?serviceId=… (null = todos). */
+  /** Filtro grid por servicio (null = todos). */
   const [equipoServiceId, setEquipoServiceId] = useState<string | null>(null);
   const [equipoServicesCatalog, setEquipoServicesCatalog] = useState<{ id: string; name: string }[]>(
     [],
@@ -388,7 +417,7 @@ export function useEquipo(options?: UseEquipoOptions) {
   }, []);
 
   useEffect(() => {
-    if (!enableEquipoCompanyFilter) {
+    if (!loadEquipoAlcanceCatalogs) {
       setEquipoSuperAdminCompanyId(null);
       setEquipoCompaniesCatalog([]);
       setEquipoCompaniesError(null);
@@ -423,14 +452,14 @@ export function useEquipo(options?: UseEquipoOptions) {
     return () => {
       cancelled = true;
     };
-  }, [enableEquipoCompanyFilter]);
+  }, [loadEquipoAlcanceCatalogs]);
 
   /**
-   * Catálogo GET /api/Services con Bearer (sin `companyId` en query).
+   * Catálogo de servicios (sin `companyId` en query).
    * El backend acota por la empresa del token; independiente del combo «Empresas» del grid.
    */
   useEffect(() => {
-    if (!enableEquipoCompanyFilter) {
+    if (!loadEquipoAlcanceCatalogs) {
       setEquipoServiceId(null);
       setEquipoServicesCatalog([]);
       setEquipoServicesError(null);
@@ -465,10 +494,10 @@ export function useEquipo(options?: UseEquipoOptions) {
       cancelled = true;
       ac.abort();
     };
-  }, [enableEquipoCompanyFilter]);
+  }, [loadEquipoAlcanceCatalogs]);
 
   /**
-   * Servicio o empresa concreta en API: forzar «solo con parte en servidor» (misma razón que antes
+   * Servicio o empresa concreta: forzar «solo con parte en servidor» (misma razón que antes
    * solo con servicio — menos ruido en el grid). Sin ambos, vuelve a ningún filtro rápido.
    * El usuario puede cambiar después a «Sin fichar» / «Sin parte»; solo se reaplica al variar empresa/servicio.
    */
@@ -483,8 +512,8 @@ export function useEquipo(options?: UseEquipoOptions) {
   }, [equipoServiceId, equipoSuperAdminCompanyId]);
 
   /**
-   * Catálogo «Persona»: con filtro empresa (admin/manager) → GET /api/Users.
-   * Sin él (Worker): solo GET /api/Users/{id} — listar todos suele devolver 403; no llamamos a GetAll.
+   * Catálogo «Persona»: con filtro empresa (admin/manager) → listado de usuarios.
+   * Sin él (Worker): solo el usuario actual — listar todos suele devolver 403.
    */
   useEffect(() => {
     if (enableEquipoCompanyFilter) {
@@ -553,11 +582,14 @@ export function useEquipo(options?: UseEquipoOptions) {
     authUser?.companyId,
   ]);
 
-  /** Worker: por defecto «Persona» = yo (el desplegable muestra el nombre, no solo «Todos»). */
+  /** Worker (sin filtro empresa): persona fija = usuario actual; no «Todas». */
   useEffect(() => {
     if (enableEquipoCompanyFilter) return;
     if (!authUser?.id) return;
-    setFiltroPersonaEquipo((prev) => (prev === "todas" ? authUser.id : prev));
+    setFiltroPersonaEquipo((prev) => {
+      if (prev === "todas" || prev !== authUser.id) return authUser.id;
+      return prev;
+    });
   }, [enableEquipoCompanyFilter, authUser?.id]);
 
   // ----- Derived / memos -----
@@ -652,13 +684,13 @@ export function useEquipo(options?: UseEquipoOptions) {
     return { start: clamped.start, end: clamped.end };
   }, [equipoRange, equipoPeriodo, anioEquipo, equipoAnioMesPagina]);
 
-  /** Rango del grid/tabla y de GET /rows (coincide con `equipoRange` salvo en periodo «año» → un mes). */
+  /** Rango del grid/tabla de filas (coincide con `equipoRange` salvo en periodo «año» → un mes). */
   const equipoDetalleRange = useMemo(() => {
     if (!equipoRange) return null;
     return equipoVistaRange ?? equipoRange;
   }, [equipoVistaRange, equipoRange]);
 
-  /** Grid: GET /api/TimeEntries/rows en `equipoVistaRange` (mes si periodo=año). Summary: `equipoRange` completo. */
+  /** Grid en `equipoVistaRange` (mes si periodo=año). Resumen: `equipoRange` completo. */
   useEffect(() => {
     if (!equipoRange) {
       setTeamHistorialEntries([]);
@@ -909,6 +941,12 @@ export function useEquipo(options?: UseEquipoOptions) {
     if (!equipoSuperAdminCompanyId) return teamHistorialEntries;
     const selected = equipoSuperAdminCompanyId;
     return teamHistorialEntries.filter((e) => {
+      if (
+        e.rowKind === "companyHoliday" ||
+        e.timeEntryStatus === "FestivoEmpresa"
+      ) {
+        return true;
+      }
       const ids = e.clientCompanyIdsInReport;
       if (ids && ids.length > 0) return ids.includes(selected);
       return e.companyId != null && e.companyId === selected;
@@ -921,8 +959,8 @@ export function useEquipo(options?: UseEquipoOptions) {
       new Set(
         equipoWorkers
           .filter((w) => w.excludedFromTimeTracking === true)
-          .map((w) => w.id.trim())
-          .filter((id) => id.length > 0),
+          .map((w) => normalizePersonKey(w.id))
+          .filter((id): id is string => Boolean(id)),
       ),
     [equipoWorkers],
   );
@@ -942,12 +980,14 @@ export function useEquipo(options?: UseEquipoOptions) {
   const equipoNombrePorClave = useMemo(() => {
     const m = new Map<string, string>();
     for (const w of equipoWorkers) {
-      if (w.id) m.set(w.id, w.name);
+      const pk = normalizePersonKey(w.id);
+      if (pk) m.set(pk, w.name);
     }
     for (const e of entriesVistaEquipoCliente) {
       const pk = entryStablePersonKey(e);
       if (!pk || m.has(pk)) continue;
-      m.set(pk, workerNameById(e.workerId));
+      const fromEntry = e.userName?.trim();
+      m.set(pk, fromEntry || workerNameById(e.workerId));
     }
     return m;
   }, [equipoWorkers, entriesVistaEquipoCliente]);
@@ -964,7 +1004,8 @@ export function useEquipo(options?: UseEquipoOptions) {
         e.workDate >= equipoDetalleRange.start && e.workDate <= equipoDetalleRange.end
     );
     if (filtroPersonaEquipo !== "todas") {
-      rows = rows.filter((e) => entryStablePersonKey(e) === filtroPersonaEquipo);
+      const pk = normalizePersonKey(filtroPersonaEquipo);
+      rows = rows.filter((e) => entryStablePersonKey(e) === pk);
     }
     return rows;
   }, [entriesVistaEquipoCliente, filtroPersonaEquipo, equipoDetalleRange]);
@@ -977,7 +1018,7 @@ export function useEquipo(options?: UseEquipoOptions) {
     return equipoRowsFiltradas.length;
   }, [equipoSummary, equipoRowsFiltradas]);
 
-  /** Fichajes del API en [from,to], indexados para el cruce con el calendario denso. */
+  /** Fichajes del servidor en [from,to], indexados para el cruce con el calendario denso. */
   const entriesMesEquipoPorPersona = useMemo(() => {
     if (!equipoDetalleRange) return new Map<string, TimeEntryMock>();
     return indexEquipoEntriesByPersonAndDate(
@@ -988,25 +1029,40 @@ export function useEquipo(options?: UseEquipoOptions) {
   }, [entriesVistaEquipoCliente, equipoDetalleRange]);
 
   /**
-   * Eje de personas del grid: persona concreta, lista de trabajadores del API,
+   * Eje de personas del grid: persona concreta, lista de trabajadores del servidor,
    * o claves deducidas de fichajes si aún no hay usuarios cargados.
    */
   const trabajadoresVistaEquipo = useMemo(() => {
     if (filtroPersonaEquipo !== "todas") {
-      return [filtroPersonaEquipo];
+      const pk = normalizePersonKey(filtroPersonaEquipo);
+      return pk ? [pk] : [];
     }
     if (!equipoDetalleRange) return [];
+    const merged = new Set<string>();
     if (equipoWorkers.length > 0) {
-      return includeExcludedFromTimeTracking
-        ? equipoWorkers.map((w) => w.id)
-        : equipoWorkers.filter((w) => !w.excludedFromTimeTracking).map((w) => w.id);
+      const list = includeExcludedFromTimeTracking
+        ? equipoWorkers
+        : equipoWorkers.filter((w) => !w.excludedFromTimeTracking);
+      for (const w of list) {
+        const pk = normalizePersonKey(w.id);
+        if (pk) merged.add(pk);
+      }
     }
-    return uniquePersonKeysInRange(
+    for (const pk of uniquePersonKeysInRange(
       entriesVistaEquipoCliente,
       equipoDetalleRange.start,
-      equipoDetalleRange.end
-    );
-  }, [filtroPersonaEquipo, equipoWorkers, entriesVistaEquipoCliente, equipoDetalleRange, includeExcludedFromTimeTracking]);
+      equipoDetalleRange.end,
+    )) {
+      merged.add(pk);
+    }
+    return Array.from(merged).sort((a, b) => a.localeCompare(b));
+  }, [
+    filtroPersonaEquipo,
+    equipoWorkers,
+    entriesVistaEquipoCliente,
+    equipoDetalleRange,
+    includeExcludedFromTimeTracking,
+  ]);
 
   const diasCalendarioMesEquipo = useMemo(() => {
     if (!equipoDetalleRange) return [];
@@ -1029,7 +1085,7 @@ export function useEquipo(options?: UseEquipoOptions) {
     ]
   );
 
-  /** Mismo criterio que el summary del API (`hoursPerWorkingDay`, por defecto 8 h). */
+  /** Mismo criterio que el summary del servidor (`hoursPerWorkingDay`, por defecto 8 h). */
   const equipoCapTrabajoDiarioMinutos = useMemo(() => {
     const h = equipoSummary?.hoursPerWorkingDay;
     if (h != null && Number.isFinite(h) && h > 0) return Math.round(h * 60);
@@ -1091,11 +1147,18 @@ export function useEquipo(options?: UseEquipoOptions) {
   }, []);
 
   const totalMinutosImputadosMes = useMemo(() => {
+    const dailyCap = dailyCapMinutesFromSummary(equipoSummary);
+    if (filasEquipoCalendario.length > 0 && equipoPeriodo !== "anio") {
+      return minutosImputadosFromFilas(filasEquipoCalendario, dailyCap);
+    }
     if (equipoSummary?.workedMinutesTotal != null) {
       return Math.max(0, Math.round(equipoSummary.workedMinutesTotal));
     }
-    return equipoRowsFiltradas.reduce((acc, e) => acc + effectiveWorkMinutesEntry(e), 0);
-  }, [equipoSummary, equipoRowsFiltradas]);
+    return equipoRowsFiltradas.reduce(
+      (acc, e) => acc + workedMinutesForPeriodTotal(e, dailyCap),
+      0,
+    );
+  }, [equipoSummary, equipoRowsFiltradas, filasEquipoCalendario, equipoPeriodo]);
 
   const totalHorasDecimalMes = useMemo(() => {
     if (equipoSummary?.workedHoursTotal != null) {
@@ -1133,11 +1196,15 @@ export function useEquipo(options?: UseEquipoOptions) {
   }, [equipoSummary, diasLaborablesMesEquipo, personasEnObjetivo]);
 
   const horasImputadasDecimal = useMemo(() => {
+    /** En día/semana/mes/trimestre: alinear con rejilla (festivo cuenta; solo baja excluida). */
+    if (filasEquipoCalendario.length > 0 && equipoPeriodo !== "anio") {
+      return Math.round((totalMinutosImputadosMes / 60) * 10) / 10;
+    }
     if (equipoSummary?.workedHoursTotal != null) {
       return Math.max(0, equipoSummary.workedHoursTotal);
     }
-    return totalMinutosImputadosMes / 60;
-  }, [equipoSummary, totalMinutosImputadosMes]);
+    return Math.round((totalMinutosImputadosMes / 60) * 10) / 10;
+  }, [equipoSummary, totalMinutosImputadosMes, filasEquipoCalendario, equipoPeriodo]);
 
   const horasFaltaParaObjetivo = useMemo(() => {
     if (equipoSummary?.donutObjectiveVsWorked) {
@@ -1188,7 +1255,7 @@ export function useEquipo(options?: UseEquipoOptions) {
     let nNormal = 0;
     let nManual = 0;
     for (const e of equipoRowsFiltradas) {
-      if (isSinJornadaImputableRazon(e.razon)) continue;
+      if (isSinJornadaImputableRazon(e.razon) || isTimeEntryAbsenceForKpi(e)) continue;
       const m = effectiveWorkMinutesEntry(e);
       if (e.razon === "imputacion_manual_error") {
         minManual += m;
@@ -1220,25 +1287,17 @@ export function useEquipo(options?: UseEquipoOptions) {
   const horasSinImputarTipoFichaje = hDonutFalta;
 
   const partesEquipoStats = useMemo(() => {
-    let diasImputados = 0;
-    let diasConParte = 0;
-    for (const f of filasEquipoCalendario) {
-      if (f.kind !== "registro") continue;
-      const e = f.e;
-      if (isSinJornadaImputableRazon(e.razon)) continue;
-      if (!e.checkOutUtc) continue;
-      diasImputados += 1;
-      if (timeEntryConParteEnServidor(e)) diasConParte += 1;
-    }
-    return { diasImputados, diasConParte };
+    const c = countGridCellsForCharts(filasEquipoCalendario);
+    return { diasImputados: c.diasImputadosCerrados, diasConParte: c.diasConParte };
   }, [filasEquipoCalendario, equipoPartsVersion]);
 
   /**
    * KPIs rejilla densa: cada fila es un par persona-día en el periodo.
-   * Parte = mismo criterio que `timeEntryConParteEnServidor` (columna API).
+   * En día/semana/mes/trimestre se calcula en cliente (ausencias sin «sin parte»).
+   * En año se usa `kpiTeamGrid` del summary (rango anual; el grid local es un mes).
    */
   const equipoRejillaParteStats = useMemo(() => {
-    if (equipoSummary?.kpiTeamGrid) {
+    if (equipoPeriodo === "anio" && equipoSummary?.kpiTeamGrid) {
       const g = equipoSummary.kpiTeamGrid;
       return {
         totalCeldas: g.laborablePersonDaySlots,
@@ -1247,30 +1306,18 @@ export function useEquipo(options?: UseEquipoOptions) {
         conFichajeSinParte: g.closedEntriesWithoutServerPart,
       };
     }
-    const totalCeldas = filasEquipoCalendario.length;
-    let conFichajeCerrado = 0;
-    let conFichajeYParte = 0;
-    let conFichajeSinParte = 0;
-    for (const f of filasEquipoCalendario) {
-      if (f.kind !== "registro") continue;
-      const e = f.e;
-      if (isSinJornadaImputableRazon(e.razon)) continue;
-      if (!e.checkOutUtc) continue;
-      conFichajeCerrado += 1;
-      if (timeEntryConParteEnServidor(e)) conFichajeYParte += 1;
-      else conFichajeSinParte += 1;
-    }
+    const c = countGridCellsForCharts(filasEquipoCalendario);
     return {
-      totalCeldas,
-      conFichajeCerrado,
-      conFichajeYParte,
-      conFichajeSinParte,
+      totalCeldas: c.jornadasLaborables,
+      conFichajeCerrado: c.diasImputadosCerrados,
+      conFichajeYParte: c.conFichajeYParte,
+      conFichajeSinParte: c.conFichajeSinParteLaboral,
     };
-  }, [equipoSummary, filasEquipoCalendario]);
+  }, [equipoPeriodo, equipoSummary, filasEquipoCalendario]);
 
-  /** Jornadas laborables en rejilla (sinImputar + registro) vs filas con fichaje (registro). */
+  /** Jornadas laborables en rejilla vs días cubiertos (trabajo, vacaciones o baja). */
   const equipoJornadasFichajeStats = useMemo(() => {
-    if (equipoSummary?.kpiTeamGrid) {
+    if (equipoPeriodo === "anio" && equipoSummary?.kpiTeamGrid) {
       const g = equipoSummary.kpiTeamGrid;
       const conFichaje =
         g.slotsWithAnyTimeEntry > 0 ? g.slotsWithAnyTimeEntry : g.slotsWithClosedTimeEntry;
@@ -1279,18 +1326,9 @@ export function useEquipo(options?: UseEquipoOptions) {
         conFichaje,
       };
     }
-    let jornadasLaborables = 0;
-    let conFichaje = 0;
-    for (const f of filasEquipoCalendario) {
-      if (f.kind === "sinImputar") {
-        jornadasLaborables += 1;
-      } else if (f.kind === "registro") {
-        jornadasLaborables += 1;
-        conFichaje += 1;
-      }
-    }
-    return { jornadasLaborables, conFichaje };
-  }, [equipoSummary, filasEquipoCalendario]);
+    const c = countGridCellsForCharts(filasEquipoCalendario);
+    return { jornadasLaborables: c.jornadasLaborables, conFichaje: c.conFichaje };
+  }, [equipoPeriodo, equipoSummary, filasEquipoCalendario]);
 
   return {
     // filters
@@ -1331,26 +1369,26 @@ export function useEquipo(options?: UseEquipoOptions) {
     equipoNombrePorClave,
     /** Etiqueta de persona coherente con usuarios API y fichajes. */
     resolveEquipoPersonaNombre,
-    /** Para GET fichajes por filas: null si «Todas las personas» (no enviar userId). */
+    /** Filtro de fichajes por filas: null si «Todas las personas» (no enviar userId). */
     equipoTimeEntriesUserIdForApi:
       filtroPersonaEquipo === "todas" ? null : filtroPersonaEquipo,
     equipoRowsLoading,
     equipoRowsError,
-    /** Summary del API (KPIs/gráficos) para el rango completo del periodo. */
+    /** Summary del servidor (KPIs/gráficos) para el rango completo del periodo. */
     equipoSummary,
     equipoSummaryLoading,
     equipoSummaryError,
-    /** Heatmap del API (cumplimiento por día/semana ISO) para el rango completo. */
+    /** Heatmap del servidor (cumplimiento por día/semana ISO) para el rango completo. */
     equipoHeatmap,
     equipoHeatmapLoading,
     equipoHeatmapError,
-    /** Heatmap de partes del API (disciplina de partes por día/semana ISO). */
+    /** Heatmap de partes del servidor (disciplina de partes por día/semana ISO). */
     equipoHeatmapParts,
     equipoHeatmapPartsLoading,
     equipoHeatmapPartsError,
-    /** totalCount devuelto por el API (primera página / metadatos). */
+    /** totalCount devuelto por el servidor (primera página / metadatos). */
     equipoRowsTotalCount,
-    /** Recuento coherente con GET /rows/summary para KPIs (si summary OK). */
+    /** Recuento coherente con el resumen para KPIs (si summary OK). */
     equipoRegistrosPeriodoKpi,
     refetchEquipoRows,
     setEquipoWorkers,

@@ -13,6 +13,7 @@ export const TEAM_HOURS_INFO_MODAL_IDS = [
   "kpisEstadoEquipo",
   "cumplimientoHorasHeatmap",
   "cumplimientoPartesHeatmap",
+  "calendarioPersonaEquipo",
   "exportacion",
   "permisosWorker",
 ] as const satisfies readonly TeamHoursInfoModalId[];
@@ -57,19 +58,27 @@ const TEAM_HOURS_INFO_COPY: Record<TeamHoursInfoModalId, ModalCopy> = {
     ],
   },
   cumplimientoHorasHeatmap: {
-    title: "Cumplimiento semanal (horas teóricas)",
+    title: "Cumplimiento semanal",
     paragraphs: [
-      "Cada celda es un día del periodo que estás filtrando: compara lo fichado frente a las horas teóricas que tu organización esperaba ese día.",
-      "El color resume el resultado de un vistazo — verde cumple o supera el objetivo; ámbar y rojo marcan huecos para priorizar correcciones antes del cierre.",
-      "La fuerza está en ver patrones en equipo (semanas flojas, absentismo puntual, picos de extras) sin depender solo del total mensual.",
+      "Cada cuadrado es un día. El color indica si las horas fichadas van bien comparadas con lo previsto para ese día.",
+      "Verde: situación buena. Amarillo o rojo: conviene revisar. Gris: no hay información o no aplica.",
+      "Te ayuda a ver de un vistazo qué semanas o qué días merecen un repaso.",
     ],
   },
   cumplimientoPartesHeatmap: {
     title: "Cumplimiento de partes",
     paragraphs: [
-      "Cruza disciplina administrativa con trabajo ya registrado: para cada día con jornada fichada y cerrada, ¿existe parte de obra coherente en el servidor?",
-      "Así detectas rápido quién deja la documentación atrás respecto al tiempo imputado — clave para costes, certificaciones y trazabilidad legal.",
-      "La escala de colores es la misma que en el heatmap de horas: lectura homogénea en un solo pantallazo.",
+      "Muestra, día a día, si —cuando el fichaje ya está cerrado— también está registrado el parte de trabajo.",
+      "Sirve para localizar rápido días en los que puede faltar el parte o hay que completarlo.",
+      "Los colores son los mismos que en el cuadro de horas de arriba, para que sea fácil de leer.",
+    ],
+  },
+  calendarioPersonaEquipo: {
+    title: "Calendario de la persona",
+    paragraphs: [
+      "Resume un solo trabajador o trabajadora (la que eliges en el filtro «Persona»). Cada casilla es un día del periodo que tienes seleccionado.",
+      "Los colores indican si hubo fichaje, si va con parte de trabajo, vacaciones, baja, etc. En ordenador puedes pasar el ratón sobre un día para ver más detalle.",
+      "Arriba del calendario ves el mes (o periodo) activo; las semanas van en filas, igual que en los cuadros de cumplimiento.",
     ],
   },
   exportacion: {

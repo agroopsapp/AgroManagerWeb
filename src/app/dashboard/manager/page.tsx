@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,8 +10,15 @@ import { workerHomePath } from "@/lib/dashboardNavGating";
 import { useEquipo } from "@/features/time-tracking/hooks/useEquipo";
 import { useEquipoModal } from "@/features/time-tracking/hooks/useEquipoModal";
 import { useEquipoPart } from "@/features/time-tracking/hooks/useEquipoPart";
-import { TeamPanel } from "@/features/time-tracking/components/TeamPanel";
-import { EquipoPartModal } from "@/features/time-tracking/components/EquipoPartModal";
+
+const TeamPanel = dynamic(
+  () => import("@/features/time-tracking/components/TeamPanel").then((m) => m.TeamPanel),
+  { ssr: false },
+);
+const EquipoPartModal = dynamic(
+  () => import("@/features/time-tracking/components/EquipoPartModal").then((m) => m.EquipoPartModal),
+  { ssr: false },
+);
 
 export default function ManagerPage() {
   const [parteEquipoValidationError, setParteEquipoValidationError] = useState<string | null>(null);
@@ -144,6 +152,7 @@ export default function ManagerPage() {
         celdasLaborablesRejilla={equipo.equipoJornadasFichajeStats.jornadasLaborables}
         celdasConFichajeRejilla={equipo.equipoJornadasFichajeStats.conFichaje}
         celdasConFichajeYParteRejilla={equipo.equipoRejillaParteStats.conFichajeYParte}
+        celdasConFichajeSinParteLaboralRejilla={equipo.equipoRejillaParteStats.conFichajeSinParte}
         horasImputadasDecimal={equipo.horasImputadasDecimal}
         horasFaltaParaObjetivo={equipo.horasFaltaParaObjetivo}
         fichajeTipoStats={equipo.fichajeTipoStats}

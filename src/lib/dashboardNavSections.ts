@@ -26,7 +26,7 @@ export type DashboardNavItem = {
   label: string;
   icon: ReactNode;
   adminOnly?: boolean;
-  /** Solo rol `SuperAdmin` (API `/api/superadmin/*`). */
+  /** Solo rol `SuperAdmin` (superadministración). */
   superAdminOnly?: boolean;
 };
 
@@ -53,7 +53,12 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
     title: "Hoy",
     items: [
       { href: "/dashboard/time-tracking", label: "Registro de jornada", icon: IconChart() },
-      { href: "/dashboard/time-tracking/partes-de-obra", label: "Partes de obra", icon: IconClipboard() },
+      {
+        href: "/dashboard/time-tracking/partes-de-obra",
+        label: "Partes de obra",
+        icon: IconClipboard(),
+        superAdminOnly: true,
+      },
       { href: "/dashboard/team-hours", label: "Fichajes y partes", icon: IconUser() },
     ],
   },
@@ -63,7 +68,7 @@ export const DASHBOARD_NAV_SECTIONS: DashboardNavSection[] = [
       { href: "/dashboard/time-tracking/vacaciones-y-festivos", label: "Vacaciones y festivos", icon: IconChart() },
       { href: "/dashboard/my-company", label: "Mi empresa", icon: IconBriefcase() },
       { href: "/dashboard/companies", label: "Empresas", icon: IconBuildings() },
-      { href: "/dashboard/materiales", label: "Materiales", icon: IconPackage() },
+      { href: "/dashboard/materiales", label: "Materiales", icon: IconPackage(), superAdminOnly: true },
       { href: "/dashboard/services", label: "Servicios", icon: IconPin() },
       { href: "/dashboard/users", label: "Trabajadores", icon: IconUser() },
     ],

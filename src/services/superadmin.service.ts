@@ -173,7 +173,7 @@ export const superadminApi = {
     return apiClient.delete<void>(`${BASE}/companies/${encodeURIComponent(id)}`, { signal: opts?.signal });
   },
 
-  /** GET `/api/superadmin/companies/{companyId}/users` (solo SuperAdmin). */
+  /** Usuarios de una empresa padre (solo SuperAdmin). */
   listCompanyUsers(companyId: string, opts?: { signal?: AbortSignal }): Promise<User[]> {
     const id = companyId.trim();
     return apiClient

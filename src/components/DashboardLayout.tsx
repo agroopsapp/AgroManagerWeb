@@ -105,9 +105,13 @@ export default function DashboardLayout({
     );
   }
 
+  const isSuperAdmin = user.role === USER_ROLE.SuperAdmin;
+
   const quickNavItems = [
     { href: "/dashboard/time-tracking", label: "Registro", icon: IconChart() },
-    { href: "/dashboard/time-tracking/partes-de-obra", label: "Partes", icon: IconClipboard() },
+    ...(isSuperAdmin
+      ? [{ href: "/dashboard/time-tracking/partes-de-obra", label: "Partes", icon: IconClipboard() }]
+      : []),
     { href: "/dashboard/team-hours", label: "Fichajes", icon: IconUser() },
   ] as const;
 
@@ -151,7 +155,9 @@ export default function DashboardLayout({
 
         {/* Barra rápida (móvil): cambios de módulo sin abrir menú */}
         <nav
-          className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-lg shadow-slate-950/10 backdrop-blur-md md:hidden dark:border-slate-700/80 dark:bg-slate-900/85"
+          className={`fixed inset-x-3 bottom-3 z-40 grid overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-lg shadow-slate-950/10 backdrop-blur-md md:hidden dark:border-slate-700/80 dark:bg-slate-900/85 ${
+            isSuperAdmin ? "grid-cols-4" : "grid-cols-3"
+          }`}
           aria-label="Navegación rápida"
         >
           <button

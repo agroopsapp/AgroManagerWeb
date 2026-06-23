@@ -2,12 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFeatures } from "@/contexts/FeaturesContext";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import type { Material } from "@/features/materials/types";
 import type { MultiDayWorkReportDto, MultiDayWorkReportStatus } from "@/features/multi-day-work-reports/types";
 import { companiesApi, getCompaniesFromApi, materialsApi, multiDayWorkReportsApi } from "@/services";
-import type { Company } from "@/types";
+import { appHomePath } from "@/lib/dashboardNavGating";
+import { USER_ROLE, type Company } from "@/types";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { localTodayISO } from "@/shared/utils/time";
 import { DashboardHoyPageHero, DashboardPageShell, FichajeJornadaMainPanel } from "@/components/dashboard-page";
@@ -27,7 +30,7 @@ const primaryBtnSmClass =
 
 type MaterialDraft = { id: string; name: string; quantity: string; lineId?: string };
 
-/** Fila de tabla: datos del API + materiales resueltos para resumen. */
+/** Fila de tabla: datos del servidor + materiales resueltos para resumen. */
 type ParteObraRow = {
   id: string;
   companyId: string;
@@ -59,7 +62,7 @@ function mapDtoToReportRow(
   };
 }
 
-/** Alinea líneas del API con el borrador del formulario (POST / PUT / DELETE). */
+/** Alinea líneas del servidor con el borrador del formulario. */
 async function syncMultiDayReportMaterials(
   reportId: string,
   drafts: MaterialDraft[],
@@ -151,6 +154,8 @@ function rowOverlapsFilter(
 
 export default function PartesObraPage() {
   const { user, isReady } = useAuth();
+  const router = useRouter();
+  const { enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
   const [rows, setRows] = useState<ParteObraRow[]>([]);
   const [rowsLoading, setRowsLoading] = useState(false);
   const [rowsError, setRowsError] = useState<string | null>(null);
@@ -159,6 +164,14 @@ export default function PartesObraPage() {
   /** Incrementar para volver a cargar la tabla tras crear/editar/borrar/cerrar. */
   const [listRevision, setListRevision] = useState(0);
   const bumpList = useCallback(() => setListRevision((n) => n + 1), []);
+
+  useEffect(() => {
+    if (!isReady || !user) return;
+    if (user.role !== USER_ROLE.SuperAdmin) {
+      router.replace(appHomePath(user.role, enableTimeTracking, enableOperativaYAnalisisMenu));
+    }
+  }, [isReady, user, router, enableTimeTracking, enableOperativaYAnalisisMenu]);
+
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [start, setStart] = useState(() => new Date().toISOString().slice(0, 10));
@@ -508,7 +521,7 @@ export default function PartesObraPage() {
 
     const cid = tenantCompanyId?.trim();
     if (!cid) {
-      setFormError("No se pudo resolver la empresa del tenant (companyId). Revisa la sesión o el API de empresas.");
+      setFormError("No se pudo resolver la empresa del tenant. Revisa la sesión o la configuración de empresas.");
       return;
     }
 
@@ -642,6 +655,10 @@ export default function PartesObraPage() {
     );
   }
 
+  if (!user || user.role !== USER_ROLE.SuperAdmin) {
+    return null;
+  }
+
   const compactSelectClass =
     "rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-900 shadow-sm outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100";
 
@@ -652,10 +669,7 @@ export default function PartesObraPage() {
         title="Partes de obra"
         description={
           <p className="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-            Partes de obra multidía: datos desde{" "}
-            <span className="font-mono text-xs">GET /api/MultiDayWorkReports</span>, materiales por parte en{" "}
-            <span className="font-mono text-xs">…/materials</span>. Empresas cliente desde{" "}
-            <span className="font-mono text-xs">GET /api/ClientCompanies</span>.
+            Partes de obra multidía: listado, materiales por parte y empresas cliente de tu tenant.
           </p>
         }
         extraBelow={
@@ -671,7 +685,7 @@ export default function PartesObraPage() {
             <button
               type="button"
               disabled={!tenantCompanyId?.trim()}
-              title={!tenantCompanyId?.trim() ? "Falta companyId del tenant para crear partes en el API." : undefined}
+              title={!tenantCompanyId?.trim() ? "Falta la empresa del tenant para crear partes." : undefined}
               onClick={openCreateModal}
               className={`${primaryBtnClass} disabled:opacity-50`}
             >
@@ -693,8 +707,8 @@ export default function PartesObraPage() {
       >
       {!tenantCompanyId?.trim() && isReady && user ? (
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100 md:px-6">
-          No se pudo obtener la empresa del tenant (necesaria para listar y crear partes). Comprueba{" "}
-          <span className="font-mono text-xs">GET /api/Companies</span> o tu rol.
+          No se pudo obtener la empresa del tenant (necesaria para listar y crear partes). Comprueba sesión y tu
+          rol.
         </div>
       ) : null}
       {editFetchError ? (
@@ -822,15 +836,15 @@ export default function PartesObraPage() {
               <p className="mt-2 text-sm text-red-600 dark:text-red-400">{companiesError}</p>
             ) : clientCompanies.length === 0 ? (
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                No hay empresas cliente en el tenant. Comprueba el API o da de alta clientes en Empresas.
+                No hay empresas cliente en el tenant. Da de alta clientes en Empresas.
               </p>
             ) : (
               <>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  Una empresa cliente por parte de obra (lista del tenant vía API).
+                  Una empresa cliente por parte de obra (lista del tenant).
                   {modalMode === "edit" ? (
                     <span className="block text-amber-700 dark:text-amber-300/90">
-                      En edición no se puede cambiar la empresa cliente (contrato del API).
+                      En edición no se puede cambiar la empresa cliente.
                     </span>
                   ) : null}
                 </p>
@@ -842,7 +856,7 @@ export default function PartesObraPage() {
                   disabled={modalMode === "edit"}
                   title={
                     modalMode === "edit"
-                      ? "La API no permite cambiar la empresa cliente al editar."
+                      ? "No se puede cambiar la empresa cliente al editar."
                       : undefined
                   }
                 >
@@ -873,7 +887,7 @@ export default function PartesObraPage() {
           <div>
             <p className={labelClass}>Materiales</p>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Catálogo desde GET /api/Materials. Ajusta cantidad en el modal y se guardará en este parte de obra.
+              Elige materiales del catálogo. Ajusta cantidad en el modal y se guardará en este parte de obra.
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
@@ -1083,7 +1097,7 @@ export default function PartesObraPage() {
                 ) : availableFiltered.length === 0 ? (
                   <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
                     {materialsCatalog.length === 0
-                      ? "No hay materiales en el catálogo (GET /api/Materials). Puedes darlos de alta en Gestión → Materiales."
+                      ? "No hay materiales en el catálogo. Puedes darlos de alta en Gestión → Materiales."
                       : "No hay materiales con ese filtro (o ya están seleccionados)."}
                   </p>
                 ) : (

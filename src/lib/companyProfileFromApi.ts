@@ -1,5 +1,5 @@
 /**
- * Adapta respuestas de GET/PUT `/api/Companies` al modelo de formulario / localStorage (`MyCompanyProfile`).
+ * Adapta respuestas de empresa del servidor al modelo de formulario / localStorage (`MyCompanyProfile`).
  * Contrato backend: ver `CompanyApiRow` y `CompanyApiPutBody` en types.
  */
 import { getApiBaseUrl } from "@/lib/api-client";

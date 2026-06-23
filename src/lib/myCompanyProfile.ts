@@ -1,5 +1,5 @@
 export type MyCompanyProfile = {
-  /** Id de empresa en API (`/api/Companies`), útil para futuros PATCH. */
+  /** Id de empresa en el servidor, útil para guardados posteriores. */
   companyId?: string;
   name: string;
   /** Razón social (API: `fiscalName`). */

@@ -51,6 +51,9 @@ export function CalendarioVacacionesFestivos(props: {
   onSetVacation: (dateISO: string, mark: CalendarioLaboralDayMark | null) => void;
   /** Si se pasa, se atenúan los días fuera del rango y no se pueden marcar. */
   visibleRange?: { from: string; to: string } | null;
+  /** Año visible (controlado desde la página para cargar festivos del servidor). */
+  calendarYear: number;
+  onCalendarYearChange: (year: number) => void;
 }) {
   const {
     canEditHolidays,
@@ -60,20 +63,19 @@ export function CalendarioVacacionesFestivos(props: {
     onSetHoliday,
     onSetVacation,
     visibleRange,
+    calendarYear: y,
+    onCalendarYearChange,
   } = props;
-  const now = new Date();
-  const [y, setY] = useState(now.getFullYear());
   const [selected, setSelected] = useState<string | null>(null);
   const [holidayNoteDraft, setHolidayNoteDraft] = useState("");
-  const [vacationNoteDraft, setVacationNoteDraft] = useState("");
 
   const goPrevYear = () => {
-    setY((v) => v - 1);
+    onCalendarYearChange(y - 1);
     setSelected(null);
   };
 
   const goNextYear = () => {
-    setY((v) => v + 1);
+    onCalendarYearChange(y + 1);
     setSelected(null);
   };
 
@@ -82,7 +84,6 @@ export function CalendarioVacacionesFestivos(props: {
     if (visibleRange && (iso < visibleRange.from || iso > visibleRange.to)) return;
     setSelected(iso);
     setHolidayNoteDraft(holidaysByDate[iso]?.note ?? "");
-    setVacationNoteDraft(vacationsByDate[iso]?.note ?? "");
   };
 
   const applyHoliday = (kind: "festivo" | null) => {
@@ -101,16 +102,11 @@ export function CalendarioVacacionesFestivos(props: {
 
   const applyVacation = (kind: "vacaciones" | null) => {
     if (!selected || !canEditVacations) return;
-    const trimmed = vacationNoteDraft.trim();
     const mark =
       kind == null
         ? null
-        : ({
-            kind,
-            note: trimmed ? trimmed.slice(0, 120) : undefined,
-          } satisfies CalendarioLaboralDayMark);
+        : ({ kind } satisfies CalendarioLaboralDayMark);
     onSetVacation(selected, mark);
-    if (kind == null) setVacationNoteDraft("");
   };
 
   return (
@@ -275,7 +271,7 @@ export function CalendarioVacacionesFestivos(props: {
                       </time>
                     </p>
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                      Marca festivo y/o vacaciones. Las notas son opcionales.
+                      Marca festivo (con nota opcional) o vacaciones.
                     </p>
                   </div>
                   <button
@@ -328,20 +324,6 @@ export function CalendarioVacacionesFestivos(props: {
 
                     <div className="rounded-2xl border border-sky-200/70 bg-sky-50/70 p-4 dark:border-sky-800/50 dark:bg-sky-950/25">
                       <p className="text-sm font-bold text-sky-950 dark:text-sky-50">Vacaciones (usuario)</p>
-                      <label className="mt-3 block">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-sky-900/70 dark:text-sky-100/70">
-                          Nota (opcional)
-                        </span>
-                        <input
-                          type="text"
-                          value={vacationNoteDraft}
-                          onChange={(e) => setVacationNoteDraft(e.target.value)}
-                          maxLength={120}
-                          placeholder="Ej. Semana Santa, viaje…"
-                          disabled={!canEditVacations}
-                          className="mt-1.5 w-full rounded-xl border border-sky-200 bg-white px-3 py-2.5 text-base text-slate-900 shadow-sm outline-none focus:border-sky-400/70 focus:ring-2 focus:ring-sky-400/15 disabled:cursor-not-allowed disabled:opacity-60 dark:border-sky-800/50 dark:bg-slate-900 dark:text-slate-100"
-                        />
-                      </label>
                       <div className="mt-3.5 flex flex-wrap gap-2.5">
                         <button
                           type="button"

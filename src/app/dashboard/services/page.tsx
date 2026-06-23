@@ -66,7 +66,7 @@ export default function ServicesPage() {
         setTenantCompanyId(id || null);
         if (!id) {
           setTenantIdError(
-            "No hay empresa en /api/Companies; no se puede crear servicio sin companyId.",
+            "No hay empresa registrada; no se puede crear servicio.",
           );
         }
       })
@@ -75,7 +75,7 @@ export default function ServicesPage() {
         if (e instanceof DOMException && e.name === "AbortError") return;
         setTenantCompanyId(null);
         setTenantIdError(
-          "No se pudo obtener la empresa del tenant (GET /api/Companies).",
+          "No se pudo obtener la empresa del tenant.",
         );
       });
     return () => ac.abort();
@@ -130,7 +130,7 @@ export default function ServicesPage() {
       } else {
         if (!tenantCompanyId) {
           setError(
-            "Falta el GUID de tu empresa (tenant). Debe existir al menos una fila en GET /api/Companies.",
+            "Falta la empresa del tenant. Configura «Mi empresa» o contacta con administración.",
           );
           setSaving(false);
           return;

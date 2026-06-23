@@ -24,6 +24,11 @@ const META: Record<
     title: "Vacaciones",
     emptyHint: "No hay registros marcados como vacaciones en este periodo.",
   },
+  bajas: {
+    kicker: "DETALLE",
+    title: "Bajas",
+    emptyHint: "No hay registros marcados como baja en este periodo.",
+  },
   sinParte: {
     kicker: "DETALLE",
     title: "Sin parte en servidor",

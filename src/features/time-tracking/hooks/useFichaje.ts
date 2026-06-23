@@ -14,6 +14,12 @@ import {
   type HistoricoPersonalFila,
 } from "@/features/time-tracking/utils/formatters";
 import type { TimeEntryMock } from "@/features/time-tracking/types";
+import { mapTimeEntryRowsItemToMock } from "@/features/time-tracking/utils/mapTimeEntryRowsItemToMock";
+import {
+  normalizeTimeEntryForSession,
+  pickPreferredDayEntry,
+  timeEntryBelongsToSessionUser,
+} from "@/features/time-tracking/utils/timeEntrySessionMatch";
 import { timeEntryDtoToMock } from "@/features/time-tracking/utils/timeEntryDtoToMock";
 
 type AuthUser = { id?: string; email?: string | null; role?: string } | null | undefined;
@@ -53,7 +59,12 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
       try {
         const list = await timeTrackingApi.getMyEntries({ signal: ac.signal });
         if (ac.signal.aborted) return;
-        const entriesMapped = list.map((e) => timeEntryDtoToMock(e, miWorkerId));
+        const sessionUserId = user?.id ?? null;
+        const entriesMapped = list
+          .map((e) => mapTimeEntryRowsItemToMock(e))
+          .filter((x): x is TimeEntryMock => x != null)
+          .filter((e) => timeEntryBelongsToSessionUser(e, sessionUserId, miWorkerId))
+          .map((e) => normalizeTimeEntryForSession(e, sessionUserId, miWorkerId));
         const filteredLast7 = entriesMapped.filter((e) =>
           workDateWithinLastNDays(e.workDate, 7),
         );
@@ -69,7 +80,7 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
       }
     })();
     return () => ac.abort();
-  }, [isReady, user?.id, user?.email]);
+  }, [isReady, user?.id, user?.email, miWorkerId]);
 
   // ----- Derived -----
 
@@ -113,20 +124,18 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
   }, [myWorkParts]);
 
   const historicoPersonalFilas = useMemo((): HistoricoPersonalFila[] => {
-    const wid = miWorkerId;
+    const sessionUserId = user?.id ?? null;
     const filas: HistoricoPersonalFila[] = [];
     for (let delta = 0; delta < 7; delta++) {
       const d = new Date();
       d.setDate(d.getDate() - delta);
       const wd = localCalendarISO(d);
       if (!workDateWithinLastNDays(wd, 7)) continue;
-      const dayEntries = entries.filter((x) => x.workerId === wid && x.workDate === wd);
-      const e =
-        dayEntries.length === 0
-          ? null
-          : [...dayEntries].sort(
-              (a, b) => new Date(b.checkInUtc).getTime() - new Date(a.checkInUtc).getTime()
-            )[0];
+      const dayEntries = entries.filter(
+        (x) =>
+          x.workDate === wd && timeEntryBelongsToSessionUser(x, sessionUserId, miWorkerId),
+      );
+      const e = pickPreferredDayEntry(dayEntries);
       if (!e) filas.push({ kind: "sinRegistro", workDate: wd });
       else filas.push({ kind: "entry", entry: e });
     }
@@ -136,12 +145,16 @@ export function useFichaje({ user, isReady, miWorkerId }: Params) {
       return db.localeCompare(da);
     });
     return filas;
-  }, [entries, miWorkerId]);
+  }, [entries, miWorkerId, user?.id]);
 
   const hasEntryForDate = useCallback(
     (workDate: string) =>
-      entries.some((e) => e.workDate === workDate && e.workerId === miWorkerId),
-    [entries, miWorkerId],
+      entries.some(
+        (e) =>
+          e.workDate === workDate &&
+          timeEntryBelongsToSessionUser(e, user?.id ?? null, miWorkerId),
+      ),
+    [entries, miWorkerId, user?.id],
   );
 
   // ----- Handlers -----

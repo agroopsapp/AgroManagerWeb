@@ -43,23 +43,33 @@ export function isSinJornadaImputableRazon(r: TimeEntryRazon | undefined): boole
 }
 
 /**
- * `status` del API indica ausencia / día no laboral (no jornada cerrada con horas reales).
- * Cubre casos como `imputationKind: "manual"` con `status: "Vacation"` en GET /TimeEntries/rows.
+ * `status` del servidor indica ausencia / día no laboral (no jornada cerrada con horas reales).
+ * Cubre casos como `imputationKind: "manual"` con `status: "Vacation"` en filas del servidor.
  */
 export function isAbsenceCalendarApiStatus(
   e: Pick<TimeEntryMock, "timeEntryStatus">,
 ): boolean {
   const s = e.timeEntryStatus;
-  return s === "SickLeave" || s === "Vacation" || s === "NonWorkingDay";
+  return (
+    s === "SickLeave" ||
+    s === "Vacation" ||
+    s === "NonWorkingDay" ||
+    s === "FestivoEmpresa"
+  );
 }
 
-/** Etiqueta en columna «Estado» (vacaciones / baja / no laboral). Prioriza `timeEntryStatus` del API. */
-export type EquipoAusenciaEtiquetaKind = "vacaciones" | "baja" | "no_laboral";
+/** Etiqueta en columna «Estado» (vacaciones / baja / no laboral / festivo). */
+export type EquipoAusenciaEtiquetaKind =
+  | "vacaciones"
+  | "baja"
+  | "no_laboral"
+  | "festivo_empresa";
 
 export function equipoAbsenceEtiquetaKind(
-  e: Pick<TimeEntryMock, "timeEntryStatus" | "razon">,
+  e: Pick<TimeEntryMock, "timeEntryStatus" | "razon" | "rowKind">,
 ): EquipoAusenciaEtiquetaKind | null {
   const s = e.timeEntryStatus;
+  if (s === "FestivoEmpresa") return "festivo_empresa";
   if (s === "Vacation") return "vacaciones";
   if (s === "SickLeave") return "baja";
   if (s === "NonWorkingDay") return "no_laboral";
@@ -75,10 +85,14 @@ export function equipoRegistroOcultaHorasEnTabla(e: TimeEntryMock): boolean {
 }
 
 /**
- * Columna «Razón»: prioriza `status` del API sobre `imputationKind` cuando marcan ausencia.
+ * Columna «Razón»: prioriza `status` del servidor sobre `imputationKind` cuando marcan ausencia.
  */
 export function formatRazonTablaEquipo(e: TimeEntryMock): string {
   switch (e.timeEntryStatus) {
+    case "FestivoEmpresa": {
+      const name = e.holidayName?.trim();
+      return name || "Festivo de empresa";
+    }
     case "SickLeave":
       return RAZON_LABELS.ausencia_baja;
     case "Vacation":
@@ -95,7 +109,7 @@ export function formatRazon(razon: TimeEntryRazon | undefined): string {
   return "—";
 }
 
-/** Parte de trabajo en servidor (contrato /api/TimeEntries/rows). */
+/** Parte de trabajo en servidor (filas de fichaje). */
 export function workReportParteApiSummary(entry: TimeEntryMock): {
   tieneParte: boolean;
   /** Texto secundario (estado, líneas). */
@@ -128,7 +142,7 @@ export function timeEntryConParteEnServidor(entry: TimeEntryMock): boolean {
 
 /**
  * Texto para «Dónde ha trabajado» a partir de las líneas del parte (with-lines).
- * Prioriza snapshots de nombre; si no vienen del API, muestra minutos por línea.
+ * Prioriza snapshots de nombre; si no vienen del servidor, muestra minutos por línea.
  */
 export function formatWorkReportLinesForUbicacion(lines: WorkReportLineDto[]): string {
   if (!lines || lines.length === 0) return "";
@@ -168,6 +182,7 @@ export function historicoFilaSinImputarPasado(fila: HistoricoPersonalFila): bool
   }
   const e = fila.entry;
   if (e.workDate >= today) return false;
+  if (isAbsenceCalendarApiStatus(e)) return false;
   if (isSinJornadaImputableRazon(e.razon)) return false;
   return e.checkOutUtc == null || e.cierreAutomaticoMedianoche === true;
 }
@@ -204,7 +219,7 @@ export function sessionDisplayNameFromEmail(email: string | undefined | null): s
   return local.replace(/\b\w/g, (ch) => ch.toUpperCase());
 }
 
-/** Minutos trabajados efectivos: prioriza `workedMinutes` del API si existe; si no, bruto − descanso. */
+/** Minutos trabajados efectivos: prioriza `workedMinutes` del servidor si existe; si no, bruto − descanso. */
 export function effectiveWorkMinutesEntry(e: TimeEntryMock): number {
   if (isSinJornadaImputableRazon(e.razon) || isAbsenceCalendarApiStatus(e)) return 0;
   const apiNet =
@@ -321,12 +336,22 @@ export function buildEquipoTableExportRows(
       const e = f.e;
       const ocultaHoras = equipoRegistroOcultaHorasEnTabla(e);
       const ocultaMetaPorStatusAusencia = isAbsenceCalendarApiStatus(e);
+      const ausenciaEtiqueta = equipoAbsenceEtiquetaKind(e);
       const extraM = effectiveExtraMinutesEntry(e, cap);
+      const estadoExport = ausenciaEtiqueta
+        ? ausenciaEtiqueta === "festivo_empresa"
+          ? "Festivo empresa"
+          : ausenciaEtiqueta === "vacaciones"
+            ? "Vacaciones"
+            : ausenciaEtiqueta === "baja"
+              ? "Baja"
+              : "No laboral"
+        : formatTimeEntryStatusForExport(e.timeEntryStatus);
       return [
         n,
         csvPersonaCell(f, nameByPersonKey),
         formatDateEsWeekdayDdMmYyyy(e.workDate),
-        ocultaMetaPorStatusAusencia ? "—" : formatTimeEntryStatusForExport(e.timeEntryStatus),
+        estadoExport,
         ocultaHoras ? "—" : formatTimeLocal(e.checkInUtc),
         ocultaHoras ? "—" : formatTimeLocal(e.checkOutUtc),
         ocultaHoras ? "—" : formatMinutesShort(e.breakMinutes ?? 0),

@@ -17,14 +17,12 @@ import {
 import type { UseEquipoResult } from "@/features/time-tracking/hooks/useEquipo";
 import { TeamHoursKpiDetailModal } from "@/features/time-tracking/components/team-hours/TeamHoursKpiDetailModal";
 import {
-  effectiveWorkMinutesEntry,
-  equipoAbsenceEtiquetaKind,
-  timeEntryConParteEnServidor,
-} from "@/features/time-tracking/utils/formatters";
-import {
   buildTeamHoursKpiDetailRows,
   type TeamHoursKpiDetailKind,
 } from "@/features/time-tracking/utils/teamHoursKpiDetail";
+import {
+  buildTeamHoursKpiScopeFromFilas,
+} from "@/features/time-tracking/utils/teamHoursKpiScope";
 import { buildTeamHoursActiveFilterChips } from "@/features/time-tracking/utils/teamHoursActiveFilters";
 import { formatDateEsWeekdayDdMmYyyy, formatMinutesShort } from "@/shared/utils/time";
 
@@ -98,12 +96,55 @@ export function TeamHoursEquipoKpiSection({
     }));
   }, [kpiDetailModal, kpiRowsInteractive, eq.equipoFilasVista, eq.resolveEquipoPersonaNombre]);
 
+  const kpiScope = useMemo(() => {
+    if (eq.equipoPeriodo === "anio" && eq.equipoSummary?.kpiTeamGrid) {
+      const g = eq.equipoSummary.kpiTeamGrid;
+      const jornadasLaborables = Math.max(0, Math.round(g.laborablePersonDaySlots ?? 0));
+      const jornadasFichadas = Math.max(
+        0,
+        Math.round(
+          (g.slotsWithAnyTimeEntry > 0 ? g.slotsWithAnyTimeEntry : g.slotsWithClosedTimeEntry) ?? 0,
+        ),
+      );
+      const sinFichar = Math.max(0, Math.round(g.slotsWithoutEntry ?? 0));
+      const jornadasCerradas = Math.max(0, Math.round(g.slotsWithClosedTimeEntry ?? 0));
+      const partesCompletados = Math.max(0, Math.round(g.closedEntriesWithServerPart ?? 0));
+      const sinParte = Math.max(0, Math.round(g.closedEntriesWithoutServerPart ?? 0));
+      const minutosImputados = Math.max(0, Math.round(eq.equipoSummary.workedMinutesTotal ?? 0));
+
+      const jornadasFichadasPct =
+        jornadasLaborables > 0 ? Math.round((jornadasFichadas / jornadasLaborables) * 100) : 0;
+      const partesPct =
+        jornadasCerradas > 0 ? Math.round((partesCompletados / jornadasCerradas) * 100) : 0;
+
+      return {
+        haFichado: jornadasFichadas,
+        sinFichar,
+        vacaciones: 0,
+        bajas: 0,
+        sinParte,
+        minutosImputados,
+        jornadasLaborables,
+        jornadasFichadas,
+        jornadasCerradas,
+        partesCompletados,
+        jornadasFichadasPct,
+        partesPct,
+      };
+    }
+
+    return buildTeamHoursKpiScopeFromFilas(eq.equipoFilasVista, eq.equipoSummary);
+  }, [eq.equipoFilasVista, eq.equipoPeriodo, eq.equipoSummary]);
+
   const cumplimientoPct = useMemo(() => {
     const objetivo = Number(eq.horasObjetivoMesTeorico ?? 0);
-    const imputadas = Number(eq.horasImputadasDecimal ?? 0);
+    const imputadasHoras =
+      eq.equipoPeriodo === "anio"
+        ? Number(eq.horasImputadasDecimal ?? 0)
+        : kpiScope.minutosImputados / 60;
     if (!objetivo || objetivo <= 0) return 0;
-    return Math.max(0, Math.min(100, Math.round((imputadas / objetivo) * 100)));
-  }, [eq.horasImputadasDecimal, eq.horasObjetivoMesTeorico]);
+    return Math.max(0, Math.min(100, Math.round((imputadasHoras / objetivo) * 100)));
+  }, [eq.horasImputadasDecimal, eq.horasObjetivoMesTeorico, eq.equipoPeriodo, kpiScope.minutosImputados]);
 
   const filtrosActivosChips = useMemo(
     () => buildTeamHoursActiveFilterChips(eq, periodoEtiqueta),
@@ -130,97 +171,6 @@ export function TeamHoursEquipoKpiSection({
     cumplimientoMv,
     (v) => `conic-gradient(#4ade80 ${v * 3.6}deg, rgba(255,255,255,0.10) 0deg)`,
   );
-
-  const kpiScope = useMemo(() => {
-    if (eq.equipoPeriodo === "anio" && eq.equipoSummary?.kpiTeamGrid) {
-      const g = eq.equipoSummary.kpiTeamGrid;
-      const jornadasLaborables = Math.max(0, Math.round(g.laborablePersonDaySlots ?? 0));
-      const jornadasFichadas = Math.max(
-        0,
-        Math.round(
-          (g.slotsWithAnyTimeEntry > 0 ? g.slotsWithAnyTimeEntry : g.slotsWithClosedTimeEntry) ?? 0,
-        ),
-      );
-      const sinFichar = Math.max(0, Math.round(g.slotsWithoutEntry ?? 0));
-      const jornadasCerradas = Math.max(0, Math.round(g.slotsWithClosedTimeEntry ?? 0));
-      const partesCompletados = Math.max(0, Math.round(g.closedEntriesWithServerPart ?? 0));
-      const sinParte = Math.max(0, Math.round(g.closedEntriesWithoutServerPart ?? 0));
-      const minutosImputados = Math.max(0, Math.round(eq.equipoSummary.workedMinutesTotal ?? 0));
-
-      const jornadasFichadasPct =
-        jornadasLaborables > 0 ? Math.round((jornadasFichadas / jornadasLaborables) * 100) : 0;
-      const partesPct =
-        jornadasCerradas > 0 ? Math.round((partesCompletados / jornadasCerradas) * 100) : 0;
-
-      return {
-        haFichado: jornadasFichadas,
-        sinFichar,
-        vacaciones: 0,
-        sinParte,
-        minutosImputados,
-        jornadasLaborables,
-        jornadasFichadas,
-        jornadasCerradas,
-        partesCompletados,
-        jornadasFichadasPct,
-        partesPct,
-      };
-    }
-
-    let haFichado = 0;
-    let sinFichar = 0;
-    let vacaciones = 0;
-    let sinParte = 0;
-    let jornadasLaborables = 0;
-    let jornadasFichadas = 0;
-    let jornadasCerradas = 0;
-    let partesCompletados = 0;
-    let minutosImputados = 0;
-
-    for (const fila of eq.equipoFilasVista) {
-      if (fila.kind === "sinImputar") {
-        sinFichar += 1;
-        jornadasLaborables += 1;
-        continue;
-      }
-      if (fila.kind !== "registro") continue;
-
-      jornadasLaborables += 1;
-      jornadasFichadas += 1;
-      haFichado += 1;
-
-      const e = fila.e;
-      const ausencia = equipoAbsenceEtiquetaKind(e);
-      if (ausencia === "vacaciones") vacaciones += 1;
-
-      if (e.checkOutUtc) {
-        jornadasCerradas += 1;
-        if (timeEntryConParteEnServidor(e)) partesCompletados += 1;
-        else sinParte += 1;
-      }
-
-      minutosImputados += effectiveWorkMinutesEntry(e);
-    }
-
-    const jornadasFichadasPct =
-      jornadasLaborables > 0 ? Math.round((jornadasFichadas / jornadasLaborables) * 100) : 0;
-    const partesPct =
-      jornadasCerradas > 0 ? Math.round((partesCompletados / jornadasCerradas) * 100) : 0;
-
-    return {
-      haFichado,
-      sinFichar,
-      vacaciones,
-      sinParte,
-      minutosImputados,
-      jornadasLaborables,
-      jornadasFichadas,
-      jornadasCerradas,
-      partesCompletados,
-      jornadasFichadasPct,
-      partesPct,
-    };
-  }, [eq.equipoFilasVista, eq.equipoPeriodo, eq.equipoSummary]);
 
   return (
     <motion.section
@@ -365,6 +315,28 @@ export function TeamHoursEquipoKpiSection({
                       <AnimatedNumber value={kpiScope.vacaciones} />
                     </span>
                     <span className="text-sm text-emerald-50/80">Vacaciones</span>
+                  </div>
+                )}
+                {kpiRowsInteractive ? (
+                  <button
+                    type="button"
+                    className={`${KPI_ROW_PILL}${KPI_ROW_PILL_BTN}`}
+                    aria-haspopup="dialog"
+                    onClick={() => setKpiDetailModal("bajas")}
+                  >
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-violet-400" aria-hidden />
+                    <span className="tabular-nums font-semibold text-white">
+                      <AnimatedNumber value={kpiScope.bajas} />
+                    </span>
+                    <span className="text-sm text-emerald-50/80">Baja</span>
+                  </button>
+                ) : (
+                  <div className={KPI_ROW_PILL}>
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-violet-400" aria-hidden />
+                    <span className="tabular-nums font-semibold text-white">
+                      <AnimatedNumber value={kpiScope.bajas} />
+                    </span>
+                    <span className="text-sm text-emerald-50/80">Baja</span>
                   </div>
                 )}
                 {kpiRowsInteractive ? (

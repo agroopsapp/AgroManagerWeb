@@ -6,8 +6,6 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateES, workDateIsWeekend } from "@/shared/utils/time";
 import { ClockPanel } from "@/features/time-tracking/components/ClockPanel";
-import { HistorialPersonal } from "@/features/time-tracking/components/HistorialPersonal";
-import { PersonalEditarDiaModal } from "@/features/time-tracking/components/PersonalEditarDiaModal";
 import { useFichadorPanel } from "@/features/time-tracking/hooks/useFichadorPanel";
 import { useFichaje } from "@/features/time-tracking/hooks/useFichaje";
 import { useBreakModal } from "@/features/time-tracking/hooks/useBreakModal";
@@ -28,6 +26,20 @@ const ForgotModal = dynamic(
 );
 const BreakModal = dynamic(
   () => import("@/features/time-tracking/components/BreakModal").then((m) => m.BreakModal),
+  { ssr: false },
+);
+const HistorialPersonal = dynamic(
+  () =>
+    import("@/features/time-tracking/components/HistorialPersonal").then(
+      (m) => m.HistorialPersonal,
+    ),
+  { ssr: false },
+);
+const PersonalEditarDiaModal = dynamic(
+  () =>
+    import("@/features/time-tracking/components/PersonalEditarDiaModal").then(
+      (m) => m.PersonalEditarDiaModal,
+    ),
   { ssr: false },
 );
 
@@ -73,7 +85,7 @@ export default function TimeTrackingPage() {
         if (ac.signal.aborted) return;
         setExcludedFromTimeTrackingProfile(me.excludedFromTimeTracking === true);
       } catch {
-        if (!ac.signal.aborted) setExcludedFromTimeTrackingProfile(null);
+        if (!ac.signal.aborted) setExcludedFromTimeTrackingProfile(false);
       }
     })();
     return () => ac.abort();
@@ -87,10 +99,6 @@ export default function TimeTrackingPage() {
 
   const handleOpenPartEditorFromHistory = async (entry: TimeEntryMock) => {
     const excludedCheck = excludedFromTimeTracking ? true : await ensureExcludedFlagLoaded();
-    if (excludedCheck === null) {
-      fichaje.setError("No se pudo verificar tu perfil de fichaje. Inténtalo de nuevo en unos segundos.");
-      return;
-    }
     if (excludedCheck === true) {
       fichaje.setError(excludedMessage);
       return;
@@ -235,8 +243,9 @@ export default function TimeTrackingPage() {
     if (breakModal.restModalStep !== "closed") breakModal.setRestModalStep("closed");
   }, [excludedFromTimeTracking, forgotModal.forgotStep, breakModal.restModalStep, forgotModal, breakModal]);
 
-  const ensureExcludedFlagLoaded = async (): Promise<boolean | null> => {
+  const ensureExcludedFlagLoaded = async (): Promise<boolean> => {
     if (!isReady || !user?.id) return false;
+    if (user.excludedFromTimeTracking === true) return true;
     if (excludedFromTimeTrackingProfile !== null) return excludedFromTimeTrackingProfile === true;
     setExcludedCheckLoading(true);
     try {
@@ -245,8 +254,9 @@ export default function TimeTrackingPage() {
       setExcludedFromTimeTrackingProfile(excluded);
       return excluded;
     } catch {
-      // Si falla la verificación, evitamos abrir flujos que el backend podría rechazar.
-      return null;
+      // Sin exclusión en sesión: no bloquear fichaje si el API no responde (403, caída, etc.).
+      setExcludedFromTimeTrackingProfile(false);
+      return false;
     } finally {
       setExcludedCheckLoading(false);
     }
@@ -254,10 +264,6 @@ export default function TimeTrackingPage() {
 
   const handleCheckIn = async () => {
     const excludedCheck = excludedFromTimeTracking ? true : await ensureExcludedFlagLoaded();
-    if (excludedCheck === null) {
-      fichaje.setError("No se pudo verificar tu perfil de fichaje. Inténtalo de nuevo en unos segundos.");
-      return;
-    }
     if (excludedCheck === true) {
       fichaje.setError("Este usuario está excluido del fichaje. No es necesario registrar la jornada.");
       return;
@@ -267,10 +273,6 @@ export default function TimeTrackingPage() {
 
   const handleOpenForgotModal = async () => {
     const excludedCheck = excludedFromTimeTracking ? true : await ensureExcludedFlagLoaded();
-    if (excludedCheck === null) {
-      fichaje.setError("No se pudo verificar tu perfil de fichaje. Inténtalo de nuevo en unos segundos.");
-      return;
-    }
     if (excludedCheck === true) {
       fichaje.setError("Este usuario está excluido del fichaje. No se puede usar la corrección de fichaje.");
       if (forgotModal.forgotStep !== "closed") forgotModal.resetForgotModal();
@@ -284,10 +286,6 @@ export default function TimeTrackingPage() {
 
   const handleOpenEditarDiaMenuFromHistory = async (workDate: string) => {
     const excludedCheck = excludedFromTimeTracking ? true : await ensureExcludedFlagLoaded();
-    if (excludedCheck === null) {
-      fichaje.setError("No se pudo verificar tu perfil de fichaje. Inténtalo de nuevo en unos segundos.");
-      return;
-    }
     if (excludedCheck === true) {
       fichaje.setError(excludedMessage);
       return;

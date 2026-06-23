@@ -42,9 +42,8 @@ export default function SuperadminPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/40 md:p-6">
         <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Superadministración</h1>
         <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-          Gestión de empresas padre y consulta de errores registrados por la API. Las peticiones van a{" "}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs dark:bg-slate-900">/api/superadmin/…</code> con el
-          JWT de sesión; el backend exige rol Superadmin (403 si no aplica).
+          Gestión de empresas padre y consulta de errores del servidor. Solo usuarios con rol Superadmin pueden
+          usar estas pantallas (el servidor devuelve 403 si no aplica).
         </p>
         <p className="mt-2 text-xs font-medium text-amber-800 dark:text-amber-200/90">
           La interfaz oculta esta ruta a otros roles, pero la seguridad real está en el servidor: nunca confíes solo en
@@ -73,7 +72,7 @@ export default function SuperadminPage() {
               : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
           }`}
         >
-          Errores API
+          Errores del servidor
         </button>
       </div>
 

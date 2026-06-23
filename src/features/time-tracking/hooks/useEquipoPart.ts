@@ -13,6 +13,7 @@ import {
 } from "@/features/time-tracking/utils/formatters";
 import { workerNameById } from "@/mocks/time-tracking.mock";
 import type { TimeEntryMock } from "@/features/time-tracking/types";
+import { formatSignedMinutesShort } from "@/shared/utils/time";
 import type { Company, WorkService } from "@/types";
 import { formatTimeLocal } from "@/shared/utils/time";
 
@@ -287,7 +288,7 @@ export function useEquipoPart({
     if (Math.abs(assignedMinutes - workedMinutes) > 1) {
       const diff = assignedMinutes - workedMinutes;
       setEquipoPartError(
-        `Las horas imputadas por tarea no cuadran con el total trabajado. Diferencia: ${diff > 0 ? "+" : ""}${diff} min.`,
+        `Las horas imputadas por tarea no cuadran con el total trabajado. Diferencia: ${formatSignedMinutesShort(diff)}.`,
       );
       return;
     }

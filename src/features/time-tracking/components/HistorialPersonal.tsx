@@ -3,7 +3,7 @@
 import type { TimeEntryMock } from "@/features/time-tracking/types";
 import {
   historicoFilaSinImputarPasado,
-  isSinJornadaImputableRazon,
+  equipoRegistroOcultaHorasEnTabla,
   effectiveWorkMinutesEntry,
   RAZON_NO_LABORAL,
   RAZON_SIN_IMPUTAR,
@@ -23,6 +23,7 @@ import {
   formatTimeLocal,
   workDateIsWeekend,
 } from "@/shared/utils/time";
+import { timeEntryFilaSinAccionesEdicion } from "@/features/time-tracking/utils/timeEntryRowKind";
 import {
   equipoTablaEtiquetaAusencia,
   equipoTablaEtiquetaBaseClass,
@@ -100,6 +101,16 @@ export function HistorialPersonal({
             </span>
             <span className="rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 text-slate-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300">
               Fin de semana
+            </span>
+            <span
+              className={`${equipoTablaEtiquetaBaseClass} ${equipoTablaEtiquetaAusencia("vacaciones").badgeClass} px-2.5 py-1`}
+            >
+              Vacaciones
+            </span>
+            <span
+              className={`${equipoTablaEtiquetaBaseClass} ${equipoTablaEtiquetaAusencia("festivo_empresa").badgeClass} px-2.5 py-1`}
+            >
+              Festivo empresa
             </span>
           </div>
         </div>
@@ -226,7 +237,8 @@ export function HistorialPersonal({
                     }
 
                     const e = fila.entry;
-                    const sinJornada = isSinJornadaImputableRazon(e.razon);
+                    const sinJornada = equipoRegistroOcultaHorasEnTabla(e);
+                    const esFestivoEmpresa = e.timeEntryStatus === "FestivoEmpresa";
                     const ausenciaEtiqueta = equipoAbsenceEtiquetaKind(e);
                     const ausenciaEtiquetaVisual = ausenciaEtiqueta
                       ? equipoTablaEtiquetaAusencia(ausenciaEtiqueta)
@@ -277,12 +289,16 @@ export function HistorialPersonal({
                     return (
                       <tr key={e.id} className={zebra}>
                         <td className={`${stickyAccionesTdClass} ${stripe}`}>
-                          <EquipoTablaAccionesDuo
-                            onEditarHora={() => onOpenEditarDiaMenu(e.workDate)}
-                            onEditarParte={() => void onOpenPartEditor(e)}
-                            parteDisabled={sinJornada || !e.checkOutUtc}
-                            tieneParte={tieneParte}
-                          />
+                          {timeEntryFilaSinAccionesEdicion(e) ? (
+                            <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
+                          ) : (
+                            <EquipoTablaAccionesDuo
+                              onEditarHora={() => onOpenEditarDiaMenu(e.workDate)}
+                              onEditarParte={() => void onOpenPartEditor(e)}
+                              parteDisabled={sinJornada || !e.checkOutUtc}
+                              tieneParte={tieneParte}
+                            />
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-2 py-1.5 text-sm font-medium text-slate-800 dark:text-slate-100">
                           {formatDateEsWeekdayDdMmYyyy(e.workDate)}
@@ -360,9 +376,13 @@ export function HistorialPersonal({
                               : undefined
                           }
                         >
-                          {sinJornada || e.cierreAutomaticoMedianoche
-                            ? "—"
-                            : formatMinutesShort(effectiveWorkMinutesEntry(e))}
+                          {esFestivoEmpresa &&
+                          typeof e.workedMinutes === "number" &&
+                          e.workedMinutes > 0
+                            ? formatMinutesShort(e.workedMinutes)
+                            : sinJornada || e.cierreAutomaticoMedianoche
+                              ? "—"
+                              : formatMinutesShort(effectiveWorkMinutesEntry(e))}
                         </td>
                       </tr>
                     );

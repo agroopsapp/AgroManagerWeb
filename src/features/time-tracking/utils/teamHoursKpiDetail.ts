@@ -7,6 +7,14 @@ import {
   timeEntryConParteEnServidor,
   workReportParteApiSummary,
 } from "@/features/time-tracking/utils/formatters";
+import {
+  isBajaDayForKpi,
+  isClosedWorkWithoutPartForKpi,
+  isCoveredLaborDayForKpi,
+  isTimeEntryAbsenceForKpi,
+  workedMinutesForKpiDetail,
+  workedMinutesForKpiImputation,
+} from "@/features/time-tracking/utils/teamHoursKpiScope";
 import { formatMinutesShort, formatTimeLocal } from "@/shared/utils/time";
 
 /**
@@ -17,6 +25,7 @@ export type TeamHoursKpiDetailKind =
   | "haFichado"
   | "sinFichar"
   | "vacaciones"
+  | "bajas"
   | "sinParte"
   | "horasImputadas"
   | "jornadasFichadas"
@@ -57,6 +66,8 @@ function apiStatusEs(s: TimeEntryMock["timeEntryStatus"]): string {
       return "Baja / ausencia";
     case "NonWorkingDay":
       return "No laboral";
+    case "FestivoEmpresa":
+      return "Festivo empresa";
     case "unknown":
       return "Desconocido";
     default:
@@ -177,17 +188,21 @@ export function buildTeamHoursKpiDetailRows(
     const e = fila.e;
 
     if (kind === "haFichado" || kind === "jornadasFichadas") {
-      out.push({
-        rowKey: stableEquipoRowKey(fila),
-        nombre,
-        fechaIso,
-        detailLines: buildEquipoFilaDetailLines(fila),
-      });
+      if (isCoveredLaborDayForKpi(e)) {
+        out.push({
+          rowKey: stableEquipoRowKey(fila),
+          nombre,
+          fechaIso,
+          detailLines: buildEquipoFilaDetailLines(fila),
+        });
+      }
       continue;
     }
 
     if (kind === "horasImputadas") {
-      const min = effectiveWorkMinutesEntry(e);
+      if (isBajaDayForKpi(e)) continue;
+      const min = workedMinutesForKpiImputation(e);
+      if (min <= 0) continue;
       out.push({
         rowKey: stableEquipoRowKey(fila),
         nombre,
@@ -210,8 +225,24 @@ export function buildTeamHoursKpiDetailRows(
       continue;
     }
 
+    if (kind === "bajas") {
+      if (equipoAbsenceEtiquetaKind(e) === "baja") {
+        out.push({
+          rowKey: stableEquipoRowKey(fila),
+          nombre,
+          fechaIso,
+          detailLines: buildEquipoFilaDetailLines(fila),
+        });
+      }
+      continue;
+    }
+
     if (kind === "partesCompletados") {
-      if (e.checkOutUtc && timeEntryConParteEnServidor(e)) {
+      if (
+        !isTimeEntryAbsenceForKpi(e) &&
+        e.timeEntryStatus === "Closed" &&
+        timeEntryConParteEnServidor(e)
+      ) {
         out.push({
           rowKey: stableEquipoRowKey(fila),
           nombre,
@@ -223,7 +254,7 @@ export function buildTeamHoursKpiDetailRows(
     }
 
     if (kind === "sinParte") {
-      if (e.checkOutUtc && !timeEntryConParteEnServidor(e)) {
+      if (isClosedWorkWithoutPartForKpi(e)) {
         out.push({
           rowKey: stableEquipoRowKey(fila),
           nombre,

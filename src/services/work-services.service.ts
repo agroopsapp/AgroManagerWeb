@@ -57,7 +57,7 @@ export const workServicesApi = {
   },
 };
 
-// --- Materiales (GET/POST/PUT/DELETE `/api/Materials`) ---
+// --- Materiales (catálogo del tenant) ---
 
 function normalizeMaterial(input: unknown): Material | null {
   if (!input || typeof input !== "object") return null;
@@ -84,7 +84,7 @@ function normalizeMaterial(input: unknown): Material | null {
   };
 }
 
-/** POST `/api/Materials` — alinear con `CreateMaterialRequest` del backend (camelCase JSON). */
+/** Alta de material — alinear con `CreateMaterialRequest` del backend (camelCase JSON). */
 export type MaterialCreateBody = {
   companyId: string;
   name: string;
@@ -93,7 +93,7 @@ export type MaterialCreateBody = {
   code?: string | null;
 };
 
-/** PUT `/api/Materials/{id}` — alinear con `UpdateMaterialRequest`. */
+/** Actualización de material — alinear con `UpdateMaterialRequest`. */
 export type MaterialUpdateBody = {
   name: string;
   description?: string | null;

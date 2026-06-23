@@ -19,7 +19,7 @@ export interface LoginRequest {
   password: string;
 }
 
-/** Usuario en la respuesta de POST /api/Auth/login (API real + variantes habituales). */
+/** Usuario en la respuesta de login (variantes habituales del backend). */
 export interface LoginResponseUser {
   id: string;
   email: string;

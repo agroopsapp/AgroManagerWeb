@@ -43,20 +43,30 @@ export function buildTeamHoursTodaySummary(
 
     const e = f.e;
     const abs = equipoAbsenceEtiquetaKind(e);
-    if (e.checkInUtc) empezadas += 1;
+
     if (abs === "vacaciones") {
       vacaciones += 1;
+      empezadas += 1;
+      itemsTarjeta += 1;
+      continue;
+    }
+    if (abs === "festivo_empresa") {
+      empezadas += 1;
       itemsTarjeta += 1;
       continue;
     }
     if (abs === "baja") {
       baja += 1;
+      empezadas += 1;
       itemsTarjeta += 1;
       continue;
     }
     if (abs === "no_laboral") continue;
 
-    if (e.checkInUtc && !timeEntryConParteEnServidor(e)) {
+    if (e.timeEntryStatus === "Open" || e.timeEntryStatus === "Closed") {
+      empezadas += 1;
+    }
+    if (e.timeEntryStatus === "Closed" && !timeEntryConParteEnServidor(e)) {
       sinParte += 1;
       itemsTarjeta += 1;
     }
@@ -90,7 +100,8 @@ export function isTeamHoursTodaySummaryVisibleRow(
   const abs = equipoAbsenceEtiquetaKind(fila.e);
   if (abs === "baja" || abs === "vacaciones") return true;
   if (abs === "no_laboral") return false;
-  return Boolean(fila.e.checkInUtc) && !timeEntryConParteEnServidor(fila.e);
+  if (fila.e.timeEntryStatus !== "Closed") return false;
+  return !timeEntryConParteEnServidor(fila.e);
 }
 
 export function getTeamHoursTodaySummaryRowPriority(fila: EquipoTablaFila) {

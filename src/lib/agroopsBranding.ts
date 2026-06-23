@@ -8,6 +8,8 @@
  * `LogoBlanco.png` no se incluye aquí (poco contraste en blanco); úsalo en UI oscura.
  */
 export const AGROOPS_PDF_LOGO_PUBLIC_PATHS: readonly string[] = [
+  "/agroops-logo-emerald.png",
+  "/logo-emerald.png",
   "/LogoConTexto.png",
   "/PngLogoTexto.png",
   "/LogoNegro.png",

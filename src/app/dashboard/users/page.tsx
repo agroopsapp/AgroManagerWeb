@@ -3,11 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { UserExcludedFromTimeTrackingControl } from "@/components/UserExcludedFromTimeTrackingControl";
+import { useAuth } from "@/contexts/AuthContext";
 import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
+import type { SuperadminParentCompanyDto } from "@/features/superadmin/types";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
+import { getCompaniesFromApi } from "@/services/companies.service";
 import { rolesApi } from "@/services/roles.service";
+import { superadminApi } from "@/services";
 import { usersApi, type UpdateUserPayload } from "@/services/users.service";
-import type { Role, User as UserType } from "@/types";
+import { USER_ROLE, type CompanyApiRow, Role, User as UserType } from "@/types";
 import {
   DashboardHoyPageHero,
   DashboardPageShell,
@@ -24,13 +28,15 @@ function telefonoParaApi(raw: string): string | undefined {
   return digits.length > 0 ? digits : undefined;
 }
 
-/* Listado: GET /api/Users (igual que Postman). COMPANY_ID solo para crear usuario. */
+/* COMPANY_ID del tenant solo para crear usuario. */
 
-type SortKey = "name" | "email" | "role" | "excluded";
+type SortKey = "name" | "email" | "company" | "role" | "excluded";
 type SortDir = "asc" | "desc";
 
 export default function UsersPage() {
+  const { user, isReady } = useAuth();
   const { showSuccess } = useFlashSuccess();
+  const isSuperAdmin = isReady && user?.role === USER_ROLE.SuperAdmin;
   const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(true);
   /** Errores de listado / carga / eliminar (se muestran en la página, no en modales). */
@@ -47,14 +53,19 @@ export default function UsersPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  /** Solo se usa tras pulsar «Sí»; «Eliminar» solo muestra la confirmación, no llama al API. */
+  /** Solo se usa tras pulsar «Sí»; «Eliminar» solo muestra la confirmación, no llama al servidor. */
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [filterSearch, setFilterSearch] = useState("");
   const [filterRoleId, setFilterRoleId] = useState<string>("");
+  /** Solo SuperAdmin: filtra por `user.companyId` (empresa padre). */
+  const [filterCompanyId, setFilterCompanyId] = useState("");
   const [roles, setRoles] = useState<Role[]>([]);
+  const [tenantCompanies, setTenantCompanies] = useState<CompanyApiRow[]>([]);
+  const [superadminCompanies, setSuperadminCompanies] = useState<SuperadminParentCompanyDto[]>([]);
+  const [superadminCompaniesLoading, setSuperadminCompaniesLoading] = useState(false);
 
   const loadUsers = async (signal?: AbortSignal) => {
     try {
@@ -74,9 +85,31 @@ export default function UsersPage() {
     const ac = new AbortController();
     void loadUsers(ac.signal);
     void rolesApi.getAll({ signal: ac.signal }).then(setRoles).catch(() => setRoles([]));
+    void getCompaniesFromApi({ signal: ac.signal })
+      .then(setTenantCompanies)
+      .catch(() => setTenantCompanies([]));
     return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!isSuperAdmin) {
+      setFilterCompanyId("");
+      setSuperadminCompanies([]);
+      setSuperadminCompaniesLoading(false);
+      return;
+    }
+    const ac = new AbortController();
+    setSuperadminCompaniesLoading(true);
+    void superadminApi
+      .listCompanies({ signal: ac.signal })
+      .then(setSuperadminCompanies)
+      .catch(() => setSuperadminCompanies([]))
+      .finally(() => {
+        if (!ac.signal.aborted) setSuperadminCompaniesLoading(false);
+      });
+    return () => ac.abort();
+  }, [isSuperAdmin]);
 
   const copyPhone = (userId: string, phone: string) => {
     if (!phone) return;
@@ -140,6 +173,41 @@ export default function UsersPage() {
   const roleLabel = (user: UserType) =>
     user.roleName ?? roles.find((r) => r.id === user.roleId)?.name ?? user.roleId;
 
+  const companyNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    const add = (id: string, name: string, fiscalName?: string) => {
+      const label = (name || fiscalName || "").trim() || id;
+      map.set(id, label);
+    };
+    for (const c of tenantCompanies) {
+      const id = c.id?.trim();
+      if (!id) continue;
+      add(id, c.name, c.fiscalName);
+    }
+    for (const c of superadminCompanies) {
+      const id = c.id?.trim();
+      if (!id) continue;
+      add(id, c.name, c.fiscalName);
+    }
+    return map;
+  }, [tenantCompanies, superadminCompanies]);
+
+  const superadminCompanyOptions = useMemo(() => {
+    return [...superadminCompanies]
+      .filter((c) => c.id?.trim())
+      .sort((a, b) =>
+        (a.name || a.fiscalName || a.id).localeCompare(b.name || b.fiscalName || b.id, "es"),
+      );
+  }, [superadminCompanies]);
+
+  const companyLabel = (user: UserType): string => {
+    const fromUser = user.companyName?.trim();
+    if (fromUser) return fromUser;
+    const id = user.companyId?.trim();
+    if (id) return companyNameById.get(id) ?? "—";
+    return "—";
+  };
+
   const toggleSort = (key: SortKey) => {
     setSortKey(key);
     setSortDir((d) => (sortKey === key && d === "asc" ? "desc" : "asc"));
@@ -151,14 +219,20 @@ export default function UsersPage() {
         !filterSearch.trim() ||
         u.name.toLowerCase().includes(filterSearch.toLowerCase()) ||
         u.email.toLowerCase().includes(filterSearch.toLowerCase()) ||
-        (u.phone ?? "").toLowerCase().includes(filterSearch.toLowerCase());
+        (u.phone ?? "").toLowerCase().includes(filterSearch.toLowerCase()) ||
+        companyLabel(u).toLowerCase().includes(filterSearch.toLowerCase());
       const matchRole = !filterRoleId || u.roleId === filterRoleId;
-      return matchSearch && matchRole;
+      const matchCompany =
+        !isSuperAdmin ||
+        !filterCompanyId ||
+        (u.companyId?.trim() ?? "") === filterCompanyId;
+      return matchSearch && matchRole && matchCompany;
     });
     const dir = sortDir === "asc" ? 1 : -1;
     list = [...list].sort((a, b) => {
       if (sortKey === "name") return dir * a.name.localeCompare(b.name);
       if (sortKey === "email") return dir * a.email.localeCompare(b.email);
+      if (sortKey === "company") return dir * companyLabel(a).localeCompare(companyLabel(b));
       if (sortKey === "role") return dir * roleLabel(a).localeCompare(roleLabel(b));
       if (sortKey === "excluded") {
         const af = a.excludedFromTimeTracking === true ? 1 : 0;
@@ -168,7 +242,7 @@ export default function UsersPage() {
       return 0;
     });
     return list;
-  }, [users, sortKey, sortDir, filterSearch, filterRoleId, roles]);
+  }, [users, sortKey, sortDir, filterSearch, filterRoleId, filterCompanyId, isSuperAdmin, roles, companyNameById]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,7 +339,7 @@ export default function UsersPage() {
     }
   };
 
-  /** Llama al DELETE solo cuando el usuario confirma con «Sí». */
+  /** Llama al borrado solo cuando el usuario confirma con «Sí». */
   const confirmDeleteUser = async (id: string) => {
     try {
       setDeletingId(id);
@@ -306,7 +380,7 @@ export default function UsersPage() {
       <PageSurface className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           type="search"
-          placeholder="Buscar por nombre, email o teléfono..."
+          placeholder="Buscar por nombre, email, teléfono o empresa..."
           value={filterSearch}
           onChange={(e) => setFilterSearch(e.target.value)}
           className="flex-1 min-w-[180px] rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
@@ -321,6 +395,22 @@ export default function UsersPage() {
             <option key={r.id} value={r.id}>{r.name}</option>
           ))}
         </select>
+        {isSuperAdmin ? (
+          <select
+            value={filterCompanyId}
+            onChange={(e) => setFilterCompanyId(e.target.value)}
+            disabled={superadminCompaniesLoading}
+            aria-label="Filtrar por empresa"
+            className="min-w-[10rem] rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100"
+          >
+            <option value="">Todas las empresas</option>
+            {superadminCompanyOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {(c.name || c.fiscalName || c.id).trim()}
+              </option>
+            ))}
+          </select>
+        ) : null}
       </PageSurface>
 
       {loading ? (
@@ -355,6 +445,15 @@ export default function UsersPage() {
                   </button>
                 </th>
                 <th className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">Teléfono</th>
+                <th className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleSort("company")}
+                    className="flex items-center gap-1 font-semibold text-slate-800 hover:text-emerald-600 dark:text-slate-200 dark:hover:text-emerald-400"
+                  >
+                    Empresa {sortKey === "company" && (sortDir === "asc" ? "↑" : "↓")}
+                  </button>
+                </th>
                 <th className="px-4 py-3">
                   <button
                     type="button"
@@ -408,6 +507,9 @@ export default function UsersPage() {
                         </button>
                       )}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-200">
+                    {companyLabel(user)}
                   </td>
                   <td className="px-4 py-3">
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-600 dark:text-slate-200">

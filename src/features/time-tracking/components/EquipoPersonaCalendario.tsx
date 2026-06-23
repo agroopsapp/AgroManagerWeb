@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import type { EquipoTablaFila } from "@/features/time-tracking/types";
 import {
   CALENDAR_CARD_CLASS,
+  CALENDAR_GRID_MONTH_TITLE,
   CALENDAR_WEEKDAY_HEADER,
   CAL_CELL_BASE,
   CAL_CELL_DAY_NUM,
@@ -45,6 +46,8 @@ function cellClass(kind: EquipoCalCellKind | undefined, inRange: boolean): strin
       return `${base} ring-sky-400/40 bg-sky-50 text-sky-950 dark:ring-sky-600/45 dark:bg-sky-950/50 dark:text-sky-50`;
     case "baja":
       return `${base} ring-violet-400/35 bg-violet-50 text-violet-950 dark:ring-violet-600/45 dark:bg-violet-950/45 dark:text-violet-50`;
+    case "festivo_empresa":
+      return `${base} ring-amber-400/45 bg-amber-50 text-amber-950 dark:ring-amber-600/45 dark:bg-amber-950/50 dark:text-amber-50`;
     case "dia_no_laboral_reg":
       return `${base} ring-stone-400/35 bg-stone-50 text-stone-900 dark:ring-stone-600/45 dark:bg-stone-900/50 dark:text-stone-100`;
     default:
@@ -185,11 +188,14 @@ export const EquipoPersonaCalendario = memo(function EquipoPersonaCalendario({
   rangeStart,
   rangeEnd,
   nombrePersona,
+  periodMonthTitle,
 }: {
   filas: EquipoTablaFila[];
   rangeStart: string;
   rangeEnd: string;
   nombrePersona: string;
+  /** Mes / periodo visible encima de la rejilla (alineado con heatmaps). */
+  periodMonthTitle?: string;
 }) {
   const weeks = useMemo(
     () => buildWeekGridForRange(rangeStart, rangeEnd),
@@ -211,42 +217,49 @@ export const EquipoPersonaCalendario = memo(function EquipoPersonaCalendario({
     <div className="min-w-0" aria-label={`Calendario de ${nombrePersona}`}>
       <div className="mx-auto w-full max-w-md sm:max-w-lg md:max-w-xl">
         <div className={CALENDAR_CARD_CLASS}>
-        <div className="grid grid-cols-7 items-stretch gap-x-2 gap-y-2 sm:gap-x-2.5 sm:gap-y-2.5">
-          {WEEKDAYS.map((d) => (
-            <div key={d} className={`${CALENDAR_WEEKDAY_HEADER} min-h-[2.25rem] sm:min-h-[2.5rem]`}>
-              {d}
-            </div>
-          ))}
-          {weeks.flatMap((row, wi) =>
-            row.map((dateISO, di) => {
-              const inRange = dateISO != null;
-              const kind = dateISO ? statusByDate.get(dateISO) : undefined;
-              if (!inRange || !dateISO) {
+          {periodMonthTitle?.trim() ? (
+            <p className={CALENDAR_GRID_MONTH_TITLE}>{periodMonthTitle.trim()}</p>
+          ) : null}
+          <div
+            className="grid grid-cols-7 items-stretch gap-x-1 gap-y-1 sm:gap-x-1.5 sm:gap-y-1.5"
+            role="grid"
+            aria-label={`Calendario por semanas de ${nombrePersona}`}
+          >
+            {WEEKDAYS.map((d) => (
+              <div key={d} className={CALENDAR_WEEKDAY_HEADER}>
+                {d}
+              </div>
+            ))}
+            {weeks.flatMap((row, wi) =>
+              row.map((dateISO, di) => {
+                const inRange = dateISO != null;
+                const kind = dateISO ? statusByDate.get(dateISO) : undefined;
+                if (!inRange || !dateISO) {
+                  return (
+                    <div
+                      key={dateISO ?? `pad-${wi}-${di}`}
+                      className={cellClass(kind, false)}
+                      aria-hidden
+                    />
+                  );
+                }
                 return (
-                  <div
-                    key={dateISO ?? `pad-${wi}-${di}`}
-                    className={cellClass(kind, false)}
-                    aria-hidden
+                  <CalDayCell
+                    key={dateISO}
+                    dateISO={dateISO}
+                    kind={kind}
+                    columnIndex={di}
+                    fila={filaByDate.get(dateISO)}
                   />
                 );
-              }
-              return (
-                <CalDayCell
-                  key={dateISO}
-                  dateISO={dateISO}
-                  kind={kind}
-                  columnIndex={di}
-                  fila={filaByDate.get(dateISO)}
-                />
-              );
-            }),
-          )}
-        </div>
+              }),
+            )}
+          </div>
         </div>
       </div>
 
       <ul
-        className="mx-auto mt-4 flex max-w-xl flex-wrap gap-2"
+        className="mx-auto mt-3 flex max-w-xl flex-wrap gap-1.5 sm:mt-4 sm:gap-2"
         aria-label="Leyenda del calendario"
       >
         <li className={LEGEND_PILL}>
@@ -266,8 +279,12 @@ export const EquipoPersonaCalendario = memo(function EquipoPersonaCalendario({
           No laboral (rejilla)
         </li>
         <li className={LEGEND_PILL}>
+          <span className={`${LEGEND_DOT} bg-indigo-400 dark:bg-indigo-300`} aria-hidden />
+          Vacaciones planif.
+        </li>
+        <li className={LEGEND_PILL}>
           <span className={`${LEGEND_DOT} bg-sky-400 dark:bg-sky-300`} aria-hidden />
-          Vacaciones
+          Vacaciones (fichaje)
         </li>
         <li className={LEGEND_PILL}>
           <span className={`${LEGEND_DOT} bg-violet-400 dark:bg-violet-300`} aria-hidden />

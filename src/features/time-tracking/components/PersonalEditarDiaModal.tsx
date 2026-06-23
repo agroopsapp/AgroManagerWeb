@@ -14,7 +14,7 @@ type PersonalEditarDiaModalProps = {
 
 /**
  * Paso intermedio antes de imputar horas desde el histórico personal.
- * Ausencias: UI lista; acciones se conectarán al API cuando esté disponible.
+ * Ausencias: UI lista; acciones se conectarán al servidor cuando esté disponible.
  */
 export function PersonalEditarDiaModal({
   workDate,

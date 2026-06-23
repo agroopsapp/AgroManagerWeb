@@ -70,7 +70,7 @@ function normalizeCompanyApiRow(input: unknown): CompanyApiRow | null {
   };
 }
 
-/** Lista de empresas del tenant (GET `/api/Companies`). Sin mock. */
+/** Lista de empresas del tenant. Sin mock. */
 export function getCompaniesFromApi(opts?: { signal?: AbortSignal }): Promise<CompanyApiRow[]> {
   return apiClient.get<unknown>(COMPANIES, { signal: opts?.signal }).then((raw) =>
     unwrapList(raw).map(normalizeCompanyApiRow).filter((x): x is CompanyApiRow => x !== null)
@@ -106,7 +106,7 @@ export function buildMyCompanyPutBody(form: MyCompanyProfile): CompanyApiPutBody
   };
 }
 
-/** Actualiza empresa (PUT `/api/Companies/{id}`). */
+/** Actualiza empresa del tenant. */
 export function putCompanyOnApi(id: string, body: CompanyApiPutBody): Promise<CompanyApiRow> {
   return apiClient.put<unknown>(`${COMPANIES}/${encodeURIComponent(id)}`, body).then((raw) => {
     const row = normalizeCompanyApiRow(raw);
@@ -127,8 +127,8 @@ export function putCompanyOnApi(id: string, body: CompanyApiPutBody): Promise<Co
 }
 
 /**
- * Crea empresa cliente con áreas (POST `/api/ClientCompanies/with-areas`).
- * `body.companyId` debe ser el GUID de la empresa del tenant (p. ej. primer elemento de GET `/api/Companies`).
+ * Crea empresa cliente con áreas.
+ * `body.companyId` debe ser el GUID de la empresa del tenant.
  *
  * La respuesta viene envuelta: `{ clientCompany: {...}, workAreas: [...] }`.
  * Extraemos la empresa y mapeamos las áreas (el backend devuelve `description`, no `observations`).
@@ -192,7 +192,7 @@ function normalizeCompany(input: unknown): Company {
 }
 
 /**
- * GET /api/ClientCompanies/{id}/with-areas → ClientCompanyWithWorkAreasDto.
+ * Empresa cliente con áreas (ClientCompanyWithWorkAreasDto).
  * Devuelve la empresa con todas sus áreas de trabajo; útil para el formulario de edición.
  */
 export function getClientCompanyWithAreas(id: string): Promise<Company> {
@@ -211,27 +211,27 @@ export function getClientCompanyWithAreas(id: string): Promise<Company> {
     });
 }
 
-/** DELETE /api/WorkAreas/{id} — elimina un área de trabajo existente. */
+/** Elimina un área de trabajo existente. */
 export function deleteWorkArea(id: string): Promise<void> {
   return apiClient.delete<void>(`${WORK_AREAS}/${encodeURIComponent(id)}`);
 }
 
 export const companiesApi = {
-  /** GET /api/ClientCompanies — lista de empresas cliente. */
+  /** Lista de empresas cliente. */
   getAll(): Promise<Company[]> {
     return apiClient
       .get<unknown>(CLIENT_COMPANIES)
       .then((raw) => unwrapList(raw).map(normalizeCompany));
   },
 
-  /** GET /api/ClientCompanies/{id} */
+  /** Detalle de empresa cliente por id. */
   getById(id: string): Promise<Company> {
     return apiClient
       .get<unknown>(`${CLIENT_COMPANIES}/${encodeURIComponent(id)}`)
       .then(normalizeCompany);
   },
 
-  /** PUT /api/ClientCompanies/{id}/with-areas */
+  /** Actualiza empresa cliente y sus áreas. */
   update(
     id: string,
     body: {
@@ -260,7 +260,7 @@ export const companiesApi = {
       });
   },
 
-  /** DELETE /api/ClientCompanies/{id} */
+  /** Elimina empresa cliente. */
   delete(id: string): Promise<void> {
     return apiClient.delete<void>(
       `${CLIENT_COMPANIES}/${encodeURIComponent(id)}`,

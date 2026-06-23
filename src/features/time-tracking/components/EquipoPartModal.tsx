@@ -8,7 +8,12 @@ import {
   effectiveWorkMinutesEntry,
   splitWorkedMinutesOrdinaryAndExtra,
 } from "@/features/time-tracking/utils/formatters";
-import { formatDateES, formatMinutesShort, formatTimeLocal } from "@/shared/utils/time";
+import {
+  formatDateES,
+  formatMinutesShort,
+  formatSignedMinutesShort,
+  formatTimeLocal,
+} from "@/shared/utils/time";
 import { type Company, type WorkService } from "@/types";
 import { workerNameById } from "@/mocks/time-tracking.mock";
 
@@ -162,8 +167,7 @@ export function EquipoPartModal({
                 <span
                   className={`font-semibold ${Math.abs(diffMin) <= 1 ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}
                 >
-                  {diffMin > 0 ? "+" : ""}
-                  {diffMin} min
+                  {formatSignedMinutesShort(diffMin)}
                 </span>
               </div>
               <div className="flex flex-col gap-2 border-b border-slate-200 pb-3 dark:border-slate-600 sm:flex-row sm:items-center sm:justify-between">

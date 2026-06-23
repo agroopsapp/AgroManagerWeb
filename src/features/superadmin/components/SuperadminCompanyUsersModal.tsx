@@ -311,10 +311,7 @@ export function SuperadminCompanyUsersModal({ company, onClose }: Props) {
                 <span className="ml-2 font-mono text-xs text-slate-500">{company.id}</span>
               </p>
               <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                Listado:{" "}
-                <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">GET /api/superadmin/companies/{"{id}"}/users</code>
-                . Alta: <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">POST /api/Users</code> con{" "}
-                <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">companyId</code> de esta fila.
+                Usuarios vinculados a esta empresa. Al dar de alta, se asigna automáticamente a esta fila.
               </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">

@@ -51,7 +51,7 @@ export default function CompaniesPage() {
   const [saving, setSaving] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  /** GUID de la empresa del tenant (GET `/api/Companies`); obligatorio para crear vía `ClientCompanies/with-areas`. */
+  /** GUID de la empresa del tenant; obligatorio para dar de alta clientes con áreas. */
   const [tenantCompanyId, setTenantCompanyId] = useState<string | null>(null);
   const [tenantIdError, setTenantIdError] = useState<string | null>(null);
 
@@ -99,13 +99,13 @@ export default function CompaniesPage() {
         if (ac.signal.aborted) return;
         const id = list[0]?.id?.trim() ?? "";
         setTenantCompanyId(id || null);
-        if (!id) setTenantIdError("No hay empresa en /api/Companies; no se puede rellenar companyId del tenant.");
+        if (!id) setTenantIdError("No hay empresa del tenant registrada.");
       })
       .catch((e) => {
         if (ac.signal.aborted) return;
         if (e instanceof DOMException && e.name === "AbortError") return;
         setTenantCompanyId(null);
-        setTenantIdError("No se pudo obtener la empresa del tenant (GET /api/Companies). Revisa sesión y NEXT_PUBLIC_API_URL.");
+        setTenantIdError("No se pudo obtener la empresa del tenant. Revisa sesión y la URL del servidor.");
       });
     return () => ac.abort();
   }, [isReady, isAdminLike]);
@@ -206,7 +206,7 @@ export default function CompaniesPage() {
     );
   };
 
-  /** Áreas para PUT with-areas: áreas locales (id empieza por "ar-") → id null; existentes conservan su GUID. */
+  /** Áreas al editar cliente: locales (id "ar-…") → id null; existentes conservan su GUID. */
   const areasForUpdate = () =>
     formAreas
       .filter((a) => a.name.trim().length > 0)
@@ -216,7 +216,7 @@ export default function CompaniesPage() {
         observations: a.observations.trim() || null,
       }));
 
-  /** Áreas para POST with-areas: id siempre null en alta; observaciones vacías → null. */
+  /** Áreas al crear cliente: id siempre null en alta; observaciones vacías → null. */
   const areasForClientCompanyApi = () =>
     formAreas
       .map((a) => ({
@@ -284,7 +284,7 @@ export default function CompaniesPage() {
       } else {
         if (!tenantCompanyId) {
           setError(
-            "Falta el GUID de tu empresa (tenant). Debe existir al menos una fila en GET /api/Companies."
+            "Falta la empresa del tenant. Configura «Mi empresa» o contacta con administración."
           );
           setSaving(false);
           return;

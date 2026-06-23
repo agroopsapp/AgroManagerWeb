@@ -1,13 +1,14 @@
 // Tipos locales del feature time-tracking
 // Fuente original: app/dashboard/time-tracking/page.tsx
 
-/** Valores exactos de `status` en JSON del API de fichajes (sin normalizar mayúsculas). */
+/** Valores exactos de `status` en JSON del servidor de fichajes (sin normalizar mayúsculas). */
 export type TimeEntryApiStatus =
   | "Open"
   | "Closed"
   | "Vacation"
   | "SickLeave"
-  | "NonWorkingDay";
+  | "NonWorkingDay"
+  | "FestivoEmpresa";
 
 /** Motivo de imputación del registro horario. */
 export type TimeEntryRazon =
@@ -27,13 +28,13 @@ export interface TimeEntryMock {
   workerId: number;
   userId?: string | null;
   workReportId?: string | null;
-  /** Estado del parte en servidor (p. ej. GET /TimeEntries/rows). */
+  /** Estado del parte en servidor (filas de fichaje). */
   workReportStatus?: string | null;
   /** Número de líneas del parte en servidor. */
   workReportLineCount?: number | null;
   /**
    * Texto legible de imputación (empresa · servicio · área por línea), rellenado al cargar
-   * `GET /api/WorkReports/with-lines/{id}` tras traer las filas de fichaje.
+   * Parte con líneas del servidor, tras traer las filas de fichaje.
    */
   workReportLinesSummary?: string | null;
   userName?: string | null;
@@ -48,7 +49,7 @@ export interface TimeEntryMock {
   updatedBy: number | null;
   /** Minutos de descanso declarados por el trabajador al cerrar la jornada. */
   breakMinutes?: number;
-  /** Minutos netos trabajados según API (p. ej. GET /TimeEntries/rows); prioridad en stats si viene informado. */
+  /** Minutos netos trabajados según el servidor; prioridad en stats si viene informado. */
   workedMinutes?: number | null;
   /** Cómo se ha imputado la jornada (fichaje normal vs corrección manual). */
   razon?: TimeEntryRazon;
@@ -66,7 +67,7 @@ export interface TimeEntryMock {
   previousCheckOutUtc?: string | null;
   /** Nota opcional del administrador al corregir horario. */
   edicionNotaAdmin?: string | null;
-  /** Zona o ubicación de trabajo si el API la envía en GET /TimeEntries/rows. */
+  /** Zona o ubicación de trabajo si el servidor la envía en las filas. */
   workAreaName?: string | null;
   /**
    * El backend cerró la jornada a las 23:59 del mismo día (sin fichaje real de salida).
@@ -75,9 +76,14 @@ export interface TimeEntryMock {
   cierreAutomaticoMedianoche?: boolean;
   /**
    * Estado de la jornada según el backend (campo JSON `status`, camelCase).
-   * Si el valor no está en la lista blanca del API → `"unknown"` (UI gris).
+   * Si el valor no está en la lista blanca del servidor → `"unknown"` (UI gris).
    */
   timeEntryStatus?: TimeEntryApiStatus | "unknown" | null;
+  /** `rowKind` en filas de equipo y en «mis fichajes» (`/rows`; `/mine` lo infiere por `status`). */
+  rowKind?: "timeEntry" | "companyHoliday";
+  companyHolidayId?: string | null;
+  /** Nombre del festivo (p. ej. «Fiesta del Trabajo»). */
+  holidayName?: string | null;
 }
 
 export type EquipoTablaFila =
@@ -98,7 +104,7 @@ export type EquipoTablaFila =
       displayName?: string;
     };
 
-/** Usuario en el filtro «Persona» (GET /api/Users → `id` = userId GUID). */
+/** Usuario en el filtro «Persona» (`id` = userId GUID). */
 export interface EquipoWorkerOption {
   id: string;
   name: string;
@@ -153,7 +159,7 @@ export type AyerCompletaStep =
   | "descanso"
   | "descanso_cant";
 
-/** Calendario público de empresa: festivos y vacaciones (referencia visual; persistencia local hasta API). */
+/** Calendario laboral: festivos (API CompanyHolidays) y vacaciones (local hasta API). */
 export type CalendarioLaboralMarkKind = "festivo" | "vacaciones";
 
 export type CalendarioLaboralDayMark = {
@@ -174,5 +180,6 @@ export type TeamHoursInfoModalId =
   | "kpisEstadoEquipo"
   | "cumplimientoHorasHeatmap"
   | "cumplimientoPartesHeatmap"
+  | "calendarioPersonaEquipo"
   | "exportacion"
   | "permisosWorker";

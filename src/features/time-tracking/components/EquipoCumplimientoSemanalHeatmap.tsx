@@ -5,7 +5,7 @@
  * Estilo visual alineado con `EquipoPersonaCalendario`: cabeceras L M X J V S D,
  * celdas cuadradas con borde + número del día, leyenda en grid con iconos.
  */
-import { Fragment, memo, useMemo } from "react";
+import { memo, useMemo } from "react";
 import type {
   TimeEntryRowsHeatmapDayDto,
   TimeEntryRowsHeatmapDto,
@@ -19,7 +19,7 @@ import {
 } from "@/features/time-tracking/components/HeatmapTooltipScope";
 import {
   CALENDAR_CARD_CLASS,
-  CALENDAR_WEEK_RANGE_LABEL,
+  CALENDAR_GRID_MONTH_TITLE,
   CALENDAR_WEEKDAY_HEADER,
   CAL_CELL_BASE,
   CAL_CELL_DAY_NUM,
@@ -27,7 +27,11 @@ import {
   LEGEND_DOT,
   LEGEND_PILL,
 } from "@/features/time-tracking/utils/equipoCalendarChrome";
-import { dayOfMonthFromISO } from "@/features/time-tracking/utils/equipoCalendar";
+import {
+  dayOfMonthFromISO,
+  parseLocalDateISO,
+  toLocalDateISO,
+} from "@/features/time-tracking/utils/equipoCalendar";
 
 const WEEKDAY_SHORT = ["L", "M", "X", "J", "V", "S", "D"] as const;
 
@@ -50,28 +54,6 @@ function hoursHeatmapCellClass(day: TimeEntryRowsHeatmapDayDto | undefined): str
   return `${CAL_CELL_BASE} ring-slate-300/50 bg-slate-50 text-slate-600 dark:ring-slate-600 dark:bg-slate-800/55 dark:text-slate-300`;
 }
 
-function formatWeekRangeLabel(weekStart: string, weekEnd: string): string {
-  const start = parseLocalISO(weekStart);
-  const end = parseLocalISO(weekEnd);
-  if (!start || !end) return `${weekStart} – ${weekEnd}`;
-  const fmtDayMonth = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
-  const fmtDay = new Intl.DateTimeFormat("es-ES", { day: "numeric" });
-  const sameMonth =
-    start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth();
-  if (sameMonth) {
-    return `${fmtDay.format(start)} – ${fmtDayMonth.format(end).replace(".", "")}`;
-  }
-  return `${fmtDayMonth.format(start).replace(".", "")} – ${fmtDayMonth.format(end).replace(".", "")}`;
-}
-
-function parseLocalISO(iso: string): Date | null {
-  if (!iso) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return null;
-  const [, y, mo, d] = m;
-  return new Date(Number(y), Number(mo) - 1, Number(d));
-}
-
 function deriveWeeksFromDays(
   days: TimeEntryRowsHeatmapDayDto[],
 ): TimeEntryRowsHeatmapWeekDto[] {
@@ -79,7 +61,7 @@ function deriveWeeksFromDays(
   for (const d of days) {
     const key = `${d.isoWeekYear}-${d.isoWeek}`;
     if (!map.has(key)) {
-      const date = parseLocalISO(d.date);
+      const date = parseLocalDateISO(d.date);
       let weekStart = d.date;
       let weekEnd = d.date;
       if (date) {
@@ -87,8 +69,8 @@ function deriveWeeksFromDays(
         start.setDate(date.getDate() - (d.weekday - 1));
         const end = new Date(start);
         end.setDate(start.getDate() + 6);
-        weekStart = toLocalISO(start);
-        weekEnd = toLocalISO(end);
+        weekStart = toLocalDateISO(start);
+        weekEnd = toLocalDateISO(end);
       }
       map.set(key, {
         isoWeekYear: d.isoWeekYear,
@@ -115,13 +97,6 @@ function deriveWeeksFromDays(
     if (a.isoWeekYear !== b.isoWeekYear) return a.isoWeekYear - b.isoWeekYear;
     return a.isoWeek - b.isoWeek;
   });
-}
-
-function toLocalISO(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 function buildHoursHeatmapTooltip(day: TimeEntryRowsHeatmapDayDto | undefined): {
@@ -196,10 +171,13 @@ export const EquipoCumplimientoSemanalHeatmap = memo(
     data,
     loading,
     error,
+    periodMonthTitle,
   }: {
     data: TimeEntryRowsHeatmapDto | null;
     loading: boolean;
     error: string | null;
+    /** Mes / periodo visible encima de la rejilla (ej. «Mayo 2026»). */
+    periodMonthTitle?: string;
   }) {
     const weeks = useMemo<TimeEntryRowsHeatmapWeekDto[]>(() => {
       if (!data) return [];
@@ -251,58 +229,54 @@ export const EquipoCumplimientoSemanalHeatmap = memo(
       );
     }
 
-    const gridTemplate = "max-content repeat(7, minmax(0, 1fr))";
-
     return (
       <div className="min-w-0">
         <HeatmapTooltipProvider>
           <div className="mx-auto w-full max-w-md sm:max-w-lg md:max-w-xl">
           <div className={CALENDAR_CARD_CLASS}>
+            {periodMonthTitle?.trim() ? (
+              <p className={CALENDAR_GRID_MONTH_TITLE}>{periodMonthTitle.trim()}</p>
+            ) : null}
           <div
-            className="grid items-stretch gap-x-2 gap-y-2 sm:gap-x-2.5 sm:gap-y-2.5"
-            style={{ gridTemplateColumns: gridTemplate }}
+            className="grid grid-cols-7 items-stretch gap-x-1 gap-y-1 sm:gap-x-1.5 sm:gap-y-1.5"
             role="grid"
             aria-label="Heatmap de cumplimiento por semana y día"
           >
-            <div className="min-h-[2.25rem] sm:min-h-[2.5rem]" aria-hidden />
             {WEEKDAY_SHORT.map((d) => (
-              <div key={d} className={`${CALENDAR_WEEKDAY_HEADER} min-h-[2.25rem] sm:min-h-[2.5rem]`}>
+              <div key={d} className={CALENDAR_WEEKDAY_HEADER}>
                 {d}
               </div>
             ))}
 
-            {weeks.map((w) => (
-              <Fragment key={`${w.isoWeekYear}-${w.isoWeek}`}>
-                <div className={CALENDAR_WEEK_RANGE_LABEL}>{formatWeekRangeLabel(w.weekStart, w.weekEnd)}</div>
-                {WEEKDAY_SHORT.map((_, i) => {
-                  const weekday = i + 1;
-                  const day = dayIndex.get(`${w.isoWeekYear}-${w.isoWeek}-${weekday}`);
-                  const cls = hoursHeatmapCellClass(day);
-                  const tip = buildHoursHeatmapTooltip(day);
-                  const cellKey = `hours-${w.isoWeekYear}-${w.isoWeek}-${weekday}`;
-                  return (
-                    <HeatmapInteractiveCell
-                      key={cellKey}
-                      cellKey={cellKey}
-                      columnIndex={i}
-                      className={cls}
-                      tooltipTitle={tip.title}
-                      tooltipRows={tip.rows}
-                      ariaLabel={tip.ariaLabel}
-                    >
-                      {day ? (
-                        <span className={CAL_CELL_DAY_NUM}>{dayOfMonthFromISO(day.date)}</span>
-                      ) : null}
-                    </HeatmapInteractiveCell>
-                  );
-                })}
-              </Fragment>
-            ))}
+            {weeks.flatMap((w) =>
+              WEEKDAY_SHORT.map((_, i) => {
+                const weekday = i + 1;
+                const day = dayIndex.get(`${w.isoWeekYear}-${w.isoWeek}-${weekday}`);
+                const cls = hoursHeatmapCellClass(day);
+                const tip = buildHoursHeatmapTooltip(day);
+                const cellKey = `hours-${w.isoWeekYear}-${w.isoWeek}-${weekday}`;
+                return (
+                  <HeatmapInteractiveCell
+                    key={cellKey}
+                    cellKey={cellKey}
+                    columnIndex={i}
+                    className={cls}
+                    tooltipTitle={tip.title}
+                    tooltipRows={tip.rows}
+                    ariaLabel={tip.ariaLabel}
+                  >
+                    {day ? (
+                      <span className={CAL_CELL_DAY_NUM}>{dayOfMonthFromISO(day.date)}</span>
+                    ) : null}
+                  </HeatmapInteractiveCell>
+                );
+              }),
+            )}
           </div>
           </div>
 
           <ul
-            className="mx-auto mt-4 flex max-w-xl flex-wrap gap-2"
+            className="mx-auto mt-3 flex max-w-xl flex-wrap gap-1.5 sm:mt-4 sm:gap-2"
             aria-label="Leyenda de cumplimiento"
           >
             <li className={LEGEND_PILL}>

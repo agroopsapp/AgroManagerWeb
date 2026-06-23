@@ -113,14 +113,14 @@ export interface CompanyArea {
   observations: string;
 }
 
-/** Área en el cuerpo de POST `/api/ClientCompanies/with-areas`. El backend exige `id: null` en alta. */
+/** Área en el cuerpo de alta de cliente con áreas. El backend exige `id: null` en alta. */
 export interface ClientCompanyAreaInput {
   id: null;
   name: string;
   observations: string | null;
 }
 
-/** Cuerpo de POST `/api/ClientCompanies/with-areas` (`companyId` = empresa del tenant). */
+/** Cuerpo de alta de cliente con áreas (`companyId` = empresa del tenant). */
 export interface ClientCompanyWithAreasCreateBody {
   companyId: string;
   name: string;
@@ -129,7 +129,7 @@ export interface ClientCompanyWithAreasCreateBody {
   areas: ClientCompanyAreaInput[];
 }
 
-/** Fila devuelta por GET `/api/Companies` (datos de la empresa en el tenant). */
+/** Fila de empresa del tenant. */
 export interface CompanyApiRow {
   id: string;
   name: string;
@@ -143,7 +143,7 @@ export interface CompanyApiRow {
   createdAt: string;
 }
 
-/** Cuerpo de PUT `/api/Companies/{id}`. */
+/** Cuerpo de actualización de empresa del tenant. */
 export interface CompanyApiPutBody {
   name: string;
   fiscalName: string;
@@ -155,12 +155,12 @@ export interface CompanyApiPutBody {
   logoUrl: string;
 }
 
-/** Empresa / sociedad (contrato típico laboral; CRUD vía `/api/CustomerCompany`). */
+/** Empresa / sociedad (contrato típico laboral). */
 export interface Company {
   id: string;
   /**
    * Empresa matriz / tenant (`companyId` en ClientCompany cuando difiere de `id`).
-   * `User.companyId` suele ser el GUID del tenant; el listado por empresa en superadmin es GET `/api/superadmin/companies/{id}/users`.
+   * `User.companyId` suele ser el GUID del tenant; en superadmin el listado es por empresa padre.
    */
   organizationCompanyId?: string | null;
   name: string;

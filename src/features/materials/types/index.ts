@@ -1,4 +1,4 @@
-/** DTO alineado con GET/POST `/api/Materials`. */
+/** DTO de material del catálogo del servidor. */
 export type Material = {
   id: string;
   companyId: string;

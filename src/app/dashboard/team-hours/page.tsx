@@ -22,6 +22,7 @@ import { workerNameById } from "@/mocks/time-tracking.mock";
 import {
   formatDateES,
   formatDateEsWeekdayDdMmYyyy,
+  formatMonthYearTitleEs,
   formatFechaModificacionUtc,
   formatMinutesShort,
   formatTimeLocal,
@@ -30,7 +31,6 @@ import {
   workDateWithinLastNDays,
 } from "@/shared/utils/time";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
-import { ForgotModal } from "@/features/time-tracking/components/ForgotModal";
 import {
   effectiveExtraMinutesEntry,
   effectiveWorkMinutesEntry,
@@ -53,6 +53,10 @@ import {
   isTeamHoursTodaySummaryVisibleRow,
 } from "@/features/time-tracking/utils/teamHoursTodaySummary";
 import {
+  equipoFilasForPersonKey,
+  normalizePersonKey,
+} from "@/features/time-tracking/utils/equipoGridMerge";
+import {
   equipoTablaEtiquetaBaseClass,
   equipoTablaEtiquetaAusencia,
   equipoTablaSinImputarBadgeClass,
@@ -60,19 +64,14 @@ import {
   equipoTablaZebraStripeBg,
 } from "@/features/time-tracking/utils/equipoTableAppearance";
 import { timeEntryApiStatusBadgeClass } from "@/features/time-tracking/utils/timeEntryApiStatus";
-import { downloadEquipoTablePdf } from "@/features/time-tracking/utils/equipoTablePdf";
-import { downloadEquipoPersonaPartesBundlePdf } from "@/features/time-tracking/utils/equipoPersonaPartesPdf";
+import { timeEntryFilaSinAccionesEdicion } from "@/features/time-tracking/utils/timeEntryRowKind";
 import type { EquipoSortKey } from "@/features/time-tracking/types";
-import { EquipoPersonaCalendario } from "@/features/time-tracking/components/EquipoPersonaCalendario";
-import { EquipoCumplimientoSemanalHeatmap } from "@/features/time-tracking/components/EquipoCumplimientoSemanalHeatmap";
-import { EquipoCumplimientoPartesHeatmap } from "@/features/time-tracking/components/EquipoCumplimientoPartesHeatmap";
 import {
   EquipoTablaAccionesDuo,
   EquipoTablaBotonPrimeraJornada,
 } from "@/features/time-tracking/components/EquipoTablaAccionesIconos";
 import { TimeEntryStatusBadge } from "@/features/time-tracking/components/TimeEntryStatusBadge";
 import { EquipoRegistrosFiltrosEtiquetas } from "@/features/time-tracking/components/EquipoRegistrosFiltrosEtiquetas";
-import { TeamHoursEquipoKpiSection } from "@/features/time-tracking/components/team-hours/TeamHoursEquipoKpiSection";
 import {
   TeamHoursInfoModals,
   useTeamHoursInfoModal,
@@ -82,6 +81,38 @@ import { TeamHoursSectionInfoButton } from "@/features/time-tracking/components/
 
 const EquipoPartModal = dynamic(
   () => import("@/features/time-tracking/components/EquipoPartModal").then((m) => m.EquipoPartModal),
+  { ssr: false },
+);
+const ForgotModal = dynamic(
+  () => import("@/features/time-tracking/components/ForgotModal").then((m) => m.ForgotModal),
+  { ssr: false },
+);
+const EquipoPersonaCalendario = dynamic(
+  () =>
+    import("@/features/time-tracking/components/EquipoPersonaCalendario").then(
+      (m) => m.EquipoPersonaCalendario,
+    ),
+  { ssr: false },
+);
+const EquipoCumplimientoSemanalHeatmap = dynamic(
+  () =>
+    import("@/features/time-tracking/components/EquipoCumplimientoSemanalHeatmap").then(
+      (m) => m.EquipoCumplimientoSemanalHeatmap,
+    ),
+  { ssr: false },
+);
+const EquipoCumplimientoPartesHeatmap = dynamic(
+  () =>
+    import("@/features/time-tracking/components/EquipoCumplimientoPartesHeatmap").then(
+      (m) => m.EquipoCumplimientoPartesHeatmap,
+    ),
+  { ssr: false },
+);
+const TeamHoursEquipoKpiSection = dynamic(
+  () =>
+    import("@/features/time-tracking/components/team-hours/TeamHoursEquipoKpiSection").then(
+      (m) => m.TeamHoursEquipoKpiSection,
+    ),
   { ssr: false },
 );
 
@@ -212,6 +243,7 @@ export default function TeamHoursPage() {
       user?.role === USER_ROLE.SuperAdmin ||
       user?.role === USER_ROLE.Manager ||
       user?.role === USER_ROLE.Admin,
+    enableEquipoAlcanceFiltros: true,
     includeExcludedFromTimeTracking,
   });
 
@@ -224,6 +256,7 @@ export default function TeamHoursPage() {
       user?.role === USER_ROLE.SuperAdmin ||
       user?.role === USER_ROLE.Manager ||
       user?.role === USER_ROLE.Admin,
+    enableEquipoAlcanceFiltros: true,
     includeExcludedFromTimeTracking,
   });
 
@@ -358,14 +391,26 @@ export default function TeamHoursPage() {
     );
   }, [eq.filtroPersonaEquipo, eq.equipoPeriodo]);
 
+  /** Worker: solo si la persona filtrada es el propio usuario. */
+  const puedeExportarPartesPersonaEnVista = useMemo(() => {
+    if (!puedeExportarPdfPartesPersona) return false;
+    if (!user?.id) return false;
+    if (user.role === USER_ROLE.Worker) {
+      const sel = normalizePersonKey(String(eq.filtroPersonaEquipo));
+      const me = normalizePersonKey(user.id);
+      return Boolean(sel && me && sel === me);
+    }
+    return true;
+  }, [puedeExportarPdfPartesPersona, eq.filtroPersonaEquipo, user?.id, user?.role]);
+
   const equipoVistaTieneRegistrosJornada = useMemo(
     () => eq.equipoFilasVista.some((f) => f.kind === "registro"),
     [eq.equipoFilasVista],
   );
 
   useEffect(() => {
-    if (!puedeExportarPdfPartesPersona) setExportPartesBundleError(null);
-  }, [puedeExportarPdfPartesPersona]);
+    if (!puedeExportarPartesPersonaEnVista) setExportPartesBundleError(null);
+  }, [puedeExportarPartesPersonaEnVista]);
 
   const periodoEtiqueta = useMemo(() => {
     switch (eq.equipoPeriodo) {
@@ -399,14 +444,104 @@ export default function TeamHoursPage() {
     eq.trimestreEquipo,
   ]);
 
+  /** Título compacto encima de los 3 calendarios/rejillas (mes visible). */
+  const calendarGridMesTitulo = useMemo(() => {
+    switch (eq.equipoPeriodo) {
+      case "mes":
+        return periodoEtiqueta.trim();
+      case "dia":
+        return formatMonthYearTitleEs(eq.equipoDia);
+      case "semana":
+        return formatMonthYearTitleEs(eq.equipoSemana);
+      case "trimestre":
+        return periodoEtiqueta.trim();
+      case "anio": {
+        const mesLabel =
+          eq.opcionesMesDentroAnioEquipo.find((o) => o.value === eq.equipoAnioMesPagina)?.label ??
+          "";
+        return `${mesLabel} ${eq.anioEquipo}`.trim();
+      }
+      default:
+        return periodoEtiqueta.trim();
+    }
+  }, [
+    eq.anioEquipo,
+    eq.equipoAnioMesPagina,
+    eq.equipoDia,
+    eq.equipoPeriodo,
+    eq.equipoSemana,
+    eq.opcionesMesDentroAnioEquipo,
+    periodoEtiqueta,
+  ]);
+
+  /** Calendario de persona: mismo bloque en dos ubicaciones (móvil vs escritorio). */
+  function renderTeamHoursPersonaCalendarSection() {
+    const personaSeleccionada = eq.filtroPersonaEquipo !== "todas";
+    const nombrePersona = personaSeleccionada
+      ? eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
+        String(eq.filtroPersonaEquipo)
+      : null;
+    const puedePintarCalendario = Boolean(eq.equipoRange) && personaSeleccionada;
+    return (
+      <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
+        <div className="mb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="agro-section-title min-w-0 flex-1 truncate">
+              {nombrePersona ? `Calendario · ${nombrePersona}` : "Calendario · persona"}
+            </h2>
+            <TeamHoursSectionInfoButton
+              ariaLabel="Información sobre el calendario de la persona"
+              onPress={() => teamHoursInfo.openModal("calendarioPersonaEquipo")}
+            />
+          </div>
+          <p className="agro-muted mt-1 text-xs">
+            {eq.equipoPeriodo === "anio"
+              ? `${
+                  eq.opcionesMesDentroAnioEquipo.find((o) => o.value === eq.equipoAnioMesPagina)
+                    ?.label ?? ""
+                } ${eq.anioEquipo} · día a día.`
+              : "Colores por día: fichaje, parte y ausencias (coherente con la tabla)."}
+          </p>
+        </div>
+        {puedePintarCalendario && eq.equipoRange ? (
+          <EquipoPersonaCalendario
+            filas={eq.filasEquipoCalendario}
+            rangeStart={
+              eq.equipoPeriodo === "anio" && eq.equipoVistaRange
+                ? eq.equipoVistaRange.start
+                : eq.equipoRange.start
+            }
+            rangeEnd={
+              eq.equipoPeriodo === "anio" && eq.equipoVistaRange
+                ? eq.equipoVistaRange.end
+                : eq.equipoRange.end
+            }
+            nombrePersona={nombrePersona ?? ""}
+            periodMonthTitle={calendarGridMesTitulo}
+          />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
+            Filtra por una persona concreta en el panel de filtros para ver aquí su calendario del
+            periodo.
+          </div>
+        )}
+      </section>
+    );
+  }
+
   const handleExportPartesYFichajesPdf = async () => {
-    if (!puedeExportarPdfPartesPersona) return;
+    if (!puedeExportarPartesPersonaEnVista || !user?.id) return;
     setExportPartesBundleError(null);
     setExportPartesBundleLoading(true);
     try {
+      const personaUserId = String(eq.filtroPersonaEquipo);
       const personaNombre =
         eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
-        String(eq.filtroPersonaEquipo);
+        personaUserId;
+      const filasExport =
+        user.role === USER_ROLE.Worker
+          ? equipoFilasForPersonKey(eq.equipoFilasVista, user.id)
+          : eq.equipoFilasVista;
       const [companiesList, svcList] = await Promise.all([
         companiesApi.getAll(),
         workServicesApi.getAll(),
@@ -427,13 +562,18 @@ export default function TeamHoursPage() {
           .replace(/-+/g, "-")
           .replace(/^-|-$/g, "")
           .slice(0, 48) || "persona";
+      const { downloadEquipoPersonaPartesBundlePdf } = await import(
+        "@/features/time-tracking/utils/equipoPersonaPartesPdf"
+      );
       await downloadEquipoPersonaPartesBundlePdf({
-        filas: eq.equipoFilasVista,
+        filas: filasExport,
         workerDisplayName: personaNombre,
         periodLabel: periodoEtiqueta,
         companies: companiesWithAreas,
         services: svcList,
         fileBaseName: `partes-fichajes-${personaSlug}-${periodSlug}`,
+        summary: eq.equipoSummary,
+        capWorkMinutesPerDay: eq.equipoCapTrabajoDiarioMinutos,
       });
     } catch (e) {
       setExportPartesBundleError(
@@ -774,34 +914,30 @@ export default function TeamHoursPage() {
             </div>
           )}
 
-          {user!.role === USER_ROLE.SuperAdmin ||
-          user!.role === USER_ROLE.Manager ||
-          user!.role === USER_ROLE.Admin ? (
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="empresa-team-hours-filtro"
-                className={filterLabelClass}
-              >
-                Empresa
-              </label>
-              <select
-                id="empresa-team-hours-filtro"
-                value={eq.equipoSuperAdminCompanyId ?? ""}
-                onChange={(e) =>
-                  eq.setEquipoSuperAdminCompanyId(e.target.value.trim() ? e.target.value : null)
-                }
-                disabled={eq.equipoCompaniesLoading}
-                className={`${teamHoursScopedSelectClass(Boolean(eq.equipoSuperAdminCompanyId?.trim()))} disabled:cursor-not-allowed disabled:opacity-55`}
-              >
-                <option value="">Todas las empresas</option>
-                {eq.equipoCompaniesCatalog.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="empresa-team-hours-filtro"
+              className={filterLabelClass}
+            >
+              Empresa
+            </label>
+            <select
+              id="empresa-team-hours-filtro"
+              value={eq.equipoSuperAdminCompanyId ?? ""}
+              onChange={(e) =>
+                eq.setEquipoSuperAdminCompanyId(e.target.value.trim() ? e.target.value : null)
+              }
+              disabled={eq.equipoCompaniesLoading}
+              className={`${teamHoursScopedSelectClass(Boolean(eq.equipoSuperAdminCompanyId?.trim()))} disabled:cursor-not-allowed disabled:opacity-55`}
+            >
+              <option value="">Todas las empresas</option>
+              {eq.equipoCompaniesCatalog.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="flex flex-col gap-1">
             <label
@@ -813,14 +949,24 @@ export default function TeamHoursPage() {
             <div className="flex flex-col gap-1.5">
               <select
                 id="persona-team-hours"
-                value={eq.filtroPersonaEquipo === "todas" ? "" : String(eq.filtroPersonaEquipo)}
+                value={
+                  eq.filtroPersonaEquipo === "todas"
+                    ? isWorker && user?.id
+                      ? user.id
+                      : ""
+                    : String(eq.filtroPersonaEquipo)
+                }
                 onChange={(e) => {
                   const v = e.target.value;
+                  if (isWorker) {
+                    if (v) eq.setFiltroPersonaEquipo(v);
+                    return;
+                  }
                   eq.setFiltroPersonaEquipo(v === "" ? "todas" : v);
                 }}
                 className={teamHoursScopedSelectClass(eq.filtroPersonaEquipo !== "todas")}
               >
-                <option value="">Todos</option>
+                {!isWorker ? <option value="">Todos</option> : null}
                 {eq.equipoWorkersOpciones.map((w) => (
                   <option key={w.id} value={w.id}>
                     {w.name}
@@ -830,34 +976,30 @@ export default function TeamHoursPage() {
             </div>
           </div>
 
-          {user!.role === USER_ROLE.SuperAdmin ||
-          user!.role === USER_ROLE.Manager ||
-          user!.role === USER_ROLE.Admin ? (
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="servicio-team-hours-filtro"
-                className={filterLabelClass}
-              >
-                Servicio
-              </label>
-              <select
-                id="servicio-team-hours-filtro"
-                value={eq.equipoServiceId ?? ""}
-                onChange={(e) =>
-                  eq.setEquipoServiceId(e.target.value.trim() ? e.target.value : null)
-                }
-                disabled={eq.equipoServicesLoading}
-                className={`${teamHoursScopedSelectClass(Boolean(eq.equipoServiceId?.trim()))} disabled:cursor-not-allowed disabled:opacity-55`}
-              >
-                <option value="">Todos los servicios</option>
-                {eq.equipoServicesCatalog.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="servicio-team-hours-filtro"
+              className={filterLabelClass}
+            >
+              Servicio
+            </label>
+            <select
+              id="servicio-team-hours-filtro"
+              value={eq.equipoServiceId ?? ""}
+              onChange={(e) =>
+                eq.setEquipoServiceId(e.target.value.trim() ? e.target.value : null)
+              }
+              disabled={eq.equipoServicesLoading}
+              className={`${teamHoursScopedSelectClass(Boolean(eq.equipoServiceId?.trim()))} disabled:cursor-not-allowed disabled:opacity-55`}
+            >
+              <option value="">Todos los servicios</option>
+              {eq.equipoServicesCatalog.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
             {/* Vista rápida */}
             <div className="space-y-2 border-t border-slate-100 pt-3 dark:border-slate-800">
@@ -911,36 +1053,6 @@ export default function TeamHoursPage() {
                 </button>
               </div>
             </div>
-
-            {puedeExportarPdfPartesPersona && !isWorker ? (
-              <div className="space-y-1.5 border-t border-slate-100 pt-2.5 dark:border-slate-800">
-                <span className={filterLabelClass}>Exportar partes</span>
-                <p className="agro-muted leading-snug">
-                  Un solo PDF: cada día con el fichaje y el parte en servidor (si existe). Solo con{" "}
-                  <strong className="font-medium text-slate-600 dark:text-slate-300">persona</strong>{" "}
-                  elegida y periodo <strong className="font-medium text-slate-600 dark:text-slate-300">día</strong>,{" "}
-                  <strong className="font-medium text-slate-600 dark:text-slate-300">semana</strong> o{" "}
-                  <strong className="font-medium text-slate-600 dark:text-slate-300">mes</strong>.
-                </p>
-                <button
-                  type="button"
-                  disabled={
-                    exportPartesBundleLoading ||
-                    eq.equipoRowsLoading ||
-                    !equipoVistaTieneRegistrosJornada
-                  }
-                  onClick={() => void handleExportPartesYFichajesPdf()}
-                  className="w-full rounded-xl border border-emerald-700/30 bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-900/50 dark:bg-emerald-950/35 dark:text-emerald-100 dark:hover:bg-emerald-950/50"
-                >
-                  {exportPartesBundleLoading ? "Generando PDF…" : "PDF partes + fichajes"}
-                </button>
-                {exportPartesBundleError ? (
-                  <p className="text-[11px] font-medium leading-snug text-rose-700 dark:text-rose-200">
-                    {exportPartesBundleError}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
           </div>
     );
   }
@@ -967,15 +1079,6 @@ export default function TeamHoursPage() {
           ) : null}
           <p className="agro-kicker">Centro de control · Equipo, fichajes y partes</p>
           <h1 className="agro-h1">Fichajes y partes del equipo</h1>
-          {isWorker ? (
-            <p className="mt-2 max-w-2xl rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
-              Como trabajador/a puedes filtrar y revisar el equipo. Los botones{" "}
-              <strong className="font-semibold">Editar hora</strong> y{" "}
-              <strong className="font-semibold">Añadir / Editar parte</strong> solo aparecen en filas de los{" "}
-              <strong className="font-semibold">últimos {WORKER_TEAM_HOURS_EDIT_WINDOW_DAYS} días naturales</strong>{" "}
-              (incluye fines de semana). Fuera de esa ventana la API puede rechazar la edición.
-            </p>
-          ) : null}
           </div>
 
           {/* Fecha de hoy retirada: la información de periodo ya está en el cuadro verde "Estado del equipo". */}
@@ -1032,15 +1135,22 @@ export default function TeamHoursPage() {
           </div>
         ) : null}
 
+        {/* Calendario de persona (solo cuando layout lg sidebar): debajo de filtros; una sola instancia DOM */}
+        {teamHoursIsLgLayout ? (
+          <div className="min-h-0 min-w-0 lg:col-start-1 lg:row-start-3">
+            {renderTeamHoursPersonaCalendarSection()}
+          </div>
+        ) : null}
+
         {/* En móvil/tablet los filtros viven en un panel flotante (FAB + bottom-sheet)
             que se monta al final del componente, fuera del flujo del grid. */}
 
         {/* ── Contenido principal (fila 2, col 2): actividad + registros ── */}
         {/* `lg:self-start`: sin esto, `lg:items-stretch` del grid estira esta celda a la altura del
             sidebar de filtros → hueco enorme bajo la tabla y scroll “infinito” en el main. */}
-        <div className="min-h-0 min-w-0 space-y-3 lg:col-start-2 lg:row-start-2 lg:self-start">
+        <div className="min-h-0 min-w-0 space-y-3 lg:col-start-2 lg:row-start-2 lg:row-span-2 lg:self-start">
 
-          {/* El calendario de la persona se ha movido a la columna derecha (recuadro tras "Resumen del periodo"). */}
+          {/* Calendario de persona en móvil/tablet: columna lateral (orden visual distinto); en lg+ va bajo filtros. */}
 
           <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:gap-3">
             <div className="min-h-0 min-w-0 w-full space-y-3">
@@ -1113,67 +1223,89 @@ export default function TeamHoursPage() {
               </div>
             </div>
           ) : null}
-          <div className="flex flex-col gap-2 border-b border-slate-100 bg-slate-50/50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/15 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-            <div className="min-w-0">
-              <h2 className="agro-section-title">Registros</h2>
-              <p className="agro-muted mt-0.5">
-                Tabla del periodo actual con acciones por fila.
+          <div className="border-b border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-950/15">
+            <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <h2 className="agro-section-title shrink-0">Registros</h2>
+              <div className="flex flex-col flex-wrap items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+                {eq.equipoRowsLoading ? (
+                  <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                    {eq.equipoPeriodo === "anio"
+                      ? "Cargando fichajes del mes seleccionado…"
+                      : "Cargando fichajes…"}
+                  </p>
+                ) : null}
+                {eq.equipoRowsError ? (
+                  <p className="max-w-md rounded-lg border border-rose-200/90 bg-rose-50 px-3 py-2 text-sm text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/35 dark:text-rose-100">
+                    {eq.equipoRowsError}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const periodoLabel =
+                      eq.equipoPeriodo === "dia"
+                        ? `dia-${eq.equipoDia}`
+                        : eq.equipoPeriodo === "semana"
+                          ? `semana-${eq.equipoSemana}`
+                          : eq.equipoPeriodo === "mes"
+                            ? `mes-${eq.mesEquipo}`
+                            : eq.equipoPeriodo === "trimestre"
+                              ? `tri-${eq.trimestreEquipo}`
+                              : `anio-${eq.anioEquipo}-mes-${String(eq.equipoAnioMesPagina).padStart(2, "0")}`;
+                    const fileBaseName = `horas-equipo-${periodoLabel}-${
+                      eq.filtroPersonaEquipo === "todas" ? "todas" : `persona-${eq.filtroPersonaEquipo}`
+                    }${
+                      eq.equipoTablaFiltroExtra === "soloSinImputar"
+                        ? "-solo-sin-fichar"
+                        : eq.equipoTablaFiltroExtra === "soloSinParteServidor"
+                          ? "-sin-parte-servidor"
+                          : eq.equipoTablaFiltroExtra === "soloConParteServidor"
+                            ? "-con-parte-servidor"
+                            : ""
+                    }`;
+                    void (async () => {
+                      const { downloadEquipoTablePdf } = await import(
+                        "@/features/time-tracking/utils/equipoTablePdf"
+                      );
+                      downloadEquipoTablePdf({
+                      filas: eq.equipoFilasVista,
+                      nameByPersonKey: eq.equipoNombrePorClave,
+                      capWorkMinutesPerDay: eq.equipoCapTrabajoDiarioMinutos,
+                      title: `Fichajes y partes — ${periodoEtiqueta}`,
+                      fileBaseName,
+                    });
+                    })();
+                  }}
+                  className="agro-btn-primary"
+                  title="Exporta la tabla actual (filtros incluidos)"
+                >
+                  <span aria-hidden className="opacity-90">
+                    ⬇
+                  </span>
+                  Exportar PDF
+                </button>
+                {puedeExportarPartesPersonaEnVista ? (
+                  <button
+                    type="button"
+                    disabled={
+                      exportPartesBundleLoading ||
+                      eq.equipoRowsLoading ||
+                      !equipoVistaTieneRegistrosJornada
+                    }
+                    onClick={() => void handleExportPartesYFichajesPdf()}
+                    className="agro-btn-primary"
+                    title="PDF con fichaje y parte por día"
+                  >
+                    {exportPartesBundleLoading ? "Generando PDF…" : "PDF partes + fichajes"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+            {exportPartesBundleError ? (
+              <p className="px-4 pb-2.5 text-xs font-medium leading-snug text-rose-700 dark:text-rose-200">
+                {exportPartesBundleError}
               </p>
-            </div>
-            <div className="flex flex-col flex-wrap items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
-              {eq.equipoRowsLoading ? (
-                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                  {eq.equipoPeriodo === "anio"
-                    ? "Cargando fichajes del mes seleccionado…"
-                    : "Cargando fichajes…"}
-                </p>
-              ) : null}
-              {eq.equipoRowsError ? (
-                <p className="max-w-md rounded-lg border border-rose-200/90 bg-rose-50 px-3 py-2 text-sm text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/35 dark:text-rose-100">
-                  {eq.equipoRowsError}
-                </p>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => {
-                  const periodoLabel =
-                    eq.equipoPeriodo === "dia"
-                      ? `dia-${eq.equipoDia}`
-                      : eq.equipoPeriodo === "semana"
-                        ? `semana-${eq.equipoSemana}`
-                        : eq.equipoPeriodo === "mes"
-                          ? `mes-${eq.mesEquipo}`
-                          : eq.equipoPeriodo === "trimestre"
-                            ? `tri-${eq.trimestreEquipo}`
-                            : `anio-${eq.anioEquipo}-mes-${String(eq.equipoAnioMesPagina).padStart(2, "0")}`;
-                  const fileBaseName = `horas-equipo-${periodoLabel}-${
-                    eq.filtroPersonaEquipo === "todas" ? "todas" : `persona-${eq.filtroPersonaEquipo}`
-                  }${
-                    eq.equipoTablaFiltroExtra === "soloSinImputar"
-                      ? "-solo-sin-fichar"
-                      : eq.equipoTablaFiltroExtra === "soloSinParteServidor"
-                        ? "-sin-parte-servidor"
-                        : eq.equipoTablaFiltroExtra === "soloConParteServidor"
-                          ? "-con-parte-servidor"
-                          : ""
-                  }`;
-                  downloadEquipoTablePdf({
-                    filas: eq.equipoFilasVista,
-                    nameByPersonKey: eq.equipoNombrePorClave,
-                    capWorkMinutesPerDay: eq.equipoCapTrabajoDiarioMinutos,
-                    title: `Fichajes y partes — ${periodoEtiqueta}`,
-                    fileBaseName,
-                  });
-                }}
-                className="agro-btn-primary"
-                title="Exporta la tabla actual (filtros incluidos)"
-              >
-                <span aria-hidden className="opacity-90">
-                  ⬇
-                </span>
-                Exportar PDF
-              </button>
-            </div>
+            ) : null}
           </div>
 
           <EquipoRegistrosFiltrosEtiquetas
@@ -1262,7 +1394,7 @@ export default function TeamHoursPage() {
                   ))}
                   <th
                     className="max-w-[6.5rem] px-2 py-1.5"
-                    title="Campo JSON status del API"
+                    title="Campo status del servidor"
                   >
                     <button
                       type="button"
@@ -1356,7 +1488,7 @@ export default function TeamHoursPage() {
                   </th>
                   <th
                     className="px-2 py-1.5"
-                    title="Según el API (workReportId, workReportStatus, workReportLineCount)"
+                    title="Según el servidor (workReportId, workReportStatus, workReportLineCount)"
                   >
                     Parte en servidor
                   </th>
@@ -1602,6 +1734,14 @@ export default function TeamHoursPage() {
                         className={`sticky right-0 z-[1] align-middle border-l border-slate-200/80 px-1 py-1.5 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-700 ${stripe}`}
                       >
                         {!isWorker || workerTeamHoursCanEditDate(e.workDate) ? (
+                          timeEntryFilaSinAccionesEdicion(e) ? (
+                            <span
+                              className="text-xs text-slate-400 dark:text-slate-500"
+                              title="Día festivo o vacación planificada (no editable desde fichajes)."
+                            >
+                              —
+                            </span>
+                          ) : (
                           <EquipoTablaAccionesDuo
                             onEditarHora={() =>
                               modal.openEquipoEditModal({
@@ -1620,6 +1760,7 @@ export default function TeamHoursPage() {
                             parteDisabled={ocultaHoras || !e.checkOutUtc}
                             tieneParte={hasPart}
                           />
+                          )
                         ) : (
                           <span
                             className="text-xs text-slate-400 dark:text-slate-500"
@@ -1787,9 +1928,7 @@ export default function TeamHoursPage() {
                 </button>
               </section>
 
-              {/* Cumplimiento semanal — datos reales de GET /api/TimeEntries/rows/heatmap.
-                  Solo se muestra para periodos cortos (día / semana / mes); en trimestre y año
-                  el heatmap pierde legibilidad y la consulta sería excesiva. */}
+              {/* Cumplimiento semanal — heatmap del servidor. Solo periodos ≤ mes. */}
               <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
                 <div className="mb-3">
                   <div className="flex items-center gap-2">
@@ -1801,7 +1940,9 @@ export default function TeamHoursPage() {
                       onPress={() => teamHoursInfo.openModal("cumplimientoHorasHeatmap")}
                     />
                   </div>
-                  <p className="agro-muted mt-1 text-xs">Cumplimiento horas teóricas.</p>
+                  <p className="agro-muted mt-1 text-xs">
+                    Día a día: cómo van las horas respecto a lo previsto.
+                  </p>
                 </div>
                 <div>
                   {eq.equipoPeriodo === "trimestre" || eq.equipoPeriodo === "anio" ? (
@@ -1817,13 +1958,13 @@ export default function TeamHoursPage() {
                       data={eq.equipoHeatmap}
                       loading={eq.equipoHeatmapLoading}
                       error={eq.equipoHeatmapError}
+                      periodMonthTitle={calendarGridMesTitulo}
                     />
                   )}
                 </div>
               </section>
 
-              {/* Disciplina de partes — datos reales de GET /api/TimeEntries/rows/heatmap-parts.
-                  Mismo gating que el heatmap de horas: solo en periodos ≤ mes. */}
+              {/* Disciplina de partes — heatmap de partes. Mismo gating que horas. */}
               <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
                 <div className="mb-3">
                   <div className="flex items-center gap-2">
@@ -1836,7 +1977,7 @@ export default function TeamHoursPage() {
                     />
                   </div>
                   <p className="agro-muted mt-1 text-xs">
-                    Partes creados sobre fichajes cerrados.
+                    Comprueba si el parte de trabajo quedó registrado tras cerrar el fichaje.
                   </p>
                 </div>
                 <div>
@@ -1853,66 +1994,14 @@ export default function TeamHoursPage() {
                       data={eq.equipoHeatmapParts}
                       loading={eq.equipoHeatmapPartsLoading}
                       error={eq.equipoHeatmapPartsError}
+                      periodMonthTitle={calendarGridMesTitulo}
                     />
                   )}
                 </div>
               </section>
 
-              {/*
-               * Calendario de la persona (solo cuando hay persona filtrada).
-               * Antes vivía al final de la tabla; ahora aparece aquí, en el aside derecho,
-               * tras "Resumen del periodo".
-               */}
-              {/* Calendario individual: el recuadro está SIEMPRE presente para mantener
-                  el ritmo visual del aside. Si aún no hay persona seleccionada o falta
-                  rango, dentro aparece un mensaje guía en lugar de ocultar la card. */}
-              {(() => {
-                const personaSeleccionada = eq.filtroPersonaEquipo !== "todas";
-                const nombrePersona = personaSeleccionada
-                  ? eq.equipoWorkersOpciones.find((w) => w.id === eq.filtroPersonaEquipo)?.name ??
-                    String(eq.filtroPersonaEquipo)
-                  : null;
-                const puedePintarCalendario = Boolean(eq.equipoRange) && personaSeleccionada;
-                return (
-                  <section className={`${cardSurfaceClass} p-3 sm:p-3.5`}>
-                    <div className="mb-3">
-                      <h2 className="agro-section-title min-w-0 truncate">
-                        {nombrePersona ? `Calendario · ${nombrePersona}` : "Calendario · persona"}
-                      </h2>
-                      <p className="agro-muted mt-1 text-xs">
-                        {eq.equipoPeriodo === "anio"
-                          ? `${
-                              eq.opcionesMesDentroAnioEquipo.find(
-                                (o) => o.value === eq.equipoAnioMesPagina,
-                              )?.label ?? ""
-                            } ${eq.anioEquipo}`
-                          : "Estado por día."}
-                      </p>
-                    </div>
-                    {puedePintarCalendario && eq.equipoRange ? (
-                      <EquipoPersonaCalendario
-                        filas={eq.filasEquipoCalendario}
-                        rangeStart={
-                          eq.equipoPeriodo === "anio" && eq.equipoVistaRange
-                            ? eq.equipoVistaRange.start
-                            : eq.equipoRange.start
-                        }
-                        rangeEnd={
-                          eq.equipoPeriodo === "anio" && eq.equipoVistaRange
-                            ? eq.equipoVistaRange.end
-                            : eq.equipoRange.end
-                        }
-                        nombrePersona={nombrePersona ?? ""}
-                      />
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400">
-                        Filtra por una persona concreta en el panel de filtros para ver aquí su
-                        calendario del periodo.
-                      </div>
-                    )}
-                  </section>
-                );
-              })()}
+              {/* Calendario de persona en layout compacto / móvil (en escritorio va bajo filtros). */}
+              {!teamHoursIsLgLayout ? renderTeamHoursPersonaCalendarSection() : null}
 
               {null}
             </div>{/* cierre inner aside */}

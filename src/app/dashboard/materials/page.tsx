@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFeatures } from "@/contexts/FeaturesContext";
 import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
+import { appHomePath } from "@/lib/dashboardNavGating";
 import { getCompaniesFromApi, materialsApi } from "@/services";
 import type { Material } from "@/features/materials/types";
 import { USER_ROLE } from "@/types";
@@ -21,7 +24,17 @@ type SortDir = "asc" | "desc";
 export default function MaterialsPage() {
   const { showSuccess } = useFlashSuccess();
   const { user, isReady } = useAuth();
+  const router = useRouter();
+  const { enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
+  const isSuperAdmin = user?.role === USER_ROLE.SuperAdmin;
   const isWorker = user?.role === USER_ROLE.Worker;
+
+  useEffect(() => {
+    if (!isReady || !user) return;
+    if (user.role !== USER_ROLE.SuperAdmin) {
+      router.replace(appHomePath(user.role, enableTimeTracking, enableOperativaYAnalisisMenu));
+    }
+  }, [isReady, user, router, enableTimeTracking, enableOperativaYAnalisisMenu]);
   const [rows, setRows] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +59,7 @@ export default function MaterialsPage() {
   };
 
   useEffect(() => {
+    if (!isReady || !user || !isSuperAdmin) return;
     const ac = new AbortController();
     (async () => {
       setLoading(true);
@@ -62,9 +76,10 @@ export default function MaterialsPage() {
       }
     })();
     return () => ac.abort();
-  }, [tenantCompanyId]);
+  }, [tenantCompanyId, isReady, user, isSuperAdmin]);
 
   useEffect(() => {
+    if (!isReady || !user || !isSuperAdmin) return;
     const ac = new AbortController();
     setTenantIdError(null);
     getCompaniesFromApi({ signal: ac.signal })
@@ -74,7 +89,7 @@ export default function MaterialsPage() {
         setTenantCompanyId(id || null);
         if (!id) {
           setTenantIdError(
-            "No hay empresa en /api/Companies; no se puede crear material sin companyId.",
+            "No hay empresa registrada; no se puede crear material.",
           );
         }
       })
@@ -82,10 +97,10 @@ export default function MaterialsPage() {
         if (ac.signal.aborted) return;
         if (e instanceof DOMException && e.name === "AbortError") return;
         setTenantCompanyId(null);
-        setTenantIdError("No se pudo obtener la empresa del tenant (GET /api/Companies).");
+        setTenantIdError("No se pudo obtener la empresa del tenant.");
       });
     return () => ac.abort();
-  }, []);
+  }, [isReady, user, isSuperAdmin]);
 
   const openCreate = () => {
     setEditing(null);
@@ -151,7 +166,7 @@ export default function MaterialsPage() {
       } else {
         if (!tenantCompanyId) {
           setError(
-            "Falta el GUID de tu empresa (tenant). Debe existir al menos una fila en GET /api/Companies.",
+            "Falta la empresa del tenant. Configura «Mi empresa» o contacta con administración.",
           );
           setSaving(false);
           return;
@@ -190,6 +205,18 @@ export default function MaterialsPage() {
     }
   };
 
+  if (!isReady) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!user || !isSuperAdmin) {
+    return null;
+  }
+
   return (
     <DashboardPageShell width="full" className="min-w-0">
       <DashboardHoyPageHero
@@ -197,10 +224,7 @@ export default function MaterialsPage() {
         title="Materiales"
         description={
           <div className="max-w-2xl space-y-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400 [&_strong]:font-semibold">
-            <p>
-              Catálogo de materiales del tenant. API: <strong>GET/POST /api/Materials</strong>,{" "}
-              <strong>PUT/DELETE /api/Materials/{"{id}"}</strong>.
-            </p>
+            <p>Catálogo de materiales de tu empresa: consulta, alta, edición y baja según tu rol.</p>
             {isReady && isWorker ? (
               <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">
                 Como trabajador/a, esta pantalla es <strong className="font-semibold">solo consulta</strong>

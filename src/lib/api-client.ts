@@ -170,7 +170,7 @@ export const apiClient = {
     return request<T>(path, { ...init, method: "PATCH", body });
   },
 
-  delete<T>(path: string, init?: ClientInit): Promise<T> {
+  delete<T>(path: string, init?: ClientInit & { body?: object }): Promise<T> {
     return request<T>(path, { ...init, method: "DELETE" });
   },
 };

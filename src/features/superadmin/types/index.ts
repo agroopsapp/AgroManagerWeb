@@ -1,8 +1,8 @@
 /**
- * Contratos de `/api/superadmin/*` (empresas padre y registro de errores API).
+ * Contratos de superadministración (empresas padre y registro de errores).
  */
 
-/** GET companies / POST response — alineado con CompanyDto del backend. */
+/** Empresa padre — alineado con CompanyDto del backend. */
 export interface SuperadminParentCompanyDto {
   id: string;
   name: string;
@@ -16,7 +16,7 @@ export interface SuperadminParentCompanyDto {
   createdAt: string;
 }
 
-/** POST `/api/superadmin/companies` — obligatorio en negocio: `name`. */
+/** Alta de empresa padre — obligatorio en negocio: `name`. */
 export type SuperadminCreateCompanyBody = {
   name: string;
   fiscalName?: string;
@@ -28,7 +28,7 @@ export type SuperadminCreateCompanyBody = {
   logoUrl?: string;
 };
 
-/** PUT `/api/superadmin/companies/{id}` */
+/** Actualización de empresa padre. */
 export type SuperadminUpdateCompanyBody = {
   name: string;
   fiscalName?: string;

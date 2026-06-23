@@ -1,16 +1,25 @@
 import type { EquipoTablaFila, TimeEntryMock } from "@/features/time-tracking/types";
+import { pickPreferredDayEntry } from "@/features/time-tracking/utils/timeEntrySessionMatch";
 import { workerNameById } from "@/mocks/time-tracking.mock";
 
 /**
  * Grid denso de horas del equipo — contrato con el API
  * ----------------------------------------------------
  * - El cliente envía `from` / `to` (alineados con el rango de filtros).
- * - El back solo devuelve filas con fichaje real (sin inventar días vacíos).
- * - Eje de personas: **userId** (GUID de `/api/Users`). «Todas» en UI → no mandar `userId` al API de filas.
+ * - El back devuelve fichajes reales y filas sintéticas (festivo / vacación planificada).
+ * - Eje de personas: **userId** (GUID de usuario). «Todas» en UI → no mandar `userId` al filtro de filas.
  * - Cruce: por cada (persona × día), si hay entrada → `registro`; si no → `sinImputar` / `noLaboral`.
  */
 
 export type EquipoCalendarDay = { workDate: string; isWeekend: boolean };
+
+/** Normaliza GUID de persona para cruce estable (mayúsculas/minúsculas). */
+export function normalizePersonKey(value: string | null | undefined): string | null {
+  const t = (value ?? "").trim();
+  if (!t) return null;
+  if (t.toLowerCase().startsWith("legacy:")) return t.toLowerCase();
+  return t.toLowerCase();
+}
 
 /** Id estable numérico para partes/modal cuando solo hay GUID (localStorage / compat). */
 export function stableNumericIdFromUserId(userId: string): number {
@@ -21,10 +30,10 @@ export function stableNumericIdFromUserId(userId: string): number {
   return Math.abs(h) || 1;
 }
 
-/** Clave de persona para indexar fichajes: prioriza `userId` del API; si no, `legacy:{workerId}`. */
+/** Clave de persona para indexar fichajes: prioriza `userId` del servidor; si no, `legacy:{workerId}`. */
 export function entryStablePersonKey(e: TimeEntryMock): string | null {
-  const uid = typeof e.userId === "string" ? e.userId.trim() : "";
-  if (uid.length > 0) return uid;
+  const uid = normalizePersonKey(e.userId);
+  if (uid) return uid;
   if (Number.isFinite(e.workerId) && e.workerId > 0) return `legacy:${e.workerId}`;
   return null;
 }
@@ -34,17 +43,25 @@ export function indexEquipoEntriesByPersonAndDate(
   rangeStart: string,
   rangeEnd: string
 ): Map<string, TimeEntryMock> {
-  const map = new Map<string, TimeEntryMock>();
+  const grouped = new Map<string, TimeEntryMock[]>();
   for (const e of entries) {
     if (e.workDate < rangeStart || e.workDate > rangeEnd) continue;
     const pk = entryStablePersonKey(e);
     if (!pk) continue;
-    map.set(`${pk}-${e.workDate}`, e);
+    const key = `${pk}-${e.workDate}`;
+    const list = grouped.get(key);
+    if (list) list.push(e);
+    else grouped.set(key, [e]);
+  }
+  const map = new Map<string, TimeEntryMock>();
+  for (const [key, list] of Array.from(grouped.entries())) {
+    const preferred = pickPreferredDayEntry(list);
+    if (preferred) map.set(key, preferred);
   }
   return map;
 }
 
-/** Personas deducidas solo de fichajes (p. ej. sin GET /api/Users aún), orden lexicográfico. */
+/** Personas deducidas solo de fichajes (p. ej. sin catálogo de usuarios aún), orden lexicográfico. */
 export function uniquePersonKeysInRange(
   entries: TimeEntryMock[],
   rangeStart: string,
@@ -122,4 +139,20 @@ export function buildEquipoDenseGridRows(input: {
     }
   }
   return filas;
+}
+
+/** Clave de persona de una fila de rejilla (registro o sintética). */
+export function equipoFilaStablePersonKey(fila: EquipoTablaFila): string | null {
+  if (fila.kind === "registro") return entryStablePersonKey(fila.e);
+  return normalizePersonKey(fila.userId);
+}
+
+/** Filas de una sola persona (cruce estable por userId / legacy). */
+export function equipoFilasForPersonKey(
+  filas: EquipoTablaFila[],
+  personKey: string,
+): EquipoTablaFila[] {
+  const pk = normalizePersonKey(personKey);
+  if (!pk) return [];
+  return filas.filter((f) => equipoFilaStablePersonKey(f) === pk);
 }

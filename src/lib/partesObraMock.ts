@@ -19,7 +19,7 @@ export interface ParteObra {
   plannedStartDate: string;
   /** YYYY-MM-DD o null = sin fecha fin hasta cierre manual. */
   plannedEndDate: string | null;
-  /** Empresa cliente (`GET /api/ClientCompanies`), una sola. */
+  /** Empresa cliente del tenant, una sola. */
   clientCompanyId: string;
   materials: ParteObraMaterial[];
   status: ParteObraEstado;

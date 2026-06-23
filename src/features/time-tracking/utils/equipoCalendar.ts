@@ -7,7 +7,9 @@ import {
 import type { EquipoTablaFila } from "@/features/time-tracking/types";
 import {
   effectiveWorkMinutesEntry,
+  equipoAbsenceEtiquetaKind,
   formatRazon,
+  formatRazonTablaEquipo,
   isSinJornadaImputableRazon,
   timeEntryConParteEnServidor,
   workReportParteApiSummary,
@@ -62,6 +64,7 @@ export type EquipoCalCellKind =
   | "fichaje_sin_parte"
   | "vacaciones"
   | "baja"
+  | "festivo_empresa"
   | "dia_no_laboral_reg";
 
 /** Una fila por fecha en la rejilla densa (una persona). */
@@ -75,11 +78,15 @@ export function equipoCalendarioStatusByDate(filas: EquipoTablaFila[]): Map<stri
       m.set(wd, "sin_imputar");
     } else {
       const e = f.e;
-      if (isSinJornadaImputableRazon(e.razon)) {
-        if (e.razon === "ausencia_vacaciones") m.set(wd, "vacaciones");
-        else if (e.razon === "ausencia_baja") m.set(wd, "baja");
-        else if (e.razon === "dia_no_laboral") m.set(wd, "dia_no_laboral_reg");
-        else m.set(wd, "dia_no_laboral_reg");
+      const ausencia = equipoAbsenceEtiquetaKind(e);
+      if (ausencia === "festivo_empresa") {
+        m.set(wd, "festivo_empresa");
+      } else if (ausencia === "vacaciones") {
+        m.set(wd, "vacaciones");
+      } else if (ausencia === "baja") {
+        m.set(wd, "baja");
+      } else if (ausencia === "no_laboral") {
+        m.set(wd, "dia_no_laboral_reg");
       } else {
         m.set(
           wd,
@@ -131,8 +138,11 @@ export function buildEquipoCalTooltipModel(
   }
 
   const e = fila.e;
-  if (isSinJornadaImputableRazon(e.razon)) {
-    rows.push({ label: "Tipo", value: formatRazon(e.razon) });
+  if (
+    e.timeEntryStatus === "FestivoEmpresa" ||
+    isSinJornadaImputableRazon(e.razon)
+  ) {
+    rows.push({ label: "Tipo", value: formatRazonTablaEquipo(e) });
     return { title, rows };
   }
 
@@ -166,4 +176,44 @@ export function buildEquipoCalTooltipModel(
     rows.push({ label: "Nota administración", value: e.edicionNotaAdmin.trim() });
   }
   return { title, rows };
+}
+
+/** Parsea YYYY-MM-DD en fecha local (mediodía) para evitar desfases UTC. */
+export function parseLocalDateISO(iso: string): Date | null {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return null;
+  const [, y, mo, d] = m;
+  return new Date(Number(y), Number(mo) - 1, Number(d));
+}
+
+export function toLocalDateISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Rango legible tipo «1 – 3 may» (misma lógica que heatmaps de cumplimiento).
+ */
+export function formatWeekRangeLabel(weekStart: string, weekEnd: string): string {
+  const start = parseLocalDateISO(weekStart);
+  const end = parseLocalDateISO(weekEnd);
+  if (!start || !end) return `${weekStart} – ${weekEnd}`;
+  const fmtDayMonth = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
+  const fmtDay = new Intl.DateTimeFormat("es-ES", { day: "numeric" });
+  const sameMonth =
+    start.getFullYear() === end.getFullYear() && start.getMonth() === end.getMonth();
+  if (sameMonth) {
+    return `${fmtDay.format(start)} – ${fmtDayMonth.format(end).replace(".", "")}`;
+  }
+  return `${fmtDayMonth.format(start).replace(".", "")} – ${fmtDayMonth.format(end).replace(".", "")}`;
+}
+
+/** Etiqueta de fila del calendario de persona: solo días con fecha en el periodo. */
+export function formatWeekRangeLabelForPersonaRow(row: (string | null)[]): string {
+  const dates = row.filter((x): x is string => Boolean(x)).sort();
+  if (dates.length === 0) return "—";
+  return formatWeekRangeLabel(dates[0], dates[dates.length - 1]);
 }

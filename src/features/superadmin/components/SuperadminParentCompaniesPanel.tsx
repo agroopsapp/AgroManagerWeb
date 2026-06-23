@@ -261,7 +261,7 @@ export function SuperadminParentCompaniesPanel({ active }: { active: boolean }) 
               {editingId ? "Editar empresa padre" : "Nueva empresa padre"}
             </h2>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Datos según contrato <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">/api/superadmin/companies</code>
+              Datos de la empresa padre en el servidor.
             </p>
             <form onSubmit={submit} className="mt-4 space-y-3">
               <div>
@@ -362,7 +362,7 @@ export function SuperadminParentCompaniesPanel({ active }: { active: boolean }) 
           >
             <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">¿Eliminar esta empresa?</p>
             <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
-              Se envía DELETE a la API (baja lógica). Esta acción no se puede deshacer desde aquí.
+              Se da de baja en el servidor (baja lógica). Esta acción no se puede deshacer desde aquí.
             </p>
             {deleteError && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{deleteError}</p>}
             <div className="mt-4 flex justify-end gap-2">

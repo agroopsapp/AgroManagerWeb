@@ -31,14 +31,28 @@ export function isDashboardPathOperativaYAnalisis(pathname: string | null): path
 }
 
 /**
+ * Rutas solo accesibles para SuperAdmin (resto de roles: ocultas y redirigen).
+ */
+export const DASHBOARD_SUPERADMIN_ONLY_PATHS = [
+  "/dashboard/time-tracking/partes-de-obra",
+  "/dashboard/materiales",
+  "/dashboard/materials",
+] as const;
+
+export function isDashboardSuperAdminOnlyPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return DASHBOARD_SUPERADMIN_ONLY_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+/**
  * Rutas permitidas en el "modo fichador" (cuando el menú debe quedarse solo con Jornada).
  * Nota: algunas pantallas del fichador cuelgan como subrutas de `/dashboard/time-tracking/*`.
  */
 export const DASHBOARD_ALLOWED_PATHS_FICHADOR = [
   "/dashboard/time-tracking",
   "/dashboard/time-tracking/vacaciones-y-festivos",
-  "/dashboard/time-tracking/partes-de-obra",
-  "/dashboard/materiales",
   "/dashboard/team-hours",
 ] as const;
 
@@ -51,8 +65,8 @@ export function isDashboardAllowedPathFichador(pathname: string | null): pathnam
 
 export function isDashboardAllowedPathFichadorOrChild(pathname: string | null): boolean {
   if (!pathname) return false;
+  if (isDashboardSuperAdminOnlyPath(pathname)) return false;
   if (pathname === "/dashboard/team-hours") return true;
-  if (pathname === "/dashboard/materiales") return true;
   if (pathname === "/dashboard/time-tracking") return true;
   return pathname.startsWith("/dashboard/time-tracking/");
 }
@@ -83,6 +97,7 @@ export function isDashboardPathAccessibleInFichadorShell(
   pathname: string | null,
 ): boolean {
   if (!pathname) return false;
+  if (isDashboardSuperAdminOnlyPath(pathname)) return false;
   if (isDashboardAllowedPathFichadorOrChild(pathname)) return true;
   if (role === USER_ROLE.Admin || role === USER_ROLE.Manager) {
     return matchesFichadorAdminLikePath(pathname);

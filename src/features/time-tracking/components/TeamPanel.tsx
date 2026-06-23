@@ -30,6 +30,7 @@ import {
   timeEntryConParteEnServidor,
   workReportParteApiSummary,
 } from "@/features/time-tracking/utils/formatters";
+import { timeEntryFilaSinAccionesEdicion } from "@/features/time-tracking/utils/timeEntryRowKind";
 import {
   equipoTablaEtiquetaBaseClass,
   equipoTablaEtiquetaAusencia,
@@ -38,7 +39,6 @@ import {
   equipoTablaZebraStripeBg,
 } from "@/features/time-tracking/utils/equipoTableAppearance";
 import { timeEntryApiStatusBadgeClass } from "@/features/time-tracking/utils/timeEntryApiStatus";
-import { downloadEquipoTablePdf } from "@/features/time-tracking/utils/equipoTablePdf";
 import { workerNameById } from "@/mocks/time-tracking.mock";
 import { useWheelScrollChain } from "@/features/time-tracking/hooks/useWheelScrollChain";
 import {
@@ -87,13 +87,13 @@ interface TeamPanelProps {
   trimestre: string;
   anio: string;
   persona: string | "todas";
-  /** Usuarios del desplegable «Persona» (GET /api/Users → id = userId GUID). */
+  /** Usuarios del desplegable «Persona» (id = userId GUID). */
   workersOpciones: { id: string; name: string }[];
   /** Nombres en tabla / modal / ordenación. */
   resolvePersonaNombre: (fila: EquipoTablaFila) => string;
   /** Para exportación PDF: mismas claves que en fichajes (`userId` o `legacy:{id}`). */
   equipoNombrePorClave: Map<string, string>;
-  /** Estado de GET /api/TimeEntries/rows. */
+  /** Estado de carga de filas de fichaje. */
   rowsApi: {
     loading: boolean;
     error: string | null;
@@ -107,7 +107,7 @@ interface TeamPanelProps {
     loading: boolean;
     error: string | null;
   };
-  /** Combo servicios (GET /api/Services) → query `serviceId` en TimeEntries/rows. */
+  /** Combo servicios → filtra filas por `serviceId`. */
   equipoServiceFilter?: {
     serviceId: string | null;
     onServiceIdChange: (id: string | null) => void;
@@ -120,7 +120,7 @@ interface TeamPanelProps {
   opcionesMes: FilterOption[];
   opcionesTrimestre: FilterOption[];
   opcionesAnio: FilterOption[];
-  /** Periodo «Año»: mes del detalle (GET /rows) encima de la tabla; gráficos siguen en año completo. */
+  /** Periodo «Año»: mes del detalle encima de la tabla; gráficos siguen en año completo. */
   gridMesDetalleEnAnio?: {
     mesPagina: number;
     opcionesMes: { value: number; label: string }[];
@@ -131,7 +131,7 @@ interface TeamPanelProps {
   totalMinutos: number;
   totalHorasDecimal: number;
   rowsFiltradas: TimeEntryMock[];
-  /** Si viene del GET /rows/summary, alinea KPI con gráficos; si no, se usa rowsFiltradas.length. */
+  /** Si viene del resumen, alinea KPI con gráficos; si no, se usa rowsFiltradas.length. */
   kpiRegistrosEnPeriodo?: number;
   diasLaborables: number;
   personasEnObjetivo: number;
@@ -143,6 +143,8 @@ interface TeamPanelProps {
   celdasLaborablesRejilla: number;
   celdasConFichajeRejilla: number;
   celdasConFichajeYParteRejilla: number;
+  /** Cerradas de trabajo real sin parte (excluye vacaciones/baja). */
+  celdasConFichajeSinParteLaboralRejilla: number;
   horasImputadasDecimal: number;
   horasFaltaParaObjetivo: number;
   fichajeTipoStats: FichajeTipoStats;
@@ -162,9 +164,9 @@ interface TeamPanelProps {
   editModalState: EquipoEditModalState;
   editModalVista: "menu" | "wizard";
   editFormError: string | null;
-  /** Guardando ausencia vía POST/PUT TimeEntries. */
+  /** Guardando ausencia en el servidor. */
   editAbsenceSaving: boolean;
-  /** Eliminando fichaje del día vía DELETE TimeEntries. */
+  /** Eliminando fichaje del día en el servidor. */
   editFichajeDeleting: boolean;
   /** Asistente «Corrección de fichaje» (mismo flujo que registro de jornada). */
   horarioWizard: {
@@ -293,6 +295,7 @@ export function TeamPanel({
   celdasLaborablesRejilla,
   celdasConFichajeRejilla,
   celdasConFichajeYParteRejilla,
+  celdasConFichajeSinParteLaboralRejilla,
   horasImputadasDecimal,
   horasFaltaParaObjetivo,
   fichajeTipoStats,
@@ -736,6 +739,7 @@ export function TeamPanel({
                 celdasLaborables={celdasLaborablesRejilla}
                 celdasConFichaje={celdasConFichajeRejilla}
                 celdasConFichajeYParte={celdasConFichajeYParteRejilla}
+                celdasConFichajeSinParteLaboral={celdasConFichajeSinParteLaboralRejilla}
                 periodo={periodo}
               />
             </div>
@@ -827,8 +831,8 @@ export function TeamPanel({
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               {rowsApi.totalCount}{" "}
               {rowsApi.totalCount === 1
-                ? "fichaje devuelto por el API"
-                : "fichajes devueltos por el API"}{" "}
+                ? "fichaje devuelto por el servidor"
+                : "fichajes devueltos por el servidor"}{" "}
               {periodo === "anio"
                 ? "en el mes mostrado (el grid completa días sin registro en cliente)."
                 : "en el periodo (el grid completa días sin registro en cliente)."}
@@ -897,13 +901,18 @@ export function TeamPanel({
                         ? "-con-parte-servidor"
                         : ""
                 }`;
-                downloadEquipoTablePdf({
+                void (async () => {
+                  const { downloadEquipoTablePdf } = await import(
+                    "@/features/time-tracking/utils/equipoTablePdf"
+                  );
+                  downloadEquipoTablePdf({
                   filas: filasOrdenadas,
                   nameByPersonKey: equipoNombrePorClave,
                   capWorkMinutesPerDay: equipoCapTrabajoDiarioMinutos,
                   title: `Fichajes y partes — ${periodoEtiqueta}`,
                   fileBaseName,
                 });
+                })();
               }}
               className="order-1 inline-flex items-center gap-1.5 rounded-xl border border-emerald-700 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 shadow-sm transition hover:bg-emerald-100 dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-900/50 sm:order-2 sm:text-sm"
             >
@@ -968,7 +977,7 @@ export function TeamPanel({
                       </button>
                     </th>
                   ))}
-                  <th className="max-w-[6.5rem] px-3 py-2.5" title="Campo JSON status del API">
+                  <th className="max-w-[6.5rem] px-3 py-2.5" title="Campo status del servidor">
                     <button
                       type="button"
                       onClick={() => onSetSortColumn("estado")}
@@ -1070,7 +1079,7 @@ export function TeamPanel({
                   </th>
                   <th
                     className="px-3 py-2.5"
-                    title="Según el API (workReportId, workReportStatus, workReportLineCount)"
+                    title="Según el servidor (workReportId, workReportStatus, workReportLineCount)"
                   >
                     Parte en servidor
                   </th>
@@ -1321,6 +1330,14 @@ export function TeamPanel({
                       <td
                         className={`sticky right-0 z-[1] align-middle border-l border-slate-200/80 px-1 py-1.5 text-center shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.06)] dark:border-slate-700 ${stripe}`}
                       >
+                        {timeEntryFilaSinAccionesEdicion(e) ? (
+                          <span
+                            className="text-xs text-slate-400 dark:text-slate-500"
+                            title="Día festivo o vacación planificada (no editable desde fichajes)."
+                          >
+                            —
+                          </span>
+                        ) : (
                         <EquipoTablaAccionesDuo
                           onEditarHora={() =>
                             onOpenEditModal({
@@ -1336,6 +1353,7 @@ export function TeamPanel({
                           parteDisabled={ocultaHoras || !e.checkOutUtc}
                           tieneParte={timeEntryConParteEnServidor(e)}
                         />
+                        )}
                       </td>
                     </tr>
                   );

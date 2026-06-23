@@ -21,6 +21,7 @@ export const HorasMensualesDonut = memo(function HorasMensualesDonut({
   celdasLaborables,
   celdasConFichaje,
   celdasConFichajeYParte,
+  celdasConFichajeSinParteLaboral,
   periodo,
   bare = false,
   bareStack = false,
@@ -28,6 +29,8 @@ export const HorasMensualesDonut = memo(function HorasMensualesDonut({
   celdasLaborables: number;
   celdasConFichaje: number;
   celdasConFichajeYParte: number;
+  /** Cerradas de trabajo real sin parte (excluye vacaciones/baja). Si se omite, se infiere como cf − cy. */
+  celdasConFichajeSinParteLaboral?: number;
   periodo: Periodo;
   bare?: boolean;
   bareStack?: boolean;
@@ -36,38 +39,44 @@ export const HorasMensualesDonut = memo(function HorasMensualesDonut({
   const jl = Math.max(0, Math.round(celdasLaborables));
   const cf = Math.min(Math.max(0, Math.round(celdasConFichaje)), jl);
   const cy = Math.min(Math.max(0, Math.round(celdasConFichajeYParte)), cf);
-  const conFichajeSinParte = Math.max(0, cf - cy);
+  const sinParteLaboral =
+    celdasConFichajeSinParteLaboral != null
+      ? Math.min(Math.max(0, Math.round(celdasConFichajeSinParteLaboral)), cf)
+      : Math.max(0, cf - cy);
+  const ausenciaCubierta = Math.max(0, cf - cy - sinParteLaboral);
   const sinFichaje = Math.max(0, jl - cf);
   const safe = jl > 0 ? jl : 1;
   const pY = (cy / safe) * 100;
-  const pF = (conFichajeSinParte / safe) * 100;
+  const pAusencia = (ausenciaCubierta / safe) * 100;
+  const pF = (sinParteLaboral / safe) * 100;
   const a1 = pY;
-  const a2 = a1 + pF;
+  const a2 = a1 + pAusencia;
+  const a3 = a2 + pF;
 
   const cParte = "#16a34a";
+  const cAusencia = "#6366f1";
   const cFichajeSinParte = "#38bdf8";
   const cSin = "#94a3b8";
 
   let gradient: string;
   if (jl <= 0) {
     gradient = "conic-gradient(from -90deg, #e2e8f0 0% 100%)";
-  } else if (conFichajeSinParte <= 0 && sinFichaje <= 0) {
+  } else if (sinFichaje <= 0 && sinParteLaboral <= 0 && ausenciaCubierta <= 0) {
     gradient = `conic-gradient(from -90deg, ${cParte} 0% 100%)`;
-  } else if (sinFichaje <= 0) {
+  } else if (sinFichaje <= 0 && sinParteLaboral <= 0) {
+    gradient =
+      cy <= 0
+        ? `conic-gradient(from -90deg, ${cAusencia} 0% 100%)`
+        : `conic-gradient(from -90deg, ${cParte} 0% ${a1}%, ${cAusencia} ${a1}% 100%)`;
+  } else if (sinFichaje <= 0 && ausenciaCubierta <= 0) {
     gradient =
       cy <= 0
         ? `conic-gradient(from -90deg, ${cFichajeSinParte} 0% 100%)`
-        : conFichajeSinParte <= 0
-          ? `conic-gradient(from -90deg, ${cParte} 0% 100%)`
-          : `conic-gradient(from -90deg, ${cParte} 0% ${a1}%, ${cFichajeSinParte} ${a1}% 100%)`;
-  } else if (conFichajeSinParte <= 0 && cy <= 0) {
+        : `conic-gradient(from -90deg, ${cParte} 0% ${a1}%, ${cFichajeSinParte} ${a1}% 100%)`;
+  } else if (sinParteLaboral <= 0 && ausenciaCubierta <= 0 && cy <= 0) {
     gradient = `conic-gradient(from -90deg, ${cSin} 0% 100%)`;
-  } else if (cy <= 0) {
-    gradient = `conic-gradient(from -90deg, ${cFichajeSinParte} 0% ${a2}%, ${cSin} ${a2}% 100%)`;
-  } else if (conFichajeSinParte <= 0) {
-    gradient = `conic-gradient(from -90deg, ${cParte} 0% ${a1}%, ${cSin} ${a1}% 100%)`;
   } else {
-    gradient = `conic-gradient(from -90deg, ${cParte} 0% ${a1}%, ${cFichajeSinParte} ${a1}% ${a2}%, ${cSin} ${a2}% 100%)`;
+    gradient = `conic-gradient(from -90deg, ${cParte} 0% ${a1}%, ${cAusencia} ${a1}% ${a2}%, ${cFichajeSinParte} ${a2}% ${a3}%, ${cSin} ${a3}% 100%)`;
   }
 
   const pctParteSobreLaborables = jl > 0 ? Math.round((cy / jl) * 1000) / 10 : 0;
@@ -78,7 +87,7 @@ export const HorasMensualesDonut = memo(function HorasMensualesDonut({
 
   const ariaResumen =
     jl > 0
-      ? `${jl} celdas laborables: ${cy} con fichaje y parte en servidor, ${conFichajeSinParte} con fichaje sin parte, ${sinFichaje} sin fichaje.`
+      ? `${jl} celdas laborables: ${cy} con fichaje y parte, ${sinParteLaboral} trabajo sin parte, ${ausenciaCubierta} vacaciones/festivo/baja cubiertas, ${sinFichaje} sin fichaje.`
       : "Sin celdas laborables en el filtro.";
 
   const filaMetricas = (
@@ -138,6 +147,10 @@ export const HorasMensualesDonut = memo(function HorasMensualesDonut({
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: cParte }} aria-hidden />
         Parte
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: cAusencia }} aria-hidden />
+        Vacaciones / festivo / baja
       </span>
       <span className="inline-flex items-center gap-1.5">
         <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: cFichajeSinParte }} aria-hidden />

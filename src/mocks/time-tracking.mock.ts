@@ -1,8 +1,6 @@
 // Datos mock del feature time-tracking
-// Solo se usan en desarrollo. En producción serán reemplazados por llamadas API:
-//   GET /api/TimeEntries?workerId=X
-//   GET /api/TimeEntries/team?range=...
-//   POST /api/TimeEntries
+// Solo se usan en desarrollo. En producción serán reemplazados por el servicio real:
+// Sustituir por servicios reales de fichajes cuando el mock deje de usarse.
 
 import type { TimeEntryMock, TimeEntryRazon } from "@/features/time-tracking/types";
 import {
@@ -182,7 +180,7 @@ export function createInitialMockEntries(workerId: number, sessionEmail: string)
 /**
  * Demo equipo: últimos 12 meses hasta **hoy** (sin días futuros).
  * ~90 % de días laborables imputados; resto sin registro (ej. baja).
- * Mezcla normal / manual. En producción vendrá del API.
+ * Mezcla normal / manual. En producción vendrá del servidor.
  */
 export function createTeamHistorialDemo(): TimeEntryMock[] {
   const now = new Date();

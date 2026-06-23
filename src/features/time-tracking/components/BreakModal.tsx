@@ -8,6 +8,7 @@ import {
 import {
   diffDurationMinutes,
   formatMinutesShort,
+  formatSignedMinutesShort,
   formatTimeLocal,
   minutesToClockParts,
 } from "@/shared/utils/time";
@@ -412,8 +413,7 @@ export function BreakModal({
                       <span
                         className={`font-semibold ${workedMinutes !== null && Math.abs(diffMin) <= 1 ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}
                       >
-                        {diffMin > 0 ? "+" : ""}
-                        {diffMin} min
+                        {formatSignedMinutesShort(diffMin)}
                       </span>
                     </div>
                     <div className="space-y-2 border-b border-slate-200 pb-3 dark:border-slate-600">

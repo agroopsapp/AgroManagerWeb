@@ -10,12 +10,23 @@ import {
 
 type UseCalendarioLaboralOptions = {
   companyId: string | null | undefined;
+  /** Admin / Manager / SuperAdmin. Si false, `setVacationMark` no hace nada. */
+  canMutateVacations: boolean;
+  /**
+   * Trabajador: solo carga/expone vacaciones de este usuario (no ve el resto en memoria).
+   * Al guardar en localStorage, fusiona solo su mapa sin borrar los de otros usuarios.
+   */
+  viewerUserId?: string | null;
 };
 
-export function useCalendarioLaboral({ companyId }: UseCalendarioLaboralOptions) {
+export function useCalendarioLaboral({
+  companyId,
+  canMutateVacations,
+  viewerUserId,
+}: UseCalendarioLaboralOptions) {
+  const viewerUid = viewerUserId?.trim() ?? "";
   const key = useMemo(() => calendarioLaboralStorageKey(companyId), [companyId]);
 
-  const [holidaysByDate, setHolidaysByDate] = useState<Record<string, CalendarioLaboralDayMark>>({});
   const [vacationsByUserId, setVacationsByUserId] = useState<
     Record<string, Record<string, CalendarioLaboralDayMark>>
   >({});
@@ -26,40 +37,48 @@ export function useCalendarioLaboral({ companyId }: UseCalendarioLaboralOptions)
     try {
       const raw = window.localStorage.getItem(key);
       const parsed = parseCalendarioLaboralJson(raw);
-      setHolidaysByDate(parsed.holidaysByDate);
-      setVacationsByUserId(parsed.vacationsByUserId);
+      if (viewerUid) {
+        setVacationsByUserId(
+          viewerUid in parsed.vacationsByUserId
+            ? { [viewerUid]: parsed.vacationsByUserId[viewerUid] }
+            : {},
+        );
+      } else {
+        setVacationsByUserId(parsed.vacationsByUserId);
+      }
     } catch {
-      setHolidaysByDate({});
       setVacationsByUserId({});
     }
     setHydrated(true);
-  }, [key]);
+  }, [key, viewerUid]);
 
   useEffect(() => {
     if (!hydrated || typeof window === "undefined") return;
     try {
+      let vacationsToPersist = vacationsByUserId;
+      if (viewerUid) {
+        const raw = window.localStorage.getItem(key);
+        const parsed = parseCalendarioLaboralJson(raw);
+        vacationsToPersist = {
+          ...parsed.vacationsByUserId,
+          [viewerUid]: vacationsByUserId[viewerUid] ?? {},
+        };
+      }
       window.localStorage.setItem(
         key,
-        serializeCalendarioLaboral({ holidaysByDate, vacationsByUserId }),
+        serializeCalendarioLaboral({ holidaysByDate: {}, vacationsByUserId: vacationsToPersist }),
       );
     } catch {
       /* quota / private mode */
     }
-  }, [holidaysByDate, vacationsByUserId, key, hydrated]);
-
-  const setHolidayMark = useCallback((dateISO: string, mark: CalendarioLaboralDayMark | null) => {
-    setHolidaysByDate((prev) => {
-      const next = { ...prev };
-      if (mark == null) delete next[dateISO];
-      else next[dateISO] = mark;
-      return next;
-    });
-  }, []);
+  }, [vacationsByUserId, key, hydrated, viewerUid]);
 
   const setVacationMark = useCallback(
     (userId: string, dateISO: string, mark: CalendarioLaboralDayMark | null) => {
+      if (!canMutateVacations) return;
       const uid = userId.trim();
       if (!uid) return;
+      if (viewerUid && uid !== viewerUid) return;
       setVacationsByUserId((prev) => {
         const current = prev[uid] ?? {};
         const nextUserMap = { ...current };
@@ -68,8 +87,8 @@ export function useCalendarioLaboral({ companyId }: UseCalendarioLaboralOptions)
         return { ...prev, [uid]: nextUserMap };
       });
     },
-    [],
+    [canMutateVacations, viewerUid],
   );
 
-  return { holidaysByDate, vacationsByUserId, setHolidayMark, setVacationMark, hydrated };
+  return { vacationsByUserId, setVacationMark, hydrated };
 }

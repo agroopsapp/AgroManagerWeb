@@ -52,3 +52,20 @@ export {
   putCompanyOnApi,
 } from "./companies.service";
 export { superadminApi } from "./superadmin.service";
+export {
+  companyHolidaysApi,
+  normalizeCompanyHoliday,
+  type CompanyHolidayDto,
+  type CompanyHolidayCreateBody,
+  type CompanyHolidayBulkCreateBody,
+  type CompanyHolidayUpdateBody,
+  type CompanyHolidayBulkDeleteBody,
+} from "./company-holidays.service";
+export {
+  userVacationsApi,
+  type UserVacationDto,
+  type UserVacationBalanceDto,
+  type UserVacationCreateBody,
+  type UserVacationBulkCreateBody,
+  type UserVacationBulkDeleteBody,
+} from "./user-vacations.service";

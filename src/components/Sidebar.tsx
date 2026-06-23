@@ -111,35 +111,32 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
                       </span>
                       {showLabels && <span className="truncate">{label}</span>}
                     </Link>
-
-                    {/* Cerrar sesión justo debajo de «Trabajadores» */}
-                    {href === "/dashboard/users" && (
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className={`flex items-center rounded-xl border border-emerald-400/25 bg-emerald-950/20 px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
-                          showLabels ? "gap-3 px-4" : "justify-center md:px-3"
-                        } text-emerald-50/90 hover:border-emerald-300/45 hover:bg-emerald-400/15 hover:text-white`}
-                        aria-label="Cerrar sesión"
-                        title={showLabels ? undefined : "Cerrar sesión"}
-                      >
-                        <span className="text-lg shrink-0" aria-hidden>
-                          ⎋
-                        </span>
-                        {showLabels && <span className="truncate">Cerrar sesión</span>}
-                      </button>
-                    )}
                   </div>
                 );
               })}
             </div>
           );
         })}
+        <div className="mt-auto flex shrink-0 flex-col gap-1 border-t border-emerald-400/15 pt-2">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className={`flex items-center rounded-xl border border-emerald-400/25 bg-emerald-950/20 px-3 py-3 text-sm font-semibold transition md:py-2.5 ${
+              showLabels ? "gap-3 px-4" : "justify-center md:px-3"
+            } text-emerald-50/90 hover:border-emerald-300/45 hover:bg-emerald-400/15 hover:text-white`}
+            aria-label="Cerrar sesión"
+            title={showLabels ? undefined : "Cerrar sesión"}
+          >
+            <span className="text-lg shrink-0" aria-hidden>
+              ⎋
+            </span>
+            {showLabels && <span className="truncate">Cerrar sesión</span>}
+          </button>
         <button
           type="button"
           onClick={onToggle}
           aria-label={mobileDrawer ? "Cerrar menú" : collapsed ? "Expandir menú" : "Colapsar menú"}
-          className="mt-auto flex w-full shrink-0 items-center justify-center rounded-xl border border-transparent px-3 py-2.5 text-emerald-50/85 transition hover:border-emerald-400/20 hover:bg-white/10 hover:text-white md:px-3"
+          className="flex w-full shrink-0 items-center justify-center rounded-xl border border-transparent px-3 py-2.5 text-emerald-50/85 transition hover:border-emerald-400/20 hover:bg-white/10 hover:text-white md:px-3"
         >
           {mobileDrawer ? (
             <span className="text-sm font-semibold">Cerrar menú</span>
@@ -149,6 +146,7 @@ export default function Sidebar({ pathname, collapsed, onToggle, onNavigate, mob
             </span>
           )}
         </button>
+        </div>
       </nav>
     </aside>
   );

@@ -74,7 +74,7 @@ export default function MyCompanyPage() {
           const fallback = local ?? emptyMyCompanyProfile;
           setForm(fallback);
           if (!local) {
-            setError("No hay empresa en el servidor. Comprueba /api/Companies.");
+            setError("No hay empresa en el servidor.");
           }
         }
       } catch (e) {
@@ -101,14 +101,9 @@ export default function MyCompanyPage() {
         description={
           <div className="max-w-2xl space-y-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400 [&_strong]:font-semibold">
             <p>
-              Datos para partes e informes. Los datos se cargan con <strong>GET /api/Companies</strong>
-              {!isWorker ? (
-                <>
-                  {" "}
-                  y puedes guardarlos en el servidor con <strong>PUT /api/Companies/{"{id}"}</strong>
-                </>
-              ) : null}
-              . Se usan como cabecera en partes (PDF) e informes.
+              Datos para partes e informes. Se cargan desde el servidor
+              {!isWorker ? " y puedes guardarlos al pulsar Guardar" : null}. Se usan como cabecera en
+              partes (PDF) e informes.
             </p>
             {isWorker ? (
               <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">

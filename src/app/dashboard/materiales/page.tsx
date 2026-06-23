@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MODAL_BACKDROP_CENTER, modalScrollablePanel } from "@/components/modalShell";
 import { userVisibleMessageFromUnknown } from "@/shared/utils/apiErrorDisplay";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFeatures } from "@/contexts/FeaturesContext";
 import { useFlashSuccess } from "@/contexts/FlashSuccessContext";
+import { appHomePath } from "@/lib/dashboardNavGating";
 import { getCompaniesFromApi } from "@/services/companies.service";
 import {
   buildMaterialCreatePayload,
@@ -19,7 +22,17 @@ type SortDir = "asc" | "desc";
 export default function MaterialesPage() {
   const { showSuccess } = useFlashSuccess();
   const { user, isReady } = useAuth();
+  const router = useRouter();
+  const { enableTimeTracking, enableOperativaYAnalisisMenu } = useFeatures();
+  const isSuperAdmin = user?.role === USER_ROLE.SuperAdmin;
   const isWorker = user?.role === USER_ROLE.Worker;
+
+  useEffect(() => {
+    if (!isReady || !user || !isSuperAdmin) return;
+    if (user.role !== USER_ROLE.SuperAdmin) {
+      router.replace(appHomePath(user.role, enableTimeTracking, enableOperativaYAnalisisMenu));
+    }
+  }, [isReady, user, router, enableTimeTracking, enableOperativaYAnalisisMenu]);
 
   const [rows, setRows] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +61,7 @@ export default function MaterialesPage() {
   }, [tenantCompanyId, user?.companyId]);
 
   useEffect(() => {
-    if (!isReady || !user) return;
+    if (!isReady || !user || !isSuperAdmin) return;
     const ac = new AbortController();
     (async () => {
       setLoading(true);
@@ -68,9 +81,10 @@ export default function MaterialesPage() {
       }
     })();
     return () => ac.abort();
-  }, [isReady, user?.id, listCompanyId]);
+  }, [isReady, user?.id, listCompanyId, isSuperAdmin]);
 
   useEffect(() => {
+    if (!isReady || !user || !isSuperAdmin) return;
     const ac = new AbortController();
     setTenantIdError(null);
     getCompaniesFromApi({ signal: ac.signal })
@@ -80,7 +94,7 @@ export default function MaterialesPage() {
         setTenantCompanyId(id || null);
         if (!id) {
           setTenantIdError(
-            "No hay empresa en /api/Companies; al crear un material hace falta el GUID de empresa (tenant).",
+            "No hay empresa registrada; al crear un material hace falta la empresa del tenant.",
           );
         }
       })
@@ -89,11 +103,11 @@ export default function MaterialesPage() {
         if (e instanceof DOMException && e.name === "AbortError") return;
         setTenantCompanyId(null);
         setTenantIdError(
-          "No se pudo obtener la empresa del tenant (GET /api/Companies). Comprueba sesión y NEXT_PUBLIC_API_URL.",
+          "No se pudo obtener la empresa del tenant. Comprueba sesión y la URL del servidor.",
         );
       });
     return () => ac.abort();
-  }, []);
+  }, [isReady, user, isSuperAdmin]);
 
   const openCreate = () => {
     setEditing(null);
@@ -180,7 +194,7 @@ export default function MaterialesPage() {
       } else {
         if (!tenantCompanyId) {
           setError(
-            "Falta el GUID de tu empresa (tenant). Debe existir al menos una fila en GET /api/Companies.",
+            "Falta la empresa del tenant. Configura «Mi empresa» o contacta con administración.",
           );
           setSaving(false);
           return;
@@ -222,14 +236,25 @@ export default function MaterialesPage() {
     }
   };
 
+  if (!isReady) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (!user || !isSuperAdmin) {
+    return null;
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Materiales</h1>
           <p className="mt-1 text-slate-600 dark:text-slate-400">
-            Catálogo de materiales por empresa (API <code className="rounded bg-slate-100 px-1 dark:bg-slate-700">/api/Materials</code>
-            ).
+            Catálogo de materiales por empresa.
           </p>
           {isReady && isWorker ? (
             <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-900/50 dark:text-slate-300">

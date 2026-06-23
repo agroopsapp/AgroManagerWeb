@@ -24,7 +24,7 @@ export interface TimeEntryDto {
   lastModifiedByName?: string | null;
   breakMinutes?: number;
   razon?: string | null;
-  /** Estado de jornada (`status` en JSON del API). */
+  /** Estado de jornada (`status` en JSON del servidor). */
   status?: string | null;
 }
 
@@ -33,7 +33,7 @@ export interface TimeEntrySummaryDto {
 }
 
 /**
- * Texto de descanso alineado con `breakSummary` en GET /api/TimeEntries/rows.
+ * Texto de descanso alineado con `breakSummary` en filas de fichaje del servidor.
  * Algunos handlers solo persisten o exponen este campo y no `breakMinutes`.
  */
 export function breakSummaryFromMinutes(minutes: number): string {
@@ -41,7 +41,7 @@ export function breakSummaryFromMinutes(minutes: number): string {
   return `${n} min`;
 }
 
-/** Cuerpo POST /api/TimeEntries (CreateTimeEntryRequest, JSON camelCase). */
+/** Cuerpo de alta de fichaje (CreateTimeEntryRequest, JSON camelCase). */
 export interface CreateTimeEntryBody {
   companyId: string;
   userId: string;
@@ -54,7 +54,7 @@ export interface CreateTimeEntryBody {
   breakSummary?: string;
 }
 
-/** Cuerpo PUT /api/TimeEntries/{id} — lo omitido suele no cambiar en el handler. */
+/** Cuerpo de actualización de fichaje; lo omitido suele no cambiar en el servidor. */
 export interface UpdateTimeEntryBody {
   workDate?: string;
   startAt?: string;
@@ -182,7 +182,7 @@ function buildQuery(params: Record<string, string | undefined>): string {
 }
 
 /**
- * Query para GET /api/TimeEntries/rows (page, pageSize numéricos).
+ * Query de paginación para filas de fichaje (page, pageSize numéricos).
  * Regla general: booleans solo si true, excepto `excludedFromTimeTracking` que admite true/false (nullable).
  */
 function buildRowsQuery(
@@ -199,8 +199,9 @@ function buildRowsQuery(
 }
 
 /**
- * Respuesta de `GET /api/TimeEntries/rows` (camelCase o PascalCase).
- * Cada elemento de `items` con `rowKind: "timeEntry"` suele incluir `status` (p. ej. Closed, Vacation, SickLeave).
+ * Respuesta paginada de filas de fichaje (camelCase o PascalCase).
+ * Cada elemento de `items` incluye `rowKind` (`timeEntry`, `companyHoliday`)
+ * y `status` (p. ej. Closed, Vacation, FestivoEmpresa).
  */
 export type TimeEntryRowsPageDto = {
   page: number;
@@ -275,7 +276,7 @@ export type TimeEntryRowsQuery = {
   workAreaId?: string;
 };
 
-/** GET /api/TimeEntries/rows/summary — mismos filtros que `rows` (sin paginación). */
+/** Resumen de filas de fichaje — mismos filtros que `rows` (sin paginación). */
 export type TimeEntryRowsSummaryQuery = {
   from: string;
   to: string;
@@ -447,7 +448,7 @@ function parseTimeEntryRowsSummary(raw: unknown): TimeEntryRowsSummaryDto | null
 }
 
 /**
- * GET /api/TimeEntries/rows/heatmap — mismos filtros que `rows/summary`, sin paginación.
+ * Heatmap de cumplimiento horario — mismos filtros que summary, sin paginación.
  * Devuelve cumplimiento por día y por semana ISO dentro del rango.
  */
 export type TimeEntryRowsHeatmapDayDto = {
@@ -569,7 +570,7 @@ function parseTimeEntryRowsHeatmap(raw: unknown): TimeEntryRowsHeatmapDto | null
 }
 
 /**
- * GET /api/TimeEntries/rows/heatmap-parts — disciplina de partes por día/semana ISO.
+ * Heatmap de disciplina de partes por día/semana ISO.
  * Mismos filtros que `rows/summary` salvo `hoursPerWorkingDay` (no aplica).
  *
  * Cumplimiento = `entriesWithPart / closedEntries`.
@@ -690,12 +691,14 @@ export const timeTrackingApi = {
     return unwrapEntries(data).map(normalizeTimeEntryDto);
   },
 
-  /** Alias semántico para pantalla "Mis fichajes". */
-  async getMyEntries(opts?: { signal?: AbortSignal }): Promise<TimeEntryDto[]> {
+  /**
+   * Histórico personal (`/mine`): fichajes reales (incl. `Vacation`) y festivos sintéticos (`FestivoEmpresa`).
+   */
+  async getMyEntries(opts?: { signal?: AbortSignal }): Promise<unknown[]> {
     const data = await apiClient.get<unknown>("/api/TimeEntries/mine", {
       signal: opts?.signal,
     });
-    return unwrapEntries(data).map(normalizeTimeEntryDto);
+    return unwrapEntries(data);
   },
 
   /** Marca entrada del trabajador autenticado. */
@@ -710,19 +713,19 @@ export const timeTrackingApi = {
     return normalizeTimeEntryDto(raw);
   },
 
-  /** Alta manual de fila de día (jornada, ausencia, etc.) — POST /api/TimeEntries. */
+  /** Alta manual de fila de día (jornada, ausencia, etc.). */
   async createTimeEntry(body: CreateTimeEntryBody): Promise<TimeEntryDto> {
     const raw = await apiClient.post<unknown>("/api/TimeEntries", body);
     return normalizeTimeEntryDto(raw);
   },
 
-  /** Actualiza fila existente — PUT /api/TimeEntries/{id} (204 sin cuerpo). */
+  /** Actualiza fila existente (204 sin cuerpo). */
   async updateTimeEntry(timeEntryId: string, body: UpdateTimeEntryBody): Promise<void> {
     const id = encodeURIComponent(timeEntryId.trim());
     await apiClient.put<unknown>(`/api/TimeEntries/${id}`, body);
   },
 
-  /** Elimina la fila de fichaje del día — DELETE /api/TimeEntries/{id} (204 sin cuerpo). */
+  /** Elimina la fila de fichaje del día (204 sin cuerpo). */
   async deleteTimeEntry(timeEntryId: string, opts?: { signal?: AbortSignal }): Promise<void> {
     const id = encodeURIComponent(timeEntryId.trim());
     await apiClient.delete<unknown>(`/api/TimeEntries/${id}`, { signal: opts?.signal });
@@ -736,7 +739,7 @@ export const timeTrackingApi = {
   },
 
   /**
-   * Una página de GET /api/TimeEntries/rows (grid equipo / informes).
+   * Una página de filas de fichaje (grid equipo / informes).
    */
   async getTimeEntryRowsPage(
     opts: TimeEntryRowsQuery & { signal?: AbortSignal }
@@ -778,7 +781,7 @@ export const timeTrackingApi = {
 
   /**
    * Heatmap de cumplimiento por día y semana ISO (mismos filtros que `rows/summary`).
-   * Reusa la query de summary porque la API admite los mismos parámetros.
+   * Reusa la query de summary porque el servidor admite los mismos parámetros.
    */
   async getTimeEntryRowsHeatmap(
     opts: TimeEntryRowsSummaryQuery & { signal?: AbortSignal },
@@ -854,23 +857,49 @@ export const timeTrackingApi = {
       Math.max(1, opts.pageSize ?? TIME_ENTRY_ROWS_MAX_PAGE_SIZE)
     );
     const maxPages = opts.maxPages ?? TIME_ENTRY_ROWS_MAX_PAGES;
-    const all: unknown[] = [];
-    let totalCount = 0;
-    let filtersApplied: Record<string, unknown> = {};
+    const PAGE_BATCH = 4;
 
-    for (let page = 1; page <= maxPages; page++) {
-      const parsed = await fetchTimeEntryRowsPageImpl({
-        ...opts,
-        page,
-        pageSize,
-      });
-      if (page === 1) {
-        totalCount = parsed.totalCount;
-        filtersApplied = parsed.filtersApplied;
+    const first = await fetchTimeEntryRowsPageImpl({
+      ...opts,
+      page: 1,
+      pageSize,
+    });
+    const all: unknown[] = [...first.items];
+    const totalCount = first.totalCount;
+    const filtersApplied = first.filtersApplied;
+
+    if (first.items.length === 0 || first.items.length < pageSize) {
+      return { items: all, totalCount, filtersApplied };
+    }
+    if (totalCount > 0 && all.length >= totalCount) {
+      return { items: all, totalCount, filtersApplied };
+    }
+
+    const pagesNeeded =
+      totalCount > 0
+        ? Math.min(maxPages, Math.ceil(totalCount / pageSize))
+        : maxPages;
+
+    for (let batchStart = 2; batchStart <= pagesNeeded; batchStart += PAGE_BATCH) {
+      if (opts.signal?.aborted) break;
+      const batchPages: number[] = [];
+      for (let p = batchStart; p < batchStart + PAGE_BATCH && p <= pagesNeeded; p++) {
+        batchPages.push(p);
       }
-      all.push(...parsed.items);
-      if (parsed.items.length === 0) break;
-      if (parsed.items.length < pageSize) break;
+      const batchResults = await Promise.all(
+        batchPages.map((page) =>
+          fetchTimeEntryRowsPageImpl({ ...opts, page, pageSize }),
+        ),
+      );
+      let shortPage = false;
+      for (const parsed of batchResults) {
+        all.push(...parsed.items);
+        if (parsed.items.length < pageSize) {
+          shortPage = true;
+          break;
+        }
+      }
+      if (shortPage) break;
       if (totalCount > 0 && all.length >= totalCount) break;
     }
 
