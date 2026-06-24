@@ -44,7 +44,7 @@ const PersonalEditarDiaModal = dynamic(
 );
 
 export default function TimeTrackingPage() {
-  const { user, isReady } = useAuth();
+  const { user, isReady, syncExcludedFromTimeTracking } = useAuth();
   const [personalEditarDiaWorkDate, setPersonalEditarDiaWorkDate] = useState<string | null>(null);
   const [excludedFromTimeTrackingProfile, setExcludedFromTimeTrackingProfile] = useState<boolean | null>(null);
   const [excludedCheckLoading, setExcludedCheckLoading] = useState(false);
@@ -83,13 +83,15 @@ export default function TimeTrackingPage() {
       try {
         const me = await usersApi.getById(user.id, { signal: ac.signal });
         if (ac.signal.aborted) return;
-        setExcludedFromTimeTrackingProfile(me.excludedFromTimeTracking === true);
+        const excluded = me.excludedFromTimeTracking === true;
+        setExcludedFromTimeTrackingProfile(excluded);
+        syncExcludedFromTimeTracking(excluded);
       } catch {
         if (!ac.signal.aborted) setExcludedFromTimeTrackingProfile(false);
       }
     })();
     return () => ac.abort();
-  }, [isReady, user?.id]);
+  }, [isReady, user?.id, syncExcludedFromTimeTracking]);
 
   // --- Thin orchestration handlers ---
   const handleCheckOut = async () => {
@@ -234,7 +236,9 @@ export default function TimeTrackingPage() {
     fichaje.actionLoading === null;
 
   const excludedFromTimeTracking =
-    user?.excludedFromTimeTracking === true || excludedFromTimeTrackingProfile === true;
+    excludedFromTimeTrackingProfile !== null
+      ? excludedFromTimeTrackingProfile === true
+      : user?.excludedFromTimeTracking === true;
 
   // Cortafuegos: si el usuario está excluido, nunca mantener abiertos flujos de fichaje/corrección.
   useEffect(() => {
@@ -245,7 +249,6 @@ export default function TimeTrackingPage() {
 
   const ensureExcludedFlagLoaded = async (): Promise<boolean> => {
     if (!isReady || !user?.id) return false;
-    if (user.excludedFromTimeTracking === true) return true;
     if (excludedFromTimeTrackingProfile !== null) return excludedFromTimeTrackingProfile === true;
     setExcludedCheckLoading(true);
     try {
@@ -254,7 +257,7 @@ export default function TimeTrackingPage() {
       setExcludedFromTimeTrackingProfile(excluded);
       return excluded;
     } catch {
-      // Sin exclusión en sesión: no bloquear fichaje si el API no responde (403, caída, etc.).
+      // Si no podemos leer el perfil, no bloquear por un flag obsoleto en sesión.
       setExcludedFromTimeTrackingProfile(false);
       return false;
     } finally {

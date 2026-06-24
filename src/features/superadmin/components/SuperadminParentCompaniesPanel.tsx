@@ -312,6 +312,7 @@ export function SuperadminParentCompaniesPanel({ active }: { active: boolean }) 
                   className={`mt-1 ${fieldClass}`}
                   value={form.website}
                   onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+                  placeholder="grupogracia.es"
                 />
               </div>
               <div>

@@ -154,13 +154,14 @@ export function BreakModal({
       ? `${getApiBaseUrl()}${workPartSignatureTemp.startsWith("/") ? "" : "/"}${workPartSignatureTemp}`
       : workPartSignatureTemp;
 
+  const panelClass =
+    step === "workPart"
+      ? `my-auto flex w-full max-h-[min(92vh,900px)] max-w-xl flex-col overflow-hidden ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`
+      : `my-auto w-full max-h-[min(92vh,900px)] max-w-sm overflow-y-auto ${MODAL_SURFACE} ${MODAL_SURFACE_PAD}`;
+
   return (
-    <div className={`fixed inset-0 z-40 ${MODAL_BACKDROP_SCROLL}`}>
-      <div
-        className={`my-auto w-full max-h-[min(92vh,900px)] overflow-y-auto ${MODAL_SURFACE} ${MODAL_SURFACE_PAD} ${
-          step === "workPart" ? "max-w-xl" : "max-w-sm"
-        }`}
-      >
+    <div className={`fixed inset-0 z-50 ${MODAL_BACKDROP_SCROLL}`}>
+      <div className={panelClass}>
         {step === "askRest" && openEntry && (
           <>
             <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
@@ -371,6 +372,7 @@ export function BreakModal({
               });
             return (
               <>
+                <div className="min-h-0 flex-1 overflow-y-auto">
                 <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">
                   {workPartModalMode === "edit" ? "Editar parte de trabajo" : "Crear parte de trabajo"}
                 </h2>
@@ -673,8 +675,9 @@ export function BreakModal({
                     />
                   </div>
                 )}
+                </div>
 
-                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <div className="mt-3 flex shrink-0 flex-wrap justify-end gap-2 border-t border-slate-200 pt-3 dark:border-slate-600">
                   {workPartModalMode === "edit" && (
                     <div className="mr-auto flex flex-wrap gap-2">
                       <button

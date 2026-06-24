@@ -200,7 +200,7 @@ export default function MyCompanyPage() {
               disabled={loading}
               readOnly={isWorker}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm read-only:cursor-default read-only:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:read-only:bg-slate-950/60"
-              placeholder="https://…"
+              placeholder="grupogracia.es"
             />
           </div>
 

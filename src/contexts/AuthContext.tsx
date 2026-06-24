@@ -34,6 +34,8 @@ interface AuthContextType {
   /** Devuelve el usuario autenticado para redirigir sin esperar al siguiente render. */
   login: (email: string, password: string) => Promise<AuthUser>;
   logout: () => void;
+  /** Sincroniza el flag de exclusión de fichaje con la BD (p. ej. tras GET /api/Users/{id}). */
+  syncExcludedFromTimeTracking: (excluded: boolean) => void;
   isReady: boolean;
 }
 
@@ -126,9 +128,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  const syncExcludedFromTimeTracking = useCallback((excluded: boolean) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next: AuthUser = { ...prev };
+      if (excluded) next.excludedFromTimeTracking = true;
+      else delete next.excludedFromTimeTracking;
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as StoredAuthState;
+          if (parsed.user) {
+            const storedUser: AuthUser = { ...parsed.user };
+            if (excluded) storedUser.excludedFromTimeTracking = true;
+            else delete storedUser.excludedFromTimeTracking;
+            localStorage.setItem(
+              STORAGE_KEY,
+              JSON.stringify({ ...parsed, user: storedUser } satisfies StoredAuthState),
+            );
+          }
+        }
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
   const value = useMemo<AuthContextType>(
-    () => ({ user, token, login, logout, isReady }),
-    [user, token, login, logout, isReady],
+    () => ({ user, token, login, logout, syncExcludedFromTimeTracking, isReady }),
+    [user, token, login, logout, syncExcludedFromTimeTracking, isReady],
   );
 
   return (
